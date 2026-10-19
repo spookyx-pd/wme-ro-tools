@@ -17,6 +17,29 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-19 - v0.43 - verificare actualizări pe Greasy Fork
+
+Paul: "hai să facem o versiune nouă care verifică la deschidere dacă există
+versiune nouă pe greasyfork iar dacă există, buton de deschidere
+actualizare script și asta va fi 0.43 și îi facem push ca release."
+- La pornirea WME (după ~8 s, cel mult o dată la 6 ore), scriptul citește
+  versiunea de pe Greasy Fork. Dacă e mai nouă, sus apare un anunț:
+  „🔄 WME RO Tools X e disponibil (ai Y)”, cu butoanele:
+  - „Actualizează”: deschide instalarea în Tampermonkey;
+  - „Ce e nou”: pagina de pe Greasy Fork;
+  - „Mai târziu”: anunțul nu mai apare pentru acea versiune.
+- În setări: linkul „Verifică actualizări” pe rândul cu versiunea și
+  opțiunea „Verifică actualizările la pornire” (activă implicit).
+- Tehnic: WME blochează cererile către greasyfork.org. De aceea scriptul
+  are acum `@grant GM_xmlhttpRequest` + `@connect update.greasyfork.org`;
+  restul scriptului folosește fereastra paginii (`unsafeWindow`).
+- Testat live (copie de test, răspuns Greasy Fork simulat „0.44”):
+  - anunțul apare;
+  - „Mai târziu” memorează versiunea ignorată;
+  - restul scriptului pornește normal.
+  - Cererea reală prin Tampermonkey se va vedea la prima versiune de după
+    0.43.
+
 ## 2026-10-19 - v0.42 - texte personalizabile, „WME Bug fix”, GitHub
 
 Paul: "menționează ce e WME Bug fix... exemplu cu filtrul de hartă sau

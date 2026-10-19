@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.42
+// @version      0.43
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -13,13 +13,21 @@
 // @match        https://www.waze.com/editor*
 // @match        https://beta.waze.com/*editor*
 // @exclude      https://www.waze.com/*user/editor/*
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
+// @connect      update.greasyfork.org
+// @connect      greasyfork.org
 // @run-at       document-idle
 // ==/UserScript==
 
-/* global W, WazeWrap */
+/* global GM_xmlhttpRequest, GM_info, unsafeWindow */
 
-(function () {
+// v0.43: `@grant GM_xmlhttpRequest` (for the Greasy Fork update check - the
+// WME page CSP blocks fetch to greasyfork.org). With a grant the userscript
+// manager may run us in a sandbox, so `window` is rebound to the PAGE window
+// (unsafeWindow) for the whole script; page globals are always read as
+// `window.W`, `window.I18n`, `window.getWmeSdk`.
+(function (window) {
   'use strict';
 
   // Renamed from "wme-node-angle-length" to "WME RO Tools" - now a
@@ -27,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.42';
+  const SCRIPT_VERSION = '0.43';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -99,6 +107,10 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.43', items: [L(
+      'La pornirea WME, scriptul verifică dacă pe Greasy Fork există o versiune nouă și afișează un anunț cu butonul „Actualizează”. Verificare manuală din setări: „Verifică actualizări”.',
+      'When WME starts, the script checks Greasy Fork for a new version and shows a notice with an "Update" button. Manual check in the settings: "Check for updates".'
+    )] },
     { v: '0.42', items: [
       L('Textele în română care ajung pe hartă sau în răspunsurile UR (separatoare, „Mesaj lung”, avertizări și TTS la viraje, simulare vocală) se pot personaliza sau traduce din setări → „Texte personalizabile”, cu export / import JSON.',
         'The Romanian texts that end up on the map or in UR replies (separators, "Long message", turn warnings and TTS, voice simulation) can be customized or translated in the settings → "Customizable texts", with JSON export / import.'),
@@ -357,6 +369,8 @@
     language: 'auto',
     // Customizable content texts (CT, v0.42): { key: text }.
     customTexts: {},
+    // v0.43: check Greasy Fork for a newer version when WME opens.
+    updateCheck: true,
     nodeAngleLength: true, // angle + length on selected node
     segmentLength: true, // length on selected segment
     segmentAutomation: true, // segment parameter automation (unpaved/road type)
@@ -625,6 +639,20 @@
     gfLink.textContent = 'Greasy Fork / Feedback';
     gfLink.title = L('Pagina scriptului pe Greasy Fork: actualizări, descriere, raportare probleme', 'Script page on Greasy Fork: updates, description, bug reports');
     version.appendChild(gfLink);
+    version.append(' · ');
+    const updLink = document.createElement('a');
+    updLink.href = '#';
+    updLink.textContent = L('Verifică actualizări', 'Check for updates');
+    updLink.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      updLink.textContent = L('Se verifică…', 'Checking…');
+      updateCheck(true, (latest) => {
+        if (!latest) updLink.textContent = L('Verificare eșuată', 'Check failed');
+        else if (compareVersions(latest, SCRIPT_VERSION) > 0) updLink.textContent = L(`Versiune nouă: ${latest}`, `New version: ${latest}`);
+        else updLink.textContent = L('Ai ultima versiune ✓', 'You have the latest version ✓');
+      });
+    });
+    version.appendChild(updLink);
     wrap.appendChild(version);
 
     // Language selector (v0.41). Applied on page reload - LANG is fixed at load.
@@ -878,6 +906,12 @@
       L('Trimițător de mesaje lungi pentru UR', 'Long message sender for URs'),
       L('Împarte automat un mesaj lung în bucăți, la o Solicitare de actualizare.', 'Automatically splits a long message into parts, in an Update Request.'),
       L('Buton "Mesaj lung" lângă Trimite, în conversația unei Solicitări de actualizare (UR/PUR/MP): împarte automat un text de peste 2000 caractere în mai multe bucăți, trimise manual, una câte una.', '"Long message" button next to Send, in an Update Request conversation (UR/PUR/MP): automatically splits a text over 2000 characters into several parts, sent manually, one by one.')
+    );
+    addToggle(
+      'updateCheck',
+      L('Verifică actualizările la pornire', 'Check for updates on startup'),
+      L('Anunță când pe Greasy Fork e o versiune nouă, cu buton de actualizare.', 'Tells you when Greasy Fork has a new version, with an update button.'),
+      L('La deschiderea WME (cel mult o dată la 6 ore), scriptul citește versiunea de pe Greasy Fork. Dacă e mai nouă, apare sus un anunț cu „Actualizează” (deschide instalarea în Tampermonkey; apoi reîncarci WME), „Ce e nou” și „Mai târziu” (nu mai apare pentru acea versiune). Verificarea manuală: linkul „Verifică actualizări” de mai sus.', 'When WME opens (at most every 6 hours), the script reads the version on Greasy Fork. If it is newer, a notice appears at the top with "Update" (opens the install in Tampermonkey; then reload WME), "What\'s new" and "Later" (not shown again for that version). Manual check: the "Check for updates" link above.')
     );
     addToggle(
       'urCoordLinks',
@@ -1196,8 +1230,8 @@
   // the pre-drag position, but the matching OpenLayers feature's geometry
   // updates every frame.
   function getLiveNodeLonLat(nodeId) {
-    if (!window.W || !W.map || !W.map.nodeLayer || !W.map.nodeLayer.features) return null;
-    const feat = W.map.nodeLayer.features.find(
+    if (!window.W || !window.W.map || !window.W.map.nodeLayer || !window.W.map.nodeLayer.features) return null;
+    const feat = window.W.map.nodeLayer.features.find(
       (f) => f.attributes && f.attributes.wazeFeature && f.attributes.wazeFeature.id === nodeId
     );
     if (!feat || !feat.geometry) return null;
@@ -1211,8 +1245,8 @@
   // geometry (`geometry.components`) updates live from one source,
   // whichever point of the line is being dragged.
   function getLiveSegmentLonLatCoords(segmentId) {
-    if (!window.W || !W.map || !W.map.segmentLayer || !W.map.segmentLayer.features) return null;
-    const feat = W.map.segmentLayer.features.find(
+    if (!window.W || !window.W.map || !window.W.map.segmentLayer || !window.W.map.segmentLayer.features) return null;
+    const feat = window.W.map.segmentLayer.features.find(
       (f) => f.attributes && f.attributes.wazeFeature && f.attributes.wazeFeature.id === segmentId
     );
     if (!feat || !feat.geometry || !feat.geometry.components) return null;
@@ -5611,7 +5645,7 @@
   // legacy model is asked.
   function cutIsDeletedLocally(segmentId) {
     try {
-      const o = window.W && W.model && W.model.segments && W.model.segments.getObjectById(segmentId);
+      const o = window.W && window.W.model && window.W.model.segments && window.W.model.segments.getObjectById(segmentId);
       return !!(o && (o.state === 'DELETE' || (typeof o.isDeleted === 'function' && o.isDeleted())));
     } catch (e) {
       return false;
@@ -7522,7 +7556,7 @@
 
   function urDraftCurrentKey() {
     try {
-      const p = window.W && W.problemsController && W.problemsController.getCurrentProblem();
+      const p = window.W && window.W.problemsController && window.W.problemsController.getCurrentProblem();
       if (!p) return null;
       const id = p.attributes ? p.attributes.id : null;
       if (id == null) return null;
@@ -7620,7 +7654,7 @@
 
     // Issue closed (Rezolvat/Neidentificat) -> drop its draft.
     try {
-      const p = W.problemsController.getCurrentProblem();
+      const p = window.W.problemsController.getCurrentProblem();
       if (key && p && p.attributes && p.attributes.open === false) urDraftClear(key);
     } catch (e) {
       // ignore
@@ -7724,7 +7758,7 @@
   };
 
   function itGetDescartesClient() {
-    const itc = window.W && W.issueTrackerController;
+    const itc = window.W && window.W.issueTrackerController;
     const client = itc && itc.descartesClient;
     return client && typeof client.searchIssuesByBbox === 'function' ? client : null;
   }
@@ -7765,7 +7799,7 @@
   // Reloads the map issues right away (no need to pan the map).
   function itMapAllRefresh() {
     try {
-      const itc = window.W && W.issueTrackerController;
+      const itc = window.W && window.W.issueTrackerController;
       if (itc && typeof itc.fetchIssuesMap === 'function') {
         const r = itc.fetchIssuesMap();
         if (r && typeof r.catch === 'function') r.catch(() => {});
@@ -7883,8 +7917,8 @@
 
   function locationLabelFindRefreshHandler() {
     try {
-      const zoomEnd = ((W.map.events.listeners || {}).zoomend || []).map((l) => l.func);
-      const mergeEnd = ((W.model.events.listeners || {}).mergeend || []).map((l) => l.func);
+      const zoomEnd = ((window.W.map.events.listeners || {}).zoomend || []).map((l) => l.func);
+      const mergeEnd = ((window.W.model.events.listeners || {}).mergeend || []).map((l) => l.func);
       const both = zoomEnd.filter((f) => typeof f === 'function' && mergeEnd.includes(f));
       return both.length === 1 ? both[0] : null;
     } catch (e) {
@@ -7917,11 +7951,11 @@
   function locationLabelFixNow() {
     if (!settings.locationLabelFix) return;
     try {
-      const store = W.model && W.model.store;
+      const store = window.W.model && window.W.model.store;
       const st = store && store.getState();
       if (!st || typeof st.setTopCityId !== 'function' || st.topCityId != null) return;
       // Segments not drawn at this zoom -> WME shows the country by design.
-      const segLayer = W.map && W.map.segmentLayer;
+      const segLayer = window.W.map && window.W.map.segmentLayer;
       if (!segLayer || !segLayer.getVisibility() || !segLayer.features || !segLayer.features.length) return;
       const cityId = locationLabelComputeTopCityId();
       if (cityId == null) return;
@@ -7981,7 +8015,7 @@
 
   function savedWarnTr(key, opts) {
     try {
-      if (window.I18n && I18n.lookup(key) != null) return I18n.t(key, opts);
+      if (window.I18n && window.I18n.lookup(key) != null) return window.I18n.t(key, opts);
     } catch (e) {
       // ignore
     }
@@ -8048,7 +8082,7 @@
 
   function savedWarnHookSave() {
     if (savedWarnState.hooked) return true;
-    const ctrl = window.W && W.controller;
+    const ctrl = window.W && window.W.controller;
     if (!ctrl || typeof ctrl.save !== 'function') return false;
     const orig = ctrl.save;
     ctrl.save = function (opts) {
@@ -8558,7 +8592,7 @@
 
   function kbActions() {
     try {
-      return (window.W && W.accelerators && W.accelerators.getActions()) || {};
+      return (window.W && window.W.accelerators && window.W.accelerators.getActions()) || {};
     } catch (e) {
       return {};
     }
@@ -8566,7 +8600,7 @@
 
   function kbTr(key) {
     try {
-      if (window.I18n && I18n.lookup(key) != null) return I18n.t(key);
+      if (window.I18n && window.I18n.lookup(key) != null) return window.I18n.t(key);
     } catch (e) {
       // ignore
     }
@@ -8652,7 +8686,7 @@
   }
 
   function kbHookRegister() {
-    const A = window.W && W.accelerators;
+    const A = window.W && window.W.accelerators;
     if (!A || typeof A.registerShortcut !== 'function') return false;
     if (A.__roToolsKbHooked) return true;
     const orig = A.registerShortcut;
@@ -10645,6 +10679,133 @@
     });
   }
 
+  // ---------------------------------------------------------------------
+  // Update check (v0.43, Paul: "verifică la deschidere dacă există versiune
+  // nouă pe greasyfork; dacă există, buton de deschidere actualizare").
+  // Reads @version from the Greasy Fork meta file through
+  // GM_xmlhttpRequest (the WME CSP blocks fetch to greasyfork.org). At most
+  // once every UPDATE_CHECK_EVERY_MS, unless forced from the settings tab.
+  // A version the user dismissed ("Mai târziu") is not shown again.
+  // ---------------------------------------------------------------------
+  const GREASYFORK_META_URL = 'https://update.greasyfork.org/scripts/601073/WME%20RO%20Tools.meta.js';
+  const GREASYFORK_INSTALL_URL = 'https://update.greasyfork.org/scripts/601073/WME%20RO%20Tools.user.js';
+  const UPDATE_CHECK_EVERY_MS = 6 * 3600 * 1000;
+  const LS_UPDATE_CHECK = 'wme-ro-tools.updateCheck'; // { at, latest, dismissed }
+  const UPDATE_BANNER_ID = 'wme-ro-tools-update-banner';
+
+  function updateLoadState() {
+    try {
+      return JSON.parse(localStorage.getItem(LS_UPDATE_CHECK) || '{}') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function updateSaveState(st) {
+    try {
+      localStorage.setItem(LS_UPDATE_CHECK, JSON.stringify(st));
+    } catch (e) {
+      // storage unavailable - check again next time
+    }
+  }
+
+  // Resolves with the latest version string from Greasy Fork, or null.
+  function updateFetchLatest() {
+    return new Promise((resolve) => {
+      const done = (text) => {
+        const m = /@version\s+(\S+)/.exec(String(text || ''));
+        resolve(m ? m[1] : null);
+      };
+      const url = `${GREASYFORK_META_URL}?t=${Date.now()}`;
+      if (typeof GM_xmlhttpRequest === 'function') {
+        try {
+          GM_xmlhttpRequest({
+            method: 'GET',
+            url,
+            timeout: 15000,
+            headers: { 'Cache-Control': 'no-cache' },
+            onload: (r) => done(r.status === 200 ? r.responseText : null),
+            onerror: () => resolve(null),
+            ontimeout: () => resolve(null),
+          });
+          return;
+        } catch (e) {
+          // fall through to fetch
+        }
+      }
+      // Without GM_xmlhttpRequest (another manager / grant none) the WME CSP
+      // usually blocks this - then there is simply no check.
+      fetch(url, { cache: 'no-store', credentials: 'omit' })
+        .then((r) => (r.ok ? r.text() : null))
+        .then(done)
+        .catch(() => resolve(null));
+    });
+  }
+
+  function updateShowBanner(latest) {
+    const old = document.getElementById(UPDATE_BANNER_ID);
+    if (old) old.remove();
+    const t = currentTheme();
+    const box = document.createElement('div');
+    box.id = UPDATE_BANNER_ID;
+    box.style.cssText = `position:fixed; top:56px; left:50%; transform:translateX(-50%); z-index:100003; display:flex; align-items:center; gap:10px; flex-wrap:wrap; max-width:calc(100vw - 32px); box-sizing:border-box; padding:10px 14px; border-radius:8px; background:${t.menuBg}; color:${t.menuText}; border:1px solid #2db84c; box-shadow:0 6px 20px rgba(0,0,0,0.4); font:13px/1.4 Rubik, Arial, sans-serif;`;
+    const txt = document.createElement('span');
+    txt.textContent = L(
+      `🔄 ${SCRIPT_NAME} ${latest} e disponibil (ai ${SCRIPT_VERSION}).`,
+      `🔄 ${SCRIPT_NAME} ${latest} is available (you have ${SCRIPT_VERSION}).`
+    );
+    const mkBtn = (text, primary, onClick, title) => {
+      const b = document.createElement('wz-button');
+      b.setAttribute('size', 'sm');
+      if (!primary) b.setAttribute('color', 'secondary');
+      b.textContent = text;
+      if (title) b.title = title;
+      b.addEventListener('click', onClick);
+      return b;
+    };
+    const close = () => box.remove();
+    box.append(
+      txt,
+      mkBtn(L('Actualizează', 'Update'), true, () => {
+        window.open(GREASYFORK_INSTALL_URL, '_blank', 'noopener');
+        close();
+      }, L('Deschide actualizarea în Tampermonkey; după instalare, reîncarcă WME.', 'Opens the update in Tampermonkey; reload WME after installing.')),
+      mkBtn(L('Ce e nou', "What's new"), false, () => {
+        window.open(GREASYFORK_URL, '_blank', 'noopener');
+      }),
+      mkBtn(L('Mai târziu', 'Later'), false, () => {
+        const st = updateLoadState();
+        st.dismissed = latest;
+        updateSaveState(st);
+        close();
+      }, L('Nu mai arăta pentru această versiune', "Don't show again for this version"))
+    );
+    document.body.appendChild(box);
+  }
+
+  // `force`: from the settings tab - ignores the interval and a dismissed
+  // version; reports the result through `onResult(latest|null)`.
+  async function updateCheck(force, onResult) {
+    if (!force && !settings.updateCheck) return;
+    const st = updateLoadState();
+    if (!force && st.at && Date.now() - st.at < UPDATE_CHECK_EVERY_MS) {
+      // Recent check: show again only a newer, not dismissed version.
+      if (st.latest && compareVersions(st.latest, SCRIPT_VERSION) > 0 && st.dismissed !== st.latest) {
+        updateShowBanner(st.latest);
+      }
+      return;
+    }
+    const latest = await updateFetchLatest();
+    if (onResult) onResult(latest);
+    if (!latest) return;
+    st.at = Date.now();
+    st.latest = latest;
+    updateSaveState(st);
+    if (compareVersions(latest, SCRIPT_VERSION) > 0 && (force || st.dismissed !== latest)) {
+      updateShowBanner(latest);
+    }
+  }
+
   async function init() {
     sdk = window.getWmeSdk({ scriptId: SCRIPT_ID, scriptName: SCRIPT_NAME });
     await sdk.Events.once({ eventName: 'wme-ready' });
@@ -10674,6 +10835,7 @@
     setInterval(coordPoll, COORD_POLL_MS);
 
     setTimeout(() => showWhatsNew(false), 3000);
+    setTimeout(() => updateCheck(false), 8000);
 
     console.log(`${SCRIPT_NAME} v${SCRIPT_VERSION}: pornit.`);
   }
@@ -10691,4 +10853,4 @@
   } else {
     bootstrap();
   }
-})();
+})(typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
