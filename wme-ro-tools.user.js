@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.43
+// @version      0.44
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.43';
+  const SCRIPT_VERSION = '0.44';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -84,6 +84,11 @@
     { group: 'ti', key: 'ti.busTaxi.chip', def: '⚠️⛔Except.🚌Bus🚕Taxi⚠️', label: L('Bus/Taxi: caseta din Înspre', 'Bus/Taxi: Towards chip') },
     { group: 'ti', key: 'ti.busTaxi.tts', def: '... Atenție! Interzis cu excepția Bus, Taxi', label: L('Bus/Taxi: TTS', 'Bus/Taxi: TTS') },
     { group: 'ti', key: 'ti.ringRoad', def: 'Centura București', label: L('TTS pentru insigna DN „CB”', 'TTS for the DN "CB" shield') },
+    { group: 'es', key: 'es.intro', def: '', label: L('Sugestii: text la început (opțional)', 'Suggestions: opening text (optional)') },
+    { group: 'es', key: 'es.ok', def: 'Corect', label: L('Sugestii: modificare corectă', 'Suggestions: correct change') },
+    { group: 'es', key: 'es.bad', def: 'Greșit', label: L('Sugestii: modificare greșită', 'Suggestions: wrong change') },
+    { group: 'es', key: 'es.redo', def: 'O refac eu', label: L('Sugestii: o refac eu', "Suggestions: I'll redo it") },
+    { group: 'es', key: 'es.outro', def: '', label: L('Sugestii: text la final (opțional)', 'Suggestions: closing text (optional)') },
     { group: 'voice', key: 'voice.distance', def: 'În 800 de metri,', label: L('Distanță', 'Distance') },
     { group: 'voice', key: 'voice.CONTINUE', def: 'continuă pe', label: L('Continuă', 'Continue') },
     { group: 'voice', key: 'voice.TURN_RIGHT', def: 'virează la dreapta pe', label: L('Virează la dreapta', 'Turn right') },
@@ -107,6 +112,10 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.44', items: [
+      L('Sugestii de hartă: „📝 Analiză modificări” - fiecare modificare propusă cu stare (corectă / greșită / o refac eu), explicație și „Aplică pe hartă” pentru tip drum, nume stradă și numere de imobil.', 'Map suggestions: "📝 Review changes" - each proposed change with a status (correct / wrong / I\'ll redo it), an explanation and "Apply on the map" for road type, street name and house numbers.'),
+      L('Fereastra de respingere e mai mare, cu lista modificărilor de inserat, „Inserează analiza” și ciornă păstrată pe fiecare sugestie. După respingere poți aplica modificările bune.', 'The rejection dialog is bigger, with the list of changes to insert, "Insert the review" and a draft kept per suggestion. After rejecting you can apply the good changes.'),
+    ] },
     { v: '0.43', items: [L(
       'La pornirea WME, scriptul verifică dacă pe Greasy Fork există o versiune nouă și afișează un anunț cu butonul „Actualizează”. Verificare manuală din setări: „Verifică actualizări”.',
       'When WME starts, the script checks Greasy Fork for a new version and shows a notice with an "Update" button. Manual check in the settings: "Check for updates".'
@@ -371,6 +380,8 @@
     customTexts: {},
     // v0.43: check Greasy Fork for a newer version when WME opens.
     updateCheck: true,
+    // v0.44: helper for map edit suggestions (review, rejection dialog, apply).
+    editSuggestionHelper: true,
     nodeAngleLength: true, // angle + length on selected node
     segmentLength: true, // length on selected segment
     segmentAutomation: true, // segment parameter automation (unpaved/road type)
@@ -914,6 +925,12 @@
       L('La deschiderea WME (cel mult o dată la 6 ore), scriptul citește versiunea de pe Greasy Fork. Dacă e mai nouă, apare sus un anunț cu „Actualizează” (deschide instalarea în Tampermonkey; apoi reîncarci WME), „Ce e nou” și „Mai târziu” (nu mai apare pentru acea versiune). Verificarea manuală: linkul „Verifică actualizări” de mai sus.', 'When WME opens (at most every 6 hours), the script reads the version on Greasy Fork. If it is newer, a notice appears at the top with "Update" (opens the install in Tampermonkey; then reload WME), "What\'s new" and "Later" (not shown again for that version). Manual check: the "Check for updates" link above.')
     );
     addToggle(
+      'editSuggestionHelper',
+      L('Ajutor pentru sugestiile de hartă', 'Map edit suggestions helper'),
+      L('Analiză pe fiecare modificare propusă, respingere cu mesaj detaliat, aplicare a modificărilor bune.', 'Review each proposed change, reject with a detailed message, apply the good changes.'),
+      L('În fereastra „Sugestie hartă”: butonul „📝 Analiză modificări” deschide un panou cu fiecare modificare propusă (valoarea veche tăiată, cea nouă, locul), cu stare (✔ corectă / ✖ greșită / ↻ o refac eu), explicație și - pentru tip drum, numele străzii și numere de imobil adăugate - „Aplică pe hartă” (editare nesalvată, o verifici și salvezi). „Respinge cu acest mesaj” deschide respingerea cu mesajul compus. Fereastra nativă de respingere devine mai mare, are lista modificărilor (click = inserează la cursor) și „Inserează analiza”; textul se păstrează pe fiecare sugestie (anularea nativă închide toată fereastra). După respingere, panoul revine ca să aplici modificările bune. Textele de stare se pot personaliza din „Texte personalizabile”.', 'In the "Map suggestion" window: the "📝 Review changes" button opens a panel with each proposed change (old value struck out, new value, location), a status (✔ correct / ✖ wrong / ↻ I\'ll redo it), an explanation and - for road type, street name and added house numbers - "Apply on the map" (unsaved edit, check it and save). "Reject with this message" opens the rejection with the composed message. The native rejection dialog gets bigger, with the list of changes (click = insert at the cursor) and "Insert the review"; the text is kept per suggestion (the native cancel closes the whole window). After rejecting, the panel comes back so you can apply the good changes. The status texts can be customized in "Customizable texts".')
+    );
+    addToggle(
       'urCoordLinks',
       L('Coordonate GPS clicabile în conversații', 'Clickable GPS coordinates in conversations'),
       L('Click pe coordonatele dintr-o problemă de hartă centrează harta pe ele.', 'Clicking coordinates in a map issue centers the map on them.'),
@@ -1031,6 +1048,7 @@
       ur: L('Răspunsuri UR', 'UR replies'),
       ti: L('Instrucțiuni viraje (avertizări, TTS)', 'Turn instructions (warnings, TTS)'),
       voice: L('Simulare vocală', 'Voice simulation'),
+      es: L('Sugestii de hartă (mesaj de respingere)', 'Map suggestions (rejection message)'),
     };
     const ctInputs = {};
     const ctSave = () => {
@@ -10680,6 +10698,573 @@
   }
 
   // ---------------------------------------------------------------------
+  // Edit suggestions helper (v0.44, Paul): for a map edit suggestion
+  // ("Sugestie hartă" window, `#ISSUE_WINDOW_MAP_SUGGESTION`):
+  // - "Analiză modificări" panel: every proposed change with a status
+  //   (correct / wrong / I'll redo it), an explanation box and, where it can
+  //   be reproduced, "Aplică" (road type, primary street name, added house
+  //   number) - an ordinary UNSAVED edit, reviewed before Save;
+  // - the native rejection dialog gets bigger, a list of the changes to
+  //   insert at the cursor, "Inserează analiza" and a per-suggestion draft
+  //   (the native "Anulează" closes the whole suggestion window and loses
+  //   the text);
+  // - after rejecting, the analysis panel reopens from a snapshot so the
+  //   good changes can still be applied.
+  // Data: the React props of the suggestion window (`suggestionChanges`,
+  // `editSuggestion`) - display names, old / new values, segment, and for
+  // house numbers the number + position. Nothing is sent to Waze by the
+  // script: the rejection itself is always the native button.
+  // ---------------------------------------------------------------------
+  const ES_PANEL_SEL = '#ISSUE_WINDOW_MAP_SUGGESTION';
+  const ES_DIALOG_SEL = 'wz-dialog.suggestion-rejection-dialog';
+  const ES_ANALYSIS_ID = 'wme-ro-tools-es-analysis';
+  const ES_BAR_CLASS = 'wme-ro-tools-es-bar';
+  const ES_DLG_BOX_CLASS = 'wme-ro-tools-es-dlg';
+  const LS_ES_DRAFTS = 'wme-ro-tools.esDrafts';
+  const ES_DRAFT_MAX_AGE_MS = 30 * 24 * 3600 * 1000;
+  const ES_POLL_MS = 500;
+
+  const esState = {
+    lastCtx: null, // last read suggestion context (kept while the dialog is open)
+    dialogEl: null, // enhanced dialog
+    pendingApplyId: null, // suggestion rejected - reopen the analysis after the window closes
+  };
+
+  function esLoadDrafts() {
+    try {
+      const all = JSON.parse(localStorage.getItem(LS_ES_DRAFTS) || '{}') || {};
+      const now = Date.now();
+      Object.keys(all).forEach((k) => {
+        if (!all[k] || now - (all[k].at || 0) > ES_DRAFT_MAX_AGE_MS) delete all[k];
+      });
+      return all;
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function esDraft(esId) {
+    const all = esLoadDrafts();
+    return all[esId] || { at: Date.now(), msg: '', statuses: {}, notes: {}, applied: {} };
+  }
+
+  function esSaveDraft(esId, d) {
+    const all = esLoadDrafts();
+    d.at = Date.now();
+    all[esId] = d;
+    try {
+      localStorage.setItem(LS_ES_DRAFTS, JSON.stringify(all));
+    } catch (e) {
+      // storage full / unavailable - the draft lives only in memory
+    }
+  }
+
+  function esFiber(el) {
+    const k = el && Object.keys(el).find((x) => x.startsWith('__reactFiber'));
+    return k ? el[k] : null;
+  }
+
+  // Reads the open suggestion window: { esId, author, items } or null.
+  function esReadPanel() {
+    const panel = document.querySelector(ES_PANEL_SEL);
+    if (!panel) return null;
+    const lis = [...panel.querySelectorAll('wz-list-item')].filter((li) => li.querySelector('[class*="description--"]'));
+    let f = esFiber(lis[0] || panel.querySelector('form'));
+    let changes = null;
+    let es = null;
+    for (let i = 0; i < 40 && f; i++) {
+      const p = f.memoizedProps || {};
+      if (!changes && Array.isArray(p.suggestionChanges)) changes = p.suggestionChanges;
+      if (!es && p.editSuggestion && p.editSuggestion.attributes) es = p.editSuggestion;
+      if (changes && es) break;
+      f = f.return;
+    }
+    if (!changes || !es) return null;
+    const items = [];
+    changes.forEach((c, ci) => {
+      const li = lis[ci];
+      const locEl = li && li.querySelector('[class*="link--"]');
+      const loc = locEl ? locEl.textContent.trim() : '';
+      const ff = (c.focusedFeatures || [])[0];
+      const segFromFeature = ff && ff.attributes && ff.attributes.id;
+      (c.attributeChanges || []).forEach((a, ai) => {
+        const it = {
+          key: `${c.suggestionId || ci}:${a.id || ai}`,
+          label: String(a.displayName || a.name || '').trim(),
+          oldText: a.oldValue == null ? '' : String(a.oldValue),
+          newText: a.newValue == null ? '' : String(a.newValue),
+          loc,
+          kind: null,
+        };
+        if (a.objectType === 'segment' && a.name === 'roadType' && typeof a.newValueRaw === 'number') {
+          it.kind = 'roadType';
+          it.segmentId = segFromFeature;
+          it.roadType = a.newValueRaw;
+        } else if (a.objectType === 'segment' && a.name === 'primaryStreetID' && it.newText) {
+          it.kind = 'street';
+          it.segmentId = segFromFeature;
+          const k = it.newText.lastIndexOf(', ');
+          it.streetName = k >= 0 ? it.newText.slice(0, k).trim() : it.newText.trim();
+          it.cityName = k >= 0 ? it.newText.slice(k + 2).trim() : '';
+        } else if (a.objectType === 'houseNumber' && a.name === 'ADD' && a.newValueRaw && a.newValueRaw.attributes) {
+          const h = a.newValueRaw.attributes;
+          const pt = h.geoJSONGeometry || h.fractionPoint;
+          if (h.number && h.segID && pt && pt.coordinates) {
+            it.kind = 'hnAdd';
+            it.segmentId = h.segID;
+            it.hnNumber = String(h.number);
+            it.hnPoint = { type: 'Point', coordinates: pt.coordinates.slice(0, 2) };
+          }
+        }
+        if (it.kind && !it.segmentId) it.kind = null;
+        items.push(it);
+      });
+    });
+    const at = es.attributes;
+    // The suggester's name is only in the window header ("Sursa: <name>");
+    // `createdBy` is a numeric user id.
+    const who = panel.querySelector('wz-caption wz-a');
+    return {
+      esId: at.id,
+      author: (who && who.textContent.trim()) || '',
+      items,
+    };
+  }
+
+  function esItemLine(it) {
+    if (it.oldText && it.newText) return `${it.label}: ${it.oldText} → ${it.newText}`;
+    if (it.newText) return `${it.label}: ${it.newText}`;
+    return it.label;
+  }
+
+  const ES_STATUS = {
+    ok: { icon: '✔', ct: 'es.ok', color: '#2db84c', label: () => L('Corectă', 'Correct') },
+    bad: { icon: '✖', ct: 'es.bad', color: '#e5484d', label: () => L('Greșită', 'Wrong') },
+    redo: { icon: '↻', ct: 'es.redo', color: '#f18200', label: () => L('O refac eu', "I'll redo it") },
+  };
+
+  // Plain-text message (it is delivered by e-mail; no formatting needed).
+  function esComposeMessage(ctx, d) {
+    const parts = [];
+    const intro = CT('es.intro');
+    if (intro) parts.push(intro);
+    ctx.items.forEach((it) => {
+      const st = d.statuses[it.key];
+      const note = String(d.notes[it.key] || '').trim();
+      if (!st && !note) return;
+      const lines = [`• ${esItemLine(it)}`];
+      const head = st ? `${ES_STATUS[st].icon} ${CT(ES_STATUS[st].ct)}` : '';
+      lines.push(`  ${[head, note].filter(Boolean).join(': ')}`);
+      parts.push(lines.join('\n'));
+    });
+    const outro = CT('es.outro');
+    if (outro) parts.push(outro);
+    return parts.join('\n\n');
+  }
+
+  // --- applying a change (unsaved edit) ---------------------------------
+  function esApply(it) {
+    let seg = null;
+    try {
+      seg = sdk.DataModel.Segments.getById({ segmentId: Number(it.segmentId) });
+    } catch (e) {
+      seg = null;
+    }
+    if (!seg) throw new Error(L('Segmentul nu e încărcat - du harta în zona sugestiei.', 'The segment is not loaded - move the map to the suggestion area.'));
+    if (it.kind === 'roadType') {
+      sdk.DataModel.Segments.updateSegment({ segmentId: seg.id, roadType: it.roadType });
+      return;
+    }
+    if (it.kind === 'street') {
+      const cur = seg.primaryStreetId != null ? sdk.DataModel.Streets.getById({ streetId: seg.primaryStreetId }) : null;
+      const curCity = cur && cur.cityId != null ? sdk.DataModel.Cities.getById({ cityId: cur.cityId }) : null;
+      const where = curCity ? { countryId: curCity.countryId, stateId: curCity.stateId } : {};
+      let city = sdk.DataModel.Cities.getCity({ cityName: it.cityName || '', ...where });
+      if (!city) city = sdk.DataModel.Cities.addCity({ cityName: it.cityName || '', ...where });
+      if (!city) throw new Error(L('Nu am găsit localitatea.', 'City not found.'));
+      let street = sdk.DataModel.Streets.getStreet({ streetName: it.streetName, cityId: city.id });
+      if (!street) street = sdk.DataModel.Streets.addStreet({ streetName: it.streetName, cityId: city.id });
+      sdk.DataModel.Segments.updateAddress({ segmentId: seg.id, primaryStreetId: street.id });
+      return;
+    }
+    if (it.kind === 'hnAdd') {
+      sdk.DataModel.HouseNumbers.addHouseNumber({ number: it.hnNumber, point: it.hnPoint, segmentId: seg.id });
+      return;
+    }
+    throw new Error(L('Modificarea nu se poate reproduce automat.', 'This change cannot be reproduced automatically.'));
+  }
+
+  // --- analysis panel ---------------------------------------------------
+  function esCloseAnalysis() {
+    const el = document.getElementById(ES_ANALYSIS_ID);
+    if (el) el.remove();
+  }
+
+  // `ctx`: live context or a snapshot ({esId, author, items}); `afterReject`
+  // switches the texts to the "already rejected - apply the good ones" mode.
+  function esOpenAnalysis(ctx, afterReject) {
+    esCloseAnalysis();
+    const t = currentTheme();
+    const d = esDraft(ctx.esId);
+    d.snapshot = { esId: ctx.esId, author: ctx.author, items: ctx.items };
+    esSaveDraft(ctx.esId, d);
+
+    const box = document.createElement('div');
+    box.id = ES_ANALYSIS_ID;
+    const panel = document.querySelector(ES_PANEL_SEL);
+    const pr = panel ? panel.getBoundingClientRect() : null;
+    const left = pr ? Math.min(window.innerWidth - 420, pr.right + 10) : 80;
+    const top = pr ? Math.max(50, pr.top) : 60;
+    box.style.cssText = `position:fixed; left:${Math.max(8, left)}px; top:${top}px; width:400px; max-width:calc(100vw - 16px); max-height:calc(100vh - ${top + 16}px); z-index:100002; display:flex; flex-direction:column; background:${t.menuBg}; color:${t.menuText}; border:1px solid ${t.menuBorder}; border-radius:8px; box-shadow:0 8px 28px rgba(0,0,0,0.45); font:13px/1.4 Rubik, Arial, sans-serif;`;
+
+    const head = document.createElement('div');
+    head.style.cssText = `display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid ${t.menuBorder}; cursor:move;`;
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:600; flex:1;';
+    title.textContent = afterReject
+      ? L('Sugestie respinsă - aplică modificările bune', 'Rejected suggestion - apply the good changes')
+      : L('Analiză modificări propuse', 'Proposed changes - review');
+    const x = document.createElement('span');
+    x.textContent = '✕';
+    x.title = L('Închide (analiza rămâne salvată)', 'Close (the review stays saved)');
+    x.style.cssText = 'cursor:pointer; opacity:0.7; padding:0 4px;';
+    x.addEventListener('click', esCloseAnalysis);
+    head.append(title, x);
+    // Drag by the header.
+    head.addEventListener('pointerdown', (ev) => {
+      if (ev.target === x) return;
+      const r0 = box.getBoundingClientRect();
+      const dx = ev.clientX - r0.left;
+      const dy = ev.clientY - r0.top;
+      const mv = (e) => {
+        box.style.left = `${Math.max(0, e.clientX - dx)}px`;
+        box.style.top = `${Math.max(0, e.clientY - dy)}px`;
+      };
+      const up = () => {
+        document.removeEventListener('pointermove', mv, true);
+        document.removeEventListener('pointerup', up, true);
+      };
+      document.addEventListener('pointermove', mv, true);
+      document.addEventListener('pointerup', up, true);
+    });
+
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font-size:11px; opacity:0.75; padding:6px 12px 0;';
+    sub.textContent = afterReject
+      ? L('„Aplică” face modificarea pe hartă (nesalvată) - o verifici și apoi apeși Salvează.', '"Apply" makes the change on the map (unsaved) - check it, then press Save.')
+      : L(`Pentru fiecare modificare a lui ${ctx.author || 'utilizator'}: alege starea și scrie explicația. Apoi „Respinge cu acest mesaj”.`, `For each change by ${ctx.author || 'the user'}: pick a status and write the explanation. Then "Reject with this message".`);
+
+    const list = document.createElement('div');
+    list.style.cssText = 'overflow:auto; padding:6px 12px 10px; flex:1 1 auto; min-height:0;';
+    const save = () => esSaveDraft(ctx.esId, d);
+
+    ctx.items.forEach((it) => {
+      const row = document.createElement('div');
+      row.style.cssText = `border:1px solid ${t.menuBorder}; border-radius:6px; padding:8px; margin-top:8px;`;
+      const h = document.createElement('div');
+      h.style.cssText = 'font-weight:600;';
+      h.textContent = it.label;
+      const vals = document.createElement('div');
+      vals.style.cssText = 'font-size:12px; margin-top:2px;';
+      if (it.oldText) {
+        const o = document.createElement('span');
+        o.textContent = it.oldText;
+        o.style.cssText = 'text-decoration:line-through; opacity:0.65; margin-right:6px;';
+        vals.appendChild(o);
+      }
+      if (it.newText) {
+        const n = document.createElement('span');
+        n.textContent = `${it.oldText ? '→ ' : ''}${it.newText}`;
+        n.style.cssText = 'color:#2db84c;';
+        vals.appendChild(n);
+      }
+      const loc = document.createElement('div');
+      loc.style.cssText = 'font-size:11px; opacity:0.6;';
+      loc.textContent = it.loc;
+      const sts = document.createElement('div');
+      sts.style.cssText = 'display:flex; gap:4px; flex-wrap:wrap; margin-top:6px;';
+      const stBtns = {};
+      const paint = () => {
+        Object.entries(stBtns).forEach(([k, b]) => {
+          const on = d.statuses[it.key] === k;
+          b.style.background = on ? ES_STATUS[k].color : 'transparent';
+          b.style.color = on ? '#fff' : t.menuText;
+          b.style.borderColor = ES_STATUS[k].color;
+        });
+      };
+      Object.keys(ES_STATUS).forEach((k) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = `${ES_STATUS[k].icon} ${ES_STATUS[k].label()}`;
+        b.style.cssText = 'font-size:11px; padding:1px 7px; border:1px solid; border-radius:10px; cursor:pointer; background:transparent;';
+        b.addEventListener('click', () => {
+          d.statuses[it.key] = d.statuses[it.key] === k ? undefined : k;
+          if (!d.statuses[it.key]) delete d.statuses[it.key];
+          save();
+          paint();
+        });
+        stBtns[k] = b;
+        sts.appendChild(b);
+      });
+      paint();
+      const ta = document.createElement('textarea');
+      ta.rows = 2;
+      ta.placeholder = L('Explicație pentru utilizator…', 'Explanation for the user…');
+      ta.value = d.notes[it.key] || '';
+      ta.style.cssText = `width:100%; box-sizing:border-box; margin-top:6px; font:12px/1.4 Rubik, Arial, sans-serif; resize:vertical; background:transparent; color:${t.menuText}; border:1px solid ${t.menuBorder}; border-radius:4px; padding:4px 6px;`;
+      ta.addEventListener('input', () => {
+        d.notes[it.key] = ta.value;
+        save();
+      });
+      ta.addEventListener('keydown', (ev) => ev.stopPropagation()); // no WME shortcuts while typing
+      row.append(h, vals, loc, sts, ta);
+      if (it.kind) {
+        const ap = document.createElement('div');
+        ap.style.cssText = 'display:flex; align-items:center; gap:8px; margin-top:6px;';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = L('Aplică pe hartă', 'Apply on the map');
+        b.title = L('Face modificarea ca editare nesalvată (anulabilă cu Undo).', 'Makes the change as an unsaved edit (Undo works).');
+        b.style.cssText = `font-size:11px; padding:2px 8px; cursor:pointer; background:transparent; color:${t.menuText}; border:1px solid #0099ff; border-radius:4px;`;
+        const stTxt = document.createElement('span');
+        stTxt.style.cssText = 'font-size:11px; opacity:0.8;';
+        if (d.applied[it.key]) stTxt.textContent = L('✓ aplicată', '✓ applied');
+        b.addEventListener('click', () => {
+          try {
+            esApply(it);
+            d.applied[it.key] = Date.now();
+            save();
+            stTxt.textContent = L('✓ aplicată (nesalvată)', '✓ applied (unsaved)');
+          } catch (e) {
+            console.warn(`${SCRIPT_NAME}: aplicarea modificării a eșuat.`, e);
+            stTxt.textContent = `⚠ ${e && e.message ? e.message : L('eroare', 'error')}`;
+          }
+        });
+        ap.append(b, stTxt);
+        row.appendChild(ap);
+      }
+      list.appendChild(row);
+    });
+
+    const foot = document.createElement('div');
+    foot.style.cssText = `display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; padding:10px 12px; border-top:1px solid ${t.menuBorder};`;
+    const fbtn = (text, primary, fn, tip) => {
+      const b = document.createElement('wz-button');
+      b.setAttribute('size', 'sm');
+      if (!primary) b.setAttribute('color', 'secondary');
+      b.textContent = text;
+      if (tip) b.title = tip;
+      b.addEventListener('click', fn);
+      foot.appendChild(b);
+      return b;
+    };
+    fbtn(L('Copiază mesajul', 'Copy message'), false, async () => {
+      const msg = esComposeMessage(ctx, d);
+      try {
+        await navigator.clipboard.writeText(msg);
+        phShowToast(L('Mesajul a fost copiat.', 'Message copied.'));
+      } catch (e) {
+        window.prompt(L('Copiază mesajul:', 'Copy the message:'), msg);
+      }
+    });
+    if (!afterReject && document.querySelector(ES_PANEL_SEL)) {
+      fbtn(L('Respinge cu acest mesaj', 'Reject with this message'), true, () => {
+        d.msg = esComposeMessage(ctx, d);
+        save();
+        esCloseAnalysis();
+        const panelEl = document.querySelector(ES_PANEL_SEL);
+        const rej = panelEl && [...panelEl.querySelectorAll('wz-button')].find((b) => b.getAttribute('type') !== 'submit' && /Respinge|Reject/i.test(b.textContent));
+        if (rej) rej.click();
+        else phShowToast(L('Nu am găsit butonul Respinge.', 'Reject button not found.'), true);
+      }, L('Deschide fereastra de respingere cu mesajul compus din analiză (îl poți modifica acolo).', 'Opens the rejection dialog with the message built from the review (you can edit it there).'));
+    }
+    box.append(head, sub, list, foot);
+    document.body.appendChild(box);
+  }
+
+  // --- button in the suggestion window ----------------------------------
+  function esInjectBar(ctx) {
+    const panel = document.querySelector(ES_PANEL_SEL);
+    if (!panel || panel.querySelector(`.${ES_BAR_CLASS}`)) return;
+    const rej = [...panel.querySelectorAll('wz-button')].find((b) => b.getAttribute('type') !== 'submit' && /Respinge|Reject/i.test(b.textContent));
+    const footer = rej && rej.parentElement;
+    if (!footer) return;
+    const bar = document.createElement('div');
+    bar.className = ES_BAR_CLASS;
+    bar.style.cssText = 'display:flex; justify-content:center; padding:6px 0 4px; width:100%;';
+    const b = document.createElement('wz-button');
+    b.setAttribute('size', 'sm');
+    b.setAttribute('color', 'secondary');
+    const n = ctx.items.length;
+    const dr = esLoadDrafts()[ctx.esId];
+    const started = dr && (Object.keys(dr.statuses || {}).length || Object.values(dr.notes || {}).some((v) => String(v).trim()));
+    b.textContent = `📝 ${L('Analiză modificări', 'Review changes')} (${n})${started ? ' •' : ''}`;
+    b.title = L('Fiecare modificare propusă, cu stare, explicație și „Aplică pe hartă”.', 'Each proposed change, with status, explanation and "Apply on the map".');
+    b.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const c = esReadPanel();
+      if (c) esOpenAnalysis(c, false);
+    });
+    bar.appendChild(b);
+    footer.parentElement.insertBefore(bar, footer);
+  }
+
+  // --- native rejection dialog ------------------------------------------
+  function esTextarea(dlg) {
+    const w = dlg.querySelector('wz-textarea');
+    const inner = w && w.shadowRoot && w.shadowRoot.querySelector('textarea');
+    return { w, inner };
+  }
+
+  function esSetText(w, value) {
+    w.value = value;
+    w.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+    w.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+  }
+
+  function esEnhanceDialog(dlg, ctx) {
+    if (dlg.querySelector(`.${ES_DLG_BOX_CLASS}`)) return;
+    esState.dialogEl = dlg;
+    dlg.setAttribute('size', 'xl');
+    const { w, inner } = esTextarea(dlg);
+    if (!w) return;
+    if (w.shadowRoot && !w.shadowRoot.querySelector('style[data-ro-tools]')) {
+      const st = document.createElement('style');
+      st.setAttribute('data-ro-tools', '1');
+      st.textContent = 'textarea{min-height:240px!important;resize:vertical!important}';
+      w.shadowRoot.appendChild(st);
+    }
+    const d = esDraft(ctx.esId);
+    d.snapshot = { esId: ctx.esId, author: ctx.author, items: ctx.items };
+    esSaveDraft(ctx.esId, d);
+    // Restore the draft (the native dialog always starts empty).
+    if (!String(w.value || '').trim() && d.msg) esSetText(w, d.msg);
+
+    const t = currentTheme();
+    const box = document.createElement('div');
+    box.className = ES_DLG_BOX_CLASS;
+    box.style.cssText = 'margin-top:8px; font:12px/1.4 Rubik, Arial, sans-serif;';
+    const cap = document.createElement('div');
+    cap.style.cssText = 'opacity:0.75; margin-bottom:4px;';
+    cap.textContent = L('Modificări propuse - click inserează la cursor (✓ = deja în text):', 'Proposed changes - click inserts at the cursor (✓ = already in the text):');
+    const chips = document.createElement('div');
+    chips.style.cssText = 'display:flex; flex-direction:column; gap:3px;';
+    const chipEls = [];
+    const refreshUsed = () => {
+      const val = String(w.value || '');
+      chipEls.forEach(({ el, it }) => {
+        const used = val.includes(esItemLine(it));
+        el.firstChild.textContent = used ? '✓ ' : '+ ';
+        el.style.opacity = used ? '0.6' : '1';
+      });
+    };
+    ctx.items.forEach((it) => {
+      const el = document.createElement('div');
+      el.style.cssText = `cursor:pointer; padding:3px 8px; border:1px solid ${t.menuBorder}; border-radius:4px;`;
+      const mark = document.createElement('span');
+      const txt = document.createElement('span');
+      txt.textContent = esItemLine(it);
+      el.append(mark, txt);
+      el.title = it.loc;
+      el.addEventListener('mousedown', (ev) => ev.preventDefault()); // keep the caret in the textarea
+      el.addEventListener('click', () => {
+        const val = String(w.value || '');
+        const pos = inner && typeof inner.selectionStart === 'number' && document.activeElement === w ? inner.selectionStart : val.length;
+        const before = val.slice(0, pos);
+        const after = val.slice(pos);
+        const ins = `${before && !before.endsWith('\n') ? '\n\n' : ''}• ${esItemLine(it)}\n  `;
+        esSetText(w, before + ins + after);
+        if (inner) {
+          inner.focus();
+          const c = (before + ins).length;
+          inner.setSelectionRange(c, c);
+        }
+        refreshUsed();
+      });
+      chipEls.push({ el, it });
+      chips.appendChild(el);
+    });
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;';
+    const mk = (text, fn, tip) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      if (tip) b.title = tip;
+      b.style.cssText = `font-size:11px; padding:2px 8px; cursor:pointer; background:transparent; color:inherit; border:1px solid ${t.menuBorder}; border-radius:4px;`;
+      b.addEventListener('click', fn);
+      btns.appendChild(b);
+    };
+    mk(L('Inserează analiza', 'Insert the review'), () => {
+      const msg = esComposeMessage(ctx, esDraft(ctx.esId));
+      if (!msg) {
+        phShowToast(L('Analiza e goală - deschide „Analiză modificări”.', 'The review is empty - open "Review changes".'), true);
+        return;
+      }
+      const val = String(w.value || '').trim();
+      esSetText(w, val ? `${val}\n\n${msg}` : msg);
+      refreshUsed();
+    }, L('Adaugă mesajul compus din panoul „Analiză modificări”.', 'Adds the message built in the "Review changes" panel.'));
+    mk(L('Golește', 'Clear'), () => {
+      esSetText(w, '');
+      refreshUsed();
+    });
+    const note = document.createElement('span');
+    note.style.cssText = 'opacity:0.6; align-self:center;';
+    note.textContent = L('Textul se păstrează dacă închizi fereastra.', 'The text is kept if you close the window.');
+    btns.appendChild(note);
+    box.append(cap, chips, btns);
+    w.parentElement.appendChild(box);
+    refreshUsed();
+
+    // Draft: save every change of the text.
+    w.addEventListener('input', () => {
+      const dd = esDraft(ctx.esId);
+      dd.msg = String(w.value || '');
+      esSaveDraft(ctx.esId, dd);
+      refreshUsed();
+    });
+    // The native "Respinge" of the dialog: remember to offer "Apply" after.
+    const rejBtn = [...dlg.querySelectorAll('wz-dialog-controls wz-button')].find((b) => /Respinge|Reject/i.test(b.textContent));
+    if (rejBtn) {
+      rejBtn.addEventListener(
+        'click',
+        () => {
+          const dd = esDraft(ctx.esId);
+          dd.msg = String(w.value || '');
+          dd.rejectedAt = Date.now();
+          esSaveDraft(ctx.esId, dd);
+          esState.pendingApplyId = ctx.esId;
+        },
+        true
+      );
+    }
+  }
+
+  function esPoll() {
+    if (!settings.editSuggestionHelper) return;
+    const panel = document.querySelector(ES_PANEL_SEL);
+    if (panel) {
+      const ctx = esReadPanel();
+      if (ctx && ctx.items.length) {
+        esState.lastCtx = ctx;
+        esInjectBar(ctx);
+      }
+    }
+    const dlg = document.querySelector(ES_DIALOG_SEL);
+    if (dlg && esState.lastCtx) esEnhanceDialog(dlg, esState.lastCtx);
+    // After a rejection: once the dialog and the window are gone, offer the
+    // good changes (only if any can be applied).
+    if (esState.pendingApplyId && !dlg && !panel) {
+      const id = esState.pendingApplyId;
+      esState.pendingApplyId = null;
+      const d = esLoadDrafts()[id];
+      if (d && d.snapshot && d.snapshot.items.some((it) => it.kind)) esOpenAnalysis(d.snapshot, true);
+    }
+  }
+
+  // ---------------------------------------------------------------------
   // Update check (v0.43, Paul: "verifică la deschidere dacă există versiune
   // nouă pe greasyfork; dacă există, buton de deschidere actualizare").
   // Reads @version from the Greasy Fork meta file through
@@ -10836,6 +11421,7 @@
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);
+    setInterval(esPoll, ES_POLL_MS);
 
     console.log(`${SCRIPT_NAME} v${SCRIPT_VERSION}: pornit.`);
   }

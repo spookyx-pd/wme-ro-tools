@@ -83,6 +83,16 @@ Butoanele apar în fereastra nativă **Instrucțiuni viraje**. Nimic nu ajunge p
 
 ---
 
+## Ajutor pentru sugestiile de hartă
+WME permite doar acceptarea sau respingerea unei sugestii în întregime. Scriptul te ajută să răspunzi pe fiecare modificare:
+- **📝 Analiză modificări** în fereastra „Sugestie hartă” deschide un panou cu fiecare modificare propusă (valoarea veche tăiată → cea nouă, locul). O marchezi ✔ corectă / ✖ greșită / ↻ o refac eu și scrii explicația.
+- **Respinge cu acest mesaj** deschide fereastra de respingere a WME deja completată cu un mesaj simplu, compus din analiză (ajunge la utilizator prin e-mail). Respingerea propriu-zisă e mereu butonul WME.
+- **Fereastră de respingere mai mare**, cu lista modificărilor (un click inserează „• etichetă: vechi → nou” la cursor), „Inserează analiza” și „Golește”.
+- **Ciornă pe fiecare sugestie.** „Anulează” din WME închide toată fereastra sugestiei; textul, stările și explicațiile revin când o deschizi din nou.
+- **Aplică modificările bune.** După respingere, panoul revine, iar „Aplică pe hartă” reface tipul drumului, numele principal al străzii și numerele de imobil adăugate (în poziția aleasă de utilizator) ca editări nesalvate obișnuite, pe care le verifici și le salvezi.
+
+---
+
 ## Ajutoare pentru interfață
 - **Fereastra „Scurtături Tastatură”:**
   - căutare după numele comenzii sau după tastă;
@@ -109,15 +119,15 @@ Textele care ajung pe hartă sau la utilizatorii aplicației Waze sunt implicit 
 - marcajele „Mesaj lung”;
 - avertizările și TTS-ul de la instrucțiunile de viraj;
 - TTS-ul pentru insigna Centurii București;
-- frazele din simularea vocală.
+- frazele din simularea vocală;
+- cuvintele de stare și textul opțional de început / sfârșit din mesajul de respingere a sugestiilor.
 
 Câmpul gol păstrează textul implicit. Cu **Copiază JSON / Importă JSON** poți da un set de texte, de exemplu o traducere, altor editori.
 
 ---
 
 ## Note
-- Rulează cu `@grant none`.
-- Singura cerere externă e către fișierul public de stare a build-urilor Waze (Google Cloud Storage), pentru starea pe Livemap.
+- Folosește `GM_xmlhttpRequest` doar ca să verifice pe Greasy Fork dacă există o versiune nouă (politica de securitate a WME blochează cererile directe). Cealaltă cerere externă e către fișierul public de stare a build-urilor Waze (Google Cloud Storage), pentru starea pe Livemap.
 - Setările și ciornele stau în `localStorage` al browserului tău.
 - Toate modificările trec prin SDK-ul oficial WME și rămân **nesalvate** până apeși Salvează, la fel ca editările manuale.
 - Licență: MIT.

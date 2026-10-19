@@ -17,6 +17,26 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-19 - v0.44 - ajutor pentru sugestiile de hartă
+
+- **Nou: „📝 Analiză modificări”** în fereastra „Sugestie hartă”: fiecare
+  modificare propusă (valoarea veche tăiată → cea nouă, locul), cu stare
+  ✔ Corectă / ✖ Greșită / ↻ O refac eu și o casetă de explicație.
+  „Respinge cu acest mesaj” deschide respingerea nativă cu mesajul compus
+  (text simplu - ajunge prin e-mail). „Copiază mesajul” îl pune în clipboard.
+- **„Aplică pe hartă”** pentru tip drum, numele principal al străzii și
+  numere de imobil adăugate (în poziția propusă) - editare nesalvată, o
+  verifici și salvezi. Celelalte tipuri de modificări: doar manual.
+- **Fereastra nativă de respingere:** mai mare (lățime xl, casetă de text
+  ~240px, redimensionabilă), lista modificărilor (click = inserează la
+  cursor, ✓ = deja în text), „Inserează analiza”, „Golește”.
+- **Ciornă pe fiecare sugestie** (localStorage, 30 de zile): textul din
+  respingere, stările și explicațiile revin la redeschidere.
+- **După „Respinge”** panoul revine cu modificările care se pot aplica.
+- Texte personalizabile noi (grupul „Sugestii de hartă”): Corect / Greșit /
+  O refac eu, text la început și la final (opționale).
+- Opțiune nouă în setări: „Ajutor pentru sugestiile de hartă” (pornită).
+
 ## 2026-10-19 - v0.43 - verificare actualizări pe Greasy Fork
 
 Paul: "hai să facem o versiune nouă care verifică la deschidere dacă există

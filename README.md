@@ -81,6 +81,16 @@ These extra controls appear in the native **Turn instructions** dialog. Nothing 
 
 ---
 
+## Map edit suggestions helper
+WME only lets you accept or reject a suggestion as a whole. The script helps you answer change by change:
+- **📝 Review changes** in the "Map suggestion" window opens a panel with each proposed change (old value struck out → new value, location). Mark each one ✔ correct / ✖ wrong / ↻ I'll redo it and write an explanation.
+- **Reject with this message** opens WME's rejection dialog already filled with a plain-text message built from your review (it reaches the user by e-mail). The rejection itself is always WME's own button.
+- **Bigger rejection dialog** with the list of changes (a click inserts "• label: old → new" at the cursor), "Insert the review" and "Clear".
+- **Draft per suggestion.** WME's Cancel closes the whole suggestion window; your text, statuses and notes come back when you open it again.
+- **Apply the good changes.** After rejecting, the panel comes back and "Apply on the map" reproduces road type, primary street name and added house numbers (at the position the user chose) as ordinary unsaved edits, for you to review and save.
+
+---
+
 ## Interface helpers
 - **Keyboard shortcuts dialog:**
   - search by command name or by key;
@@ -107,15 +117,15 @@ Texts that reach the map or Waze app users are in Romanian by default. You can c
 - the "Long message" part markers;
 - turn-instruction warnings and their TTS;
 - the TTS used for the Bucharest ring road shield;
-- the voice simulation phrases.
+- the voice simulation phrases;
+- the status words and the optional opening / closing text of the edit suggestion rejection message.
 
 An empty field keeps the default text. **Copy JSON / Import JSON** lets you share a set of texts, for example a translation, with other editors.
 
 ---
 
 ## Notes
-- Runs with `@grant none`.
-- The only external request is to Waze's public tile-build status file on Google Cloud Storage, used for the Livemap status.
+- Uses `GM_xmlhttpRequest` only to check Greasy Fork for a newer version (WME's security policy blocks direct requests). The other external request is to Waze's public tile-build status file on Google Cloud Storage, used for the Livemap status.
 - Settings and drafts are stored in your browser's `localStorage`.
 - All edits go through the official WME SDK and stay **unsaved** until you press Save, just like manual edits.
 - License: MIT.
