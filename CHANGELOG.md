@@ -23,6 +23,21 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45.5 - sugestii: modificări de geometrie lizibile (pe `dev`, nepublicată)
+
+- „Geometrie” nu mai apare ca listă de coordonate GPS: în analiză și în lista
+  de după respingere se vede „3 puncte, 363 m → 4 puncte, 363 m” și ce s-a
+  schimbat („1 punct adăugat / mutat, lungime +0 m”).
+- Butoanele **veche** (roșu, întrerupt) / **nouă** (verde) înlocuiesc
+  „asta” din WME: cu mouse-ul deasupra desenează pe hartă geometria
+  respectivă, cu punctele modificate marcate (verde = adăugat, roșu =
+  eliminat); click = rămâne afișată și centrează harta. Merg și după
+  respingere.
+- În mesajul către utilizator: doar numărul de puncte și lungimea, fără
+  coordonate.
+- După respingere, geometria se poate aplica (punctele interioare din
+  sugestie; capetele segmentului rămân pe nodurile lui).
+
 ## 2026-10-20 - v0.45.4 - „Simulare”: tipul de prompt ca în JAI (pe `dev`, nepublicată)
 
 - „🔊 Simulare” din „Instrucțiuni viraje” folosește promptul forțat din

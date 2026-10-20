@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.4
+// @version      0.45.5
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.4';
+  const SCRIPT_VERSION = '0.45.5';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -11034,6 +11034,158 @@
     return box;
   }
 
+  // --- geometry changes ---------------------------------------------------
+  const ES_GEOM_LAYER = 'wme-ro-tools-es-geometry';
+  let esGeomLayerReady = false;
+
+  function esLineOf(v) {
+    let g = v;
+    if (typeof g === 'string') {
+      try {
+        g = JSON.parse(g);
+      } catch (e) {
+        return null;
+      }
+    }
+    return g && g.type === 'LineString' && Array.isArray(g.coordinates) ? { type: 'LineString', coordinates: g.coordinates.map((c) => c.slice(0, 2)) } : null;
+  }
+
+  function esLenM(line) {
+    const c = (line && line.coordinates) || [];
+    let m = 0;
+    for (let i = 1; i < c.length; i++) {
+      const k = Math.cos((((c[i][1] + c[i - 1][1]) / 2) * Math.PI) / 180);
+      const dx = (c[i][0] - c[i - 1][0]) * 111320 * k;
+      const dy = (c[i][1] - c[i - 1][1]) * 111320;
+      m += Math.sqrt(dx * dx + dy * dy);
+    }
+    return m;
+  }
+
+  function esGeomSummary(line) {
+    if (!line) return '';
+    const n = line.coordinates.length;
+    return L(`${n} puncte, ${Math.round(esLenM(line))} m`, `${n} points, ${Math.round(esLenM(line))} m`);
+  }
+
+  // Vertices present only in one of the two lines (± ~0.5 m).
+  function esVertexDiff(a, b) {
+    const same = (p, q) => Math.abs(p[0] - q[0]) < 6e-6 && Math.abs(p[1] - q[1]) < 4e-6;
+    const ca = (a && a.coordinates) || [];
+    const cb = (b && b.coordinates) || [];
+    return { added: cb.filter((p) => !ca.some((q) => same(p, q))), removed: ca.filter((p) => !cb.some((q) => same(p, q))) };
+  }
+
+  // Short description of what changed ("+1 punct de geometrie, +3 m").
+  function esGeomChangeText(it) {
+    if (!it.geomOld) return '';
+    const d = esVertexDiff(it.geomOld, it.geomNew);
+    const parts = [];
+    if (d.added.length) parts.push(L(`${d.added.length} ${d.added.length === 1 ? 'punct adăugat / mutat' : 'puncte adăugate / mutate'}`, `${d.added.length} point(s) added / moved`));
+    if (d.removed.length) parts.push(L(`${d.removed.length} ${d.removed.length === 1 ? 'punct eliminat / mutat' : 'puncte eliminate / mutate'}`, `${d.removed.length} point(s) removed / moved`));
+    const dl = Math.round(esLenM(it.geomNew) - esLenM(it.geomOld));
+    parts.push(L(`lungime ${dl >= 0 ? '+' : ''}${dl} m`, `length ${dl >= 0 ? '+' : ''}${dl} m`));
+    return parts.join(', ');
+  }
+
+  function esGeomLayer() {
+    if (esGeomLayerReady) return true;
+    try {
+      sdk.Map.addLayer({
+        layerName: ES_GEOM_LAYER,
+        styleRules: [
+          { predicate: (p) => p.kind === 'old', style: { strokeColor: '#e5484d', strokeWidth: 9, strokeOpacity: 0.85, strokeDashstyle: 'dash' } },
+          { predicate: (p) => p.kind === 'new', style: { strokeColor: '#2db84c', strokeWidth: 5, strokeOpacity: 0.95 } },
+          { predicate: (p) => p.kind === 'added', style: { pointRadius: 7, fillColor: '#2db84c', fillOpacity: 1, strokeColor: '#fff', strokeWidth: 2 } },
+          { predicate: (p) => p.kind === 'removed', style: { pointRadius: 7, fillColor: '#e5484d', fillOpacity: 1, strokeColor: '#fff', strokeWidth: 2 } },
+        ],
+      });
+      esGeomLayerReady = true;
+    } catch (e) {
+      console.warn(`${SCRIPT_NAME}: stratul pentru geometrie nu a putut fi creat.`, e);
+    }
+    return esGeomLayerReady;
+  }
+
+  function esGeomClear() {
+    if (!esGeomLayerReady) return;
+    try {
+      sdk.Map.removeAllFeaturesFromLayer({ layerName: ES_GEOM_LAYER });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // which: 'old' | 'new' - draws that line (+ the vertices that differ).
+  function esGeomShow(it, which) {
+    if (!esGeomLayer()) return;
+    esGeomClear();
+    const line = which === 'old' ? it.geomOld : it.geomNew;
+    if (!line) return;
+    const d = esVertexDiff(it.geomOld, it.geomNew);
+    const pts = which === 'old' ? d.removed.map((c) => ['removed', c]) : d.added.map((c) => ['added', c]);
+    const feats = [{ type: 'Feature', id: `es-geom-${which}`, geometry: line, properties: { kind: which } }];
+    pts.forEach(([kind, c], i) => feats.push({ type: 'Feature', id: `es-geom-${kind}-${i}`, geometry: { type: 'Point', coordinates: c }, properties: { kind } }));
+    try {
+      sdk.Map.addFeaturesToLayer({ layerName: ES_GEOM_LAYER, features: feats });
+    } catch (e) {
+      console.warn(`${SCRIPT_NAME}: geometria nu a putut fi desenată.`, e);
+    }
+  }
+
+  // "veche" / "nouă" chips: hover = show on the map, click = keep it shown
+  // and center the map on it (click again = hide).
+  function esGeomChips(it) {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:4px; font-size:11px;';
+    let pinned = null;
+    const mk = (which, text, color) => {
+      const b = document.createElement('span');
+      b.textContent = text;
+      b.style.cssText = `cursor:pointer; padding:1px 8px; border-radius:10px; border:2px ${which === 'old' ? 'dashed' : 'solid'} ${color};`;
+      b.title = L('Treci cu mouse-ul ca să o vezi pe hartă; click = rămâne afișată și centrează harta.', 'Hover to see it on the map; click = keep it shown and center the map.');
+      b.addEventListener('mouseenter', () => esGeomShow(it, which));
+      b.addEventListener('mouseleave', () => {
+        if (pinned) esGeomShow(it, pinned);
+        else esGeomClear();
+      });
+      b.addEventListener('click', () => {
+        pinned = pinned === which ? null : which;
+        b.style.background = pinned === which ? color : 'transparent';
+        [...wrap.children].forEach((x) => {
+          if (x !== b && x.dataset.which) x.style.background = 'transparent';
+        });
+        if (pinned) {
+          esGeomShow(it, pinned);
+          const p = esMidPoint(pinned === 'old' ? it.geomOld : it.geomNew);
+          if (p) {
+            try {
+              sdk.Map.setMapCenter({ lonLat: { lon: p[0], lat: p[1] } });
+            } catch (e) {
+              // ignore
+            }
+          }
+        } else esGeomClear();
+      });
+      b.dataset.which = which;
+      return b;
+    };
+    const lab = document.createElement('span');
+    lab.style.opacity = '0.7';
+    lab.textContent = L('Pe hartă:', 'On the map:');
+    wrap.appendChild(lab);
+    if (it.geomOld) wrap.appendChild(mk('old', L('veche', 'old'), '#e5484d'));
+    wrap.appendChild(mk('new', L('nouă', 'new'), '#2db84c'));
+    const ch = esGeomChangeText(it);
+    if (ch) {
+      const t = document.createElement('span');
+      t.style.opacity = '0.8';
+      t.textContent = ch;
+      wrap.appendChild(t);
+    }
+    return wrap;
+  }
+
   // Reads the open suggestion window: { esId, author, items } or null.
   function esReadPanel() {
     const panel = document.querySelector(ES_PANEL_SEL);
@@ -11109,6 +11261,16 @@
           const k = it.newText.lastIndexOf(', ');
           it.streetName = k >= 0 ? it.newText.slice(0, k).trim() : it.newText.trim();
           it.cityName = k >= 0 ? it.newText.slice(k + 2).trim() : '';
+        } else if (a.objectType === 'segment' && a.name === 'geometry' && raw && raw.type === 'LineString') {
+          // Geometry: shown as points + length (no coordinates in the
+          // message) and drawn on the map from the "veche" / "nouă" chips.
+          it.kind = 'geometry';
+          it.segmentId = segFromFeature;
+          it.geomOld = esLineOf(a.oldValueRaw);
+          it.geomNew = esLineOf(raw);
+          it.oldText = it.geomOld ? esGeomSummary(it.geomOld) : '';
+          it.newText = esGeomSummary(it.geomNew);
+          it.point = esMidPoint(it.geomNew);
         } else if (a.objectType === 'segment' && ES_FLAGS[a.name] && typeof raw === 'boolean') {
           it.kind = 'flag';
           it.segmentId = segFromFeature;
@@ -11179,6 +11341,10 @@
   }
 
   function esItemLine(it) {
+    if (it.kind === 'geometry') {
+      const ch = esGeomChangeText(it);
+      return `${it.label}: ${it.oldText ? `${it.oldText} → ` : ''}${it.newText}${ch ? ` (${ch})` : ''}`;
+    }
     if (it.oldText && it.newText) return `${it.label}: ${it.oldText} → ${it.newText}`;
     if (it.newText) return `${it.label}: ${it.newText}`;
     return it.label;
@@ -11431,6 +11597,14 @@
       sdk.DataModel.Segments.updateSegment({ segmentId: seg.id, roadType: it.roadType });
     } else if (it.kind === 'flag') {
       sdk.DataModel.Segments.updateSegment({ segmentId: seg.id, flagAttributes: { [it.flag]: it.value } });
+    } else if (it.kind === 'geometry') {
+      // Keep the segment's current end points (its nodes) - only the
+      // inner points come from the suggestion.
+      const cur = seg.geometry.coordinates;
+      const c = it.geomNew.coordinates.map((x) => x.slice());
+      c[0] = cur[0].slice();
+      c[c.length - 1] = cur[cur.length - 1].slice();
+      sdk.DataModel.Segments.updateSegment({ segmentId: seg.id, geometry: { type: 'LineString', coordinates: c } });
     } else if (it.kind === 'street') {
       esSetStreet(seg, String(o.streetName || it.streetName).trim(), it.cityName);
     } else if (it.kind === 'hnAdd') {
@@ -11477,6 +11651,7 @@
   function esCloseAnalysis() {
     const el = document.getElementById(ES_ANALYSIS_ID);
     if (el) el.remove();
+    esGeomClear();
   }
 
   function esOpenAnalysis(ctx) {
@@ -11686,6 +11861,23 @@
   }
 
   function esValuesEl(it) {
+    if (it.kind === 'geometry' && it.geomNew) {
+      const wrap = document.createElement('div');
+      const v = document.createElement('div');
+      v.style.cssText = 'font-size:12px; margin-top:2px;';
+      if (it.oldText) {
+        const o = document.createElement('span');
+        o.textContent = it.oldText;
+        o.style.cssText = 'text-decoration:line-through; opacity:0.65; margin-right:6px;';
+        v.appendChild(o);
+      }
+      const n = document.createElement('span');
+      n.textContent = `${it.oldText ? '→ ' : ''}${it.newText}`;
+      n.style.cssText = 'color:#2db84c;';
+      v.appendChild(n);
+      wrap.append(v, esGeomChips(it));
+      return wrap;
+    }
     if (it.guidance) {
       const wrap = document.createElement('div');
       if (it.guidance.old) wrap.appendChild(esGuidanceEl(it.guidance.old, true));
