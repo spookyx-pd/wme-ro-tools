@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.46
+// @version      0.46.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.46';
+  const SCRIPT_VERSION = '0.46.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -10665,18 +10665,23 @@
   const COORD_LINK_CLASS = 'wme-ro-tools-coord-link';
   const COORD_POLL_MS = 800;
   const COORD_MIN_ZOOM = 17;
-  // Decimal: two numbers with >= 3 decimals, separated by comma/semicolon/space.
-  const COORD_DEC_RE = /(-?\d{1,3}\.\d{3,})\s*[,;]?\s+(-?\d{1,3}\.\d{3,})|(-?\d{1,3}\.\d{3,})\s*[,;]\s*(-?\d{1,3}\.\d{3,})/;
-  // DMS: 45°03'19.8"N 26°25'37.8"E (also ′ ″ ’ ” and a comma as decimal sign;
-  // seconds optional; hemisphere letter before or after).
-  const COORD_DMS_PART = String.raw`(\d{1,3})\s*°\s*(\d{1,2})\s*['′’]\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*(?:["″”]|'')?)?`;
+  // Decimal: two numbers with >= 3 decimals, separated by comma/semicolon/
+  // space or (v0.46.1) a short word / sign: "44.305 si 26.178", "44.3 & 26.1".
+  const COORD_DEC_RE = /(-?\d{1,3}\.\d{3,})\s*(?:[,;&/|+]|\s(?:si|și|şi|and|et|y|-)\s)?\s*(-?\d{1,3}\.\d{3,})/i;
+  // DMS: 45°03'19.8"N 26°25'37.8"E. Also (v0.46.1, Paul: "44*18'18.0'N si
+  // 26*10'41.6''E"): * º ˚ for degrees, ' ′ ’ ` ´ for minutes, the seconds
+  // mark may be " ″ ” '' or a single ', decimal minutes (44°18.305'N),
+  // comma as decimal sign, and anything short between the two (a word like
+  // "si" / "și" / "and", a comma, "&", "/"...). Hemisphere letter before or
+  // after, or missing (then N / E).
+  const COORD_DMS_PART = String.raw`(\d{1,3})\s*[°º˚*]\s*(\d{1,2}(?:[.,]\d+)?)\s*['′’\`´]\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*(?:''|["″”'′’\`´])?)?`;
   const COORD_DMS_RE = new RegExp(
-    String.raw`([NS])?\s*${COORD_DMS_PART}\s*([NS])?[\s,;]*([EWV])?\s*${COORD_DMS_PART}\s*([EWV])?`,
+    String.raw`([NS])?\s*${COORD_DMS_PART}\s*([NS])?[^\d\n]{0,15}?([EWV])?\s*${COORD_DMS_PART}\s*([EWV])?`,
     'i'
   );
 
   function coordDmsToDec(d, m, sec) {
-    return Number(d) + Number(m) / 60 + (sec ? Number(String(sec).replace(',', '.')) : 0) / 3600;
+    return Number(d) + Number(String(m).replace(',', '.')) / 60 + (sec ? Number(String(sec).replace(',', '.')) : 0) / 3600;
   }
 
   // First coordinate pair in `text`: { index, length, lat, lon } or null.
@@ -10684,9 +10689,9 @@
     const found = [];
     const dms = COORD_DMS_RE.exec(text);
     if (dms) {
-      const latH = (dms[1] || dms[5] || '').toUpperCase();
-      const lonH = (dms[6] || dms[10] || '').toUpperCase();
-      if (latH && lonH) {
+      const latH = (dms[1] || dms[5] || 'N').toUpperCase();
+      const lonH = (dms[6] || dms[10] || 'E').toUpperCase();
+      if (Number(dms[2]) <= 90 && Number(dms[7]) <= 180) {
         let lat = coordDmsToDec(dms[2], dms[3], dms[4]);
         let lon = coordDmsToDec(dms[7], dms[8], dms[9]);
         if (latH === 'S') lat = -lat;
@@ -10791,13 +10796,13 @@
   function coordScanPanel(panel) {
     // Cheap pre-check on the whole text before walking nodes.
     const all = panel.textContent || '';
-    if (!/\d\.\d{3,}|°/.test(all)) return;
+    if (!/\d\.\d{3,}|[°º˚]|\d\s*\*\s*\d/.test(all)) return;
     const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT, {
       acceptNode(n) {
         if (!n.data || n.data.length < 7) return NodeFilter.FILTER_REJECT;
         const el = n.parentElement;
         if (!el || el.closest(COORD_SKIP_SELECTOR)) return NodeFilter.FILTER_REJECT;
-        return /\d\.\d{3,}|°/.test(n.data) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+        return /\d\.\d{3,}|[°º˚]|\d\s*\*\s*\d/.test(n.data) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
       },
     });
     const nodes = [];

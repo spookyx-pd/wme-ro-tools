@@ -23,6 +23,15 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.46.1 - coordonate GPS: mai multe formate recunoscute (pe `dev`, nepublicată)
+
+- Coordonatele scrise ca „44*18'18.0'N si 26*10'41.6''E” devin acum link.
+- Recunoscute în plus: `*` / `º` / `˚` în loc de `°`; secunde marcate cu `'`
+  simplu, `''`, `"`, `″`; minute cu zecimale (44°18.305'N); orice cuvânt sau
+  semn scurt între latitudine și longitudine („si”, „și”, „and”, „,”, „&”,
+  „/”…); fără literele N / E (se consideră N / E).
+- Coordonatele zecimale acceptă și „44.305 si 26.178”, „44.305 & 26.178”.
+
 ## 2026-10-20 - v0.46 - previzualizare poze din linkuri în UR / MP (pe `dev`, nepublicată)
 
 - **Nou:** în conversația UR / MP apare **🖼** după fiecare link (și după
