@@ -1,5 +1,11 @@
 # Changelog - wme-ro-tools
 
+> **Regulă nouă (2026-10-20, Paul):** fiecare set de modificări urcat pe
+> GitHub (ramura `dev`) primește o versiune nouă - incrementare minoră
+> 0.45.1, 0.45.2… pentru orice modificare, ca să existe evidență. Release
+> (deci publicare pe Greasy Fork) DOAR când Paul spune că e ok, indiferent
+> de număr. Funcțiile noi mari pot primi în continuare 0.46, 0.47…
+>
 > **Convenție de versionare (din v0.34.1, cerere Paul 2026-10-15)**:
 > bug-fix → increment minor (0.34.1, 0.34.2…); funcție nouă sau
 > modificare complexă → 0.35, 0.36… Fiecare versiune intră și în
@@ -16,6 +22,21 @@
 > `SCRIPT_VERSION`, în afară de acest fișier (care rămâne detaliat, în
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
+
+## 2026-10-20 - v0.45.1 - texte de început aprobare / respingere, nota utilizatorului (pe `dev`, nepublicată)
+
+- **Texte de început pentru mesaj** (cerute de Paul): unul pentru aprobare,
+  unul pentru respingere, cu data și ora sugestiei completate automat
+  (`{data}`, `{ora}`). În analiză alegi „Mesaj pentru: ✅ Aprobare / ❌
+  Respingere” (pentru Copiază și chat); „Respinge cu acest mesaj” și
+  „Inserează analiza” folosesc mereu textul de respingere. Mesajul rămâne
+  editabil, nimic nu se trimite automat.
+- **Bifă „Include nota utilizatorului”** în analiză și în fereastra de
+  respingere (ținută minte în setări): nota lui (din sugestie) intră ca
+  „🗒️ Nota ta: „…”” înainte de „Observațiile mele:”.
+- Textele de început, nota și cuvintele de stare sunt în „Texte
+  personalizabile” (câmpurile lungi sunt acum casete pe mai multe rânduri,
+  precompletate cu textul implicit).
 
 ## 2026-10-20 - v0.45 - sugestii de hartă: listă de aplicat, chat, întoarceri U (NEPUBLICATĂ - în testare pe `dev`)
 
@@ -38,19 +59,6 @@
   de „Update turn direction”.
 - Reparat: schimbarea „segment nou” (fără atribute) lipsea din analiză și
   decala locurile celorlalte modificări.
-- **Texte de început pentru mesaj** (cerute de Paul): unul pentru aprobare,
-  unul pentru respingere, cu data și ora sugestiei completate automat
-  (`{data}`, `{ora}`). În analiză alegi „Mesaj pentru: ✅ Aprobare / ❌
-  Respingere” (pentru Copiază și chat); „Respinge cu acest mesaj” și
-  „Inserează analiza” folosesc mereu textul de respingere. Mesajul rămâne
-  editabil, nimic nu se trimite automat.
-- **Bifă „Include nota utilizatorului”** în analiză și în fereastra de
-  respingere (ținută minte în setări): nota lui (din sugestie) intră ca
-  „🗒️ Nota ta: „…”” înainte de „Observațiile mele:”.
-- Textele de început, nota și cuvintele de stare sunt în „Texte
-  personalizabile” (câmpurile lungi sunt acum casete pe mai multe rânduri,
-  precompletate cu textul implicit).
-
 ## 2026-10-19 - v0.44 - ajutor pentru sugestiile de hartă
 
 - **Nou: „📝 Analiză modificări”** în fereastra „Sugestie hartă”: fiecare
