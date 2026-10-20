@@ -23,6 +23,17 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45.2 - instrucțiuni de viraj lizibile în analiză (pe `dev`, nepublicată)
+
+- „Update turn instruction” nu mai apare ca JSON: în analiză și în lista de
+  după respingere se vede „Principal / Înspre / TTS” cu **insigna reală**
+  (imaginea de la serverul de semne Waze, ca în WME), ex. [DN2B] Brăila,
+  [DC4] Str. Unirii, „» Vădeni”. Valoarea veche (dacă există) e afișată
+  tăiat, cu roșu.
+- În mesajul text: „Principal: [DN2B] Brăila; Înspre: » Vădeni; TTS: „…””.
+- Titlul păstrează „dinspre X către Y” (tradus „Instrucțiune viraj …”); locul
+  arată segmentele („2 segmente: …”) ca să deosebești virajele la fel.
+
 ## 2026-10-20 - v0.45.1 - texte de început aprobare / respingere, nota utilizatorului (pe `dev`, nepublicată)
 
 - **Texte de început pentru mesaj** (cerute de Paul): unul pentru aprobare,

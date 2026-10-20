@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.1
+// @version      0.45.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.1';
+  const SCRIPT_VERSION = '0.45.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -10844,6 +10844,124 @@
     return String(name || '').replace(/\s+(nr\.?\s*)?\d+\s*[A-Za-z]?$/i, '').trim();
   }
 
+  function esParseGuidance(v) {
+    if (v == null || v === 'null' || v === '') return null;
+    if (typeof v === 'object') return v;
+    try {
+      return JSON.parse(String(v));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Shield image from the Waze sign renderer (what WME's own turn
+  // instruction preview uses): <renderer>/<signType>?text=<signText>.
+  function esShieldUrl(type, text) {
+    const env = new URLSearchParams(location.search).get('env') || 'row';
+    const host = env === 'usa' ? 'renderer-am' : env === 'il' ? 'renderer-il' : 'renderer-row';
+    return `https://${host}.waze.com/renderer/v1/signs/${encodeURIComponent(type)}?text=${encodeURIComponent(text || '')}`;
+  }
+
+  // "$RS-0 » X" -> [{shield}, ' » X'].
+  function esGuidanceTokens(str, g) {
+    const out = [];
+    String(str || '')
+      .split(/(\$RS-\d+)/)
+      .forEach((part) => {
+        const m = /^\$(RS-\d+)$/.exec(part);
+        const sh = m && g.roadShields && g.roadShields[m[1]];
+        if (sh) out.push({ shield: sh });
+        else if (part) out.push({ text: part });
+      });
+    return out;
+  }
+
+  function esGuidanceTokensText(str, g) {
+    return esGuidanceTokens(str, g)
+      .map((t) => (t.shield ? `[${tiShieldCode({ signType: t.shield.type, signText: t.shield.text })}]${t.shield.direction ? ` ${t.shield.direction}` : ''}` : t.text))
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function esExitSignsText(g) {
+    return (g.exitSigns || []).map((x) => (x && (x.text || x.signText)) || '').filter(Boolean).join(', ');
+  }
+
+  // Plain-text form (message, rejection dialog).
+  function esGuidanceText(g) {
+    const parts = [];
+    const main = esGuidanceTokensText(g.visualInstruction, g);
+    const tow = esGuidanceTokensText(g.towards, g);
+    const ex = esExitSignsText(g);
+    if (ex) parts.push(`${L('Ieșire', 'Exit')}: ${ex}`);
+    if (main) parts.push(`${L('Principal', 'Main')}: ${main}`);
+    if (tow) parts.push(`${L('Înspre', 'Towards')}: ${tow}`);
+    if (g.tts) parts.push(`TTS: „${String(g.tts).replace(/\s+/g, ' ').trim()}”`);
+    return parts.join('; ') || L('instrucțiune goală', 'empty instruction');
+  }
+
+  // Readable block with the shield images.
+  function esGuidanceEl(g, struck) {
+    const box = document.createElement('div');
+    box.style.cssText = `font-size:12px; margin-top:3px; padding:4px 6px; border-left:3px solid ${struck ? '#e5484d' : '#2db84c'}; ${struck ? 'opacity:0.65;' : ''}`;
+    if (!g) {
+      box.textContent = L('fără instrucțiune', 'no instruction');
+      if (struck) box.style.textDecoration = 'line-through';
+      return box;
+    }
+    const line = (label, str) => {
+      const toks = esGuidanceTokens(str, g);
+      if (!toks.length) return;
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex; align-items:center; flex-wrap:wrap; gap:4px; margin:1px 0;';
+      const l = document.createElement('span');
+      l.style.cssText = 'opacity:0.7; min-width:58px;';
+      l.textContent = `${label}:`;
+      r.appendChild(l);
+      toks.forEach((t) => {
+        if (t.shield) {
+          const img = document.createElement('img');
+          img.src = esShieldUrl(t.shield.type, t.shield.text);
+          img.alt = tiShieldCode({ signType: t.shield.type, signText: t.shield.text });
+          img.title = img.alt;
+          img.style.cssText = 'height:24px; width:auto; vertical-align:middle;';
+          r.appendChild(img);
+          if (t.shield.direction) {
+            const d = document.createElement('span');
+            d.textContent = t.shield.direction;
+            r.appendChild(d);
+          }
+        } else {
+          const sp = document.createElement('span');
+          sp.textContent = t.text.trim();
+          if (sp.textContent) r.appendChild(sp);
+        }
+      });
+      box.appendChild(r);
+    };
+    const ex = esExitSignsText(g);
+    if (ex) {
+      const r = document.createElement('div');
+      r.textContent = `${L('Ieșire', 'Exit')}: ${ex}`;
+      box.appendChild(r);
+    }
+    line(L('Principal', 'Main'), g.visualInstruction);
+    line(L('Înspre', 'Towards'), g.towards);
+    if (g.tts) {
+      const r = document.createElement('div');
+      r.style.cssText = 'margin:1px 0;';
+      const l = document.createElement('span');
+      l.style.cssText = 'opacity:0.7; margin-right:4px;';
+      l.textContent = 'TTS:';
+      const v = document.createElement('span');
+      v.textContent = `„${String(g.tts).replace(/\s+/g, ' ').trim()}”`;
+      r.append(l, v);
+      box.appendChild(r);
+    }
+    return box;
+  }
+
   // Reads the open suggestion window: { esId, author, items } or null.
   function esReadPanel() {
     const panel = document.querySelector(ES_PANEL_SEL);
@@ -10865,9 +10983,12 @@
     changes.forEach((c, ci) => {
       const li = lis[ci];
       const locEl = li && li.querySelector('[class*="link--"]');
-      const loc = locEl ? locEl.textContent.trim() : '';
+      const subEl = li && li.querySelector('[slot="subtitle"]');
+      const loc = locEl ? locEl.textContent.trim() : subEl ? subEl.textContent.trim() : '';
       const keyEl = li && li.querySelector('[slot="item-key"]');
-      const keyText = keyEl ? (keyEl.querySelector('div div') || keyEl).textContent.trim() : '';
+      // Title = the first innermost div ("Update turn instruction dinspre X către Y").
+      const keyTitle = keyEl && [...keyEl.querySelectorAll('div')].find((x) => !x.querySelector('div') && x.textContent.trim());
+      const keyText = keyTitle ? keyTitle.textContent.trim() : '';
       const ff = (c.focusedFeatures || [])[0];
       const ffa = ff && ff.attributes;
       const segFromFeature = ffa && ffa.id;
@@ -10934,6 +11055,14 @@
             it.hnPoint = { type: 'Point', coordinates: pt.coordinates.slice(0, 2) };
             it.point = it.hnPoint.coordinates;
           }
+        } else if (a.objectType === 'nodeConnection' && a.name === 'turnGuidance') {
+          // Turn instruction: old / new value = JSON strings ({roadShields:
+          // {"RS-0": {type, text, direction}}, visualInstruction "$RS-0",
+          // towards, tts, exitSigns}). Shown readable, with shield images.
+          it.guidance = { old: esParseGuidance(a.oldValue), new: esParseGuidance(a.newValue) };
+          it.label = keyText ? keyText.replace(/^Update turn instruction/i, L('Instrucțiune viraj', 'Turn instruction')).replace(/Submitted.*$/, '').trim() : L('Instrucțiune viraj', 'Turn instruction');
+          it.oldText = it.guidance.old ? esGuidanceText(it.guidance.old) : '';
+          it.newText = it.guidance.new ? esGuidanceText(it.guidance.new) : L('fără instrucțiune', 'no instruction');
         } else if (a.objectType === 'nodeConnection' && raw && raw.fromVertex && raw.toVertex && raw.turnData) {
           // Turn: from/to vertex = {segmentID, direction 'fwd'|'rev'};
           // turnData.state 1 = allowed, 2 = not allowed. Same segment in
@@ -11485,6 +11614,12 @@
   }
 
   function esValuesEl(it) {
+    if (it.guidance) {
+      const wrap = document.createElement('div');
+      if (it.guidance.old) wrap.appendChild(esGuidanceEl(it.guidance.old, true));
+      wrap.appendChild(esGuidanceEl(it.guidance.new, false));
+      return wrap;
+    }
     if (!it.oldText && !it.newText) return null;
     const vals = document.createElement('div');
     vals.style.cssText = 'font-size:12px; margin-top:2px;';
