@@ -23,6 +23,19 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45.8 - analiză: butoane după tipul mesajului, ciorne 3 zile (pe `dev`, nepublicată)
+
+- **Mesaj pentru: ✅ Aprobare** → jos rămâne un singur buton, „Aprobă și
+  trimite mesaj privat”: pune mesajul (cu textul de aprobare) în chatul WME
+  cu utilizatorul - tu îl verifici și apeși Trimite - și aprobă sugestia
+  („Actualizare hartă”). Dacă mesajul nu ajunge în chat, sugestia NU se
+  aprobă. „Copiază” și „Trimite în chat” nu mai apar aici.
+- **Mesaj pentru: ❌ Respingere** → „Copiază” + bifa „💬 Trimite și în
+  chat” (ținută minte) + „Respinge cu acest mesaj” (Waze trimite mesajul prin
+  e-mail; cu bifa, același mesaj se pune și în chat).
+- **Ciornele** (text, stări, explicații) se păstrează 3 zile (în loc de 30) și
+  se șterg imediat după aprobare sau respingere.
+
 ## 2026-10-20 - v0.45.7 - fereastra de respingere: mesajul se reface din analiză (pe `dev`, nepublicată)
 
 - Problema: la „Respinge”, caseta primea ciorna salvată mai devreme (ex. dintr-o

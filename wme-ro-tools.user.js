@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.7
+// @version      0.45.8
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.7';
+  const SCRIPT_VERSION = '0.45.8';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -394,6 +394,8 @@
     editSuggestionHelper: true,
     // v0.45: include the suggester's own note in the message (checkbox).
     esIncludeNote: false,
+    // v0.45.8: on rejection, also put the message in the WME chat.
+    esAlsoChat: false,
     nodeAngleLength: true, // angle + length on selected node
     segmentLength: true, // length on selected segment
     segmentAutomation: true, // segment parameter automation (unpaved/road type)
@@ -10814,13 +10816,16 @@
   const ES_LIST_BTN_ID = 'wme-ro-tools-es-apply-btn';
   const LS_ES_DRAFTS = 'wme-ro-tools.esDrafts';
   const LS_ES_QUEUE = 'wme-ro-tools.esApplyQueue';
-  const ES_DRAFT_MAX_AGE_MS = 30 * 24 * 3600 * 1000;
+  // v0.45.8 (Paul): drafts are kept 3 days, and dropped once the suggestion
+  // is approved or rejected.
+  const ES_DRAFT_MAX_AGE_MS = 3 * 24 * 3600 * 1000;
   const ES_POLL_MS = 500;
   const ES_NEARBY_STREET_M = 250;
 
   const esState = {
     lastCtx: null, // last read suggestion context (kept while the dialog is open)
     pendingRejectId: null, // suggestion rejected - move it to the list once the window closes
+    pendingApproveId: null, // suggestion approved - drop its draft once the window closes
     listOpen: true,
     listCollapsed: false,
     listPanel: null,
@@ -10866,6 +10871,13 @@
   function esDraft(esId) {
     const d = esLoadDrafts()[esId] || {};
     return { at: Date.now(), msg: '', statuses: {}, notes: {}, ...d };
+  }
+
+  function esDeleteDraft(esId) {
+    const all = esLoadDrafts();
+    if (!all[esId]) return;
+    delete all[esId];
+    esSaveJson(LS_ES_DRAFTS, all);
   }
 
   function esSaveDraft(esId, d) {
@@ -11476,10 +11488,15 @@
   // The person icon next to the name (`.waze-chat-with-user`) opens the WME
   // chat (same-origin iframe /chat/embed). We put the text in its box; the
   // user presses Send.
-  function esSendToChat(author, msg) {
+  // `done(ok)` is called once the text is in the chat box (or it failed).
+  function esSendToChat(author, msg, done) {
+    const fin = (ok) => {
+      if (done) done(ok);
+    };
     const icon = document.querySelector(`${ES_PANEL_SEL} .waze-chat-with-user`);
     if (!icon) {
       phShowToast(L('Nu am găsit butonul de chat al utilizatorului.', "The user's chat button was not found."), true);
+      fin(false);
       return;
     }
     icon.click();
@@ -11500,6 +11517,7 @@
         else {
           navigator.clipboard.writeText(msg).catch(() => {});
           phShowToast(L('Chatul nu s-a deschis la timp - mesajul e în clipboard.', 'The chat did not open in time - the message is in the clipboard.'), true);
+          fin(false);
         }
         return;
       }
@@ -11510,6 +11528,7 @@
       ta.dispatchEvent(new W2.Event('input', { bubbles: true }));
       ta.focus();
       phShowToast(L('Mesajul e în chat - verifică-l și apasă Trimite.', 'The message is in the chat - check it and press Send.'));
+      fin(true);
     };
     setTimeout(fill, 400);
   }
@@ -11789,6 +11808,7 @@
         d.mode = k;
         esSaveDraft(ctx.esId, d);
         paintMode();
+        renderFoot();
       });
       modeBtns[k] = b;
       modeRow.appendChild(b);
@@ -11797,8 +11817,8 @@
     const modeHint = document.createElement('div');
     modeHint.style.cssText = 'font-size:11px; opacity:0.6;';
     modeHint.textContent = L(
-      'Alege textul de început pentru „Copiază” și „Trimite în chat”. „Respinge cu acest mesaj” folosește mereu textul de respingere. Mesajul rămâne editabil - nimic nu se trimite automat.',
-      'Picks the opening text for "Copy" and "Send in chat". "Reject with this message" always uses the rejection text. The message stays editable - nothing is sent automatically.'
+      'Aprobare: mesajul (text de aprobare) merge în chatul WME cu utilizatorul, apoi sugestia se aprobă. Respingere: mesajul merge în fereastra de respingere (Waze îl trimite prin e-mail) și, opțional, și în chat. Mesajul rămâne editabil - în chat apeși tu Trimite.',
+      'Approval: the message (approval text) goes to the WME chat with the user, then the suggestion is approved. Rejection: the message goes to the rejection dialog (Waze e-mails it) and, optionally, to the chat too. The message stays editable - in the chat you press Send.'
     );
     opts.append(modeRow, esNoteCheckbox(ctx), modeHint);
 
@@ -11888,44 +11908,94 @@
       if (!msg) phShowToast(L('Analiza e goală - alege o stare sau scrie o explicație.', 'The review is empty - pick a status or write an explanation.'), true);
       return msg;
     };
-    fbtn(L('Copiază', 'Copy'), false, async () => {
-      const msg = needMsg();
-      if (!msg) return;
-      try {
-        await navigator.clipboard.writeText(msg);
-        phShowToast(L('Mesajul a fost copiat.', 'Message copied.'));
-      } catch (e) {
-        window.prompt(L('Copiază mesajul:', 'Copy the message:'), msg);
+    const nativeBtn = (submit) => {
+      const panelEl = document.querySelector(ES_PANEL_SEL);
+      return panelEl && [...panelEl.querySelectorAll('wz-button')].find((b) => (submit ? b.getAttribute('type') === 'submit' : b.getAttribute('type') !== 'submit' && /Respinge|Reject/i.test(b.textContent)));
+    };
+    const hasChat = () => !!document.querySelector(`${ES_PANEL_SEL} .waze-chat-with-user`);
+    const openReject = () => {
+      d.msg = esComposeMessage(ctx, d, 'reject');
+      d.msgAuto = d.msg; // not edited by hand yet
+      save();
+      esCloseAnalysis();
+      const rej = nativeBtn(false);
+      if (rej) rej.click();
+      else phShowToast(L('Nu am găsit butonul Respinge.', 'Reject button not found.'), true);
+    };
+    // Footer by message type (v0.45.8, Paul).
+    function renderFoot() {
+      foot.textContent = '';
+      if (d.mode === 'approve') {
+        if (!document.querySelector(ES_PANEL_SEL)) return;
+        fbtn(
+          L('Aprobă și trimite mesaj privat', 'Approve and send a private message'),
+          true,
+          () => {
+            const msg = needMsg('approve');
+            if (!msg) return;
+            if (!hasChat()) {
+              phShowToast(L('Nu am găsit chatul utilizatorului - nu am aprobat nimic.', "The user's chat was not found - nothing was approved."), true);
+              return;
+            }
+            esSendToChat(ctx.author, msg, (ok) => {
+              if (!ok) {
+                phShowToast(L('Mesajul nu a ajuns în chat - sugestia NU a fost aprobată.', 'The message did not reach the chat - the suggestion was NOT approved.'), true);
+                return;
+              }
+              const ok2 = nativeBtn(true);
+              if (!ok2) {
+                phShowToast(L('Nu am găsit „Actualizare hartă” - aprobă manual.', 'Could not find "Update map" - approve by hand.'), true);
+                return;
+              }
+              esState.pendingApproveId = ctx.esId;
+              esCloseAnalysis();
+              ok2.click();
+            });
+          },
+          L('Pune mesajul (cu textul de aprobare) în chatul WME cu utilizatorul - îl verifici și apeși Trimite - și aprobă sugestia („Actualizare hartă”).', 'Puts the message (approval text) in the WME chat with the user - you check it and press Send - and approves the suggestion ("Update map").')
+        );
+        return;
       }
-    });
-    if (document.querySelector(`${ES_PANEL_SEL} .waze-chat-with-user`)) {
-      fbtn(
-        L('💬 Trimite în chat', '💬 Send in chat'),
-        false,
-        () => {
-          const msg = needMsg();
-          if (msg) esSendToChat(ctx.author, msg);
-        },
-        L('Deschide chatul WME cu utilizatorul și pune mesajul în casetă - tu apeși Trimite. Util și când aprobi sugestia, dar vrei să-i explici ce poate face mai bine.', 'Opens the WME chat with the user and puts the message in the box - you press Send. Useful also when you approve the suggestion but want to explain what could be better.')
-      );
-    }
-    if (document.querySelector(ES_PANEL_SEL)) {
+      fbtn(L('Copiază', 'Copy'), false, async () => {
+        const msg = needMsg('reject');
+        if (!msg) return;
+        try {
+          await navigator.clipboard.writeText(msg);
+          phShowToast(L('Mesajul a fost copiat.', 'Message copied.'));
+        } catch (e) {
+          window.prompt(L('Copiază mesajul:', 'Copy the message:'), msg);
+        }
+      });
+      if (!document.querySelector(ES_PANEL_SEL)) return;
+      if (hasChat()) {
+        const lab = document.createElement('label');
+        lab.style.cssText = 'display:flex; align-items:center; gap:4px; font-size:12px; cursor:pointer; margin-right:auto;';
+        lab.title = L('Pe lângă e-mailul trimis de Waze la respingere, pune același mesaj și în chatul WME cu utilizatorul (tu apeși Trimite).', 'Besides the e-mail Waze sends on rejection, also put the same message in the WME chat with the user (you press Send).');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = !!settings.esAlsoChat;
+        cb.addEventListener('change', () => {
+          settings.esAlsoChat = cb.checked;
+          saveSettings();
+        });
+        const sp = document.createElement('span');
+        sp.textContent = L('💬 Trimite și în chat', '💬 Also send in chat');
+        lab.append(cb, sp);
+        foot.insertBefore(lab, foot.firstChild);
+      }
       fbtn(
         L('Respinge cu acest mesaj', 'Reject with this message'),
         true,
         () => {
-          d.msg = esComposeMessage(ctx, d, 'reject');
-          d.msgAuto = d.msg; // not edited by hand yet
-          save();
-          esCloseAnalysis();
-          const panelEl = document.querySelector(ES_PANEL_SEL);
-          const rej = panelEl && [...panelEl.querySelectorAll('wz-button')].find((b) => b.getAttribute('type') !== 'submit' && /Respinge|Reject/i.test(b.textContent));
-          if (rej) rej.click();
-          else phShowToast(L('Nu am găsit butonul Respinge.', 'Reject button not found.'), true);
+          const msg = needMsg('reject');
+          if (!msg) return;
+          if (settings.esAlsoChat && hasChat()) esSendToChat(ctx.author, msg, () => openReject());
+          else openReject();
         },
-        L('Deschide fereastra de respingere cu mesajul compus (îl poți modifica acolo). Mesajul ajunge la utilizator prin e-mail.', 'Opens the rejection dialog with the composed message (you can edit it there). The user gets it by e-mail.')
+        L('Deschide fereastra de respingere cu mesajul compus (îl poți modifica acolo). Waze îl trimite utilizatorului prin e-mail.', 'Opens the rejection dialog with the composed message (you can edit it there). Waze e-mails it to the user.')
       );
     }
+    renderFoot();
     box.append(head, sub, opts, list, foot);
     document.body.appendChild(box);
   }
@@ -11997,6 +12067,17 @@
     });
     bar.appendChild(b);
     footer.parentElement.insertBefore(bar, footer);
+    // Native "Actualizare hartă" = approval: drop the draft afterwards.
+    const approve = [...panel.querySelectorAll('wz-button')].find((x) => x.getAttribute('type') === 'submit');
+    if (approve) {
+      approve.addEventListener(
+        'click',
+        () => {
+          esState.pendingApproveId = ctx.esId;
+        },
+        true
+      );
+    }
   }
 
   // --- native rejection dialog ------------------------------------------
@@ -12474,6 +12555,11 @@
       esState.pendingRejectId = null;
       esCloseAnalysis();
       esQueueAdd(id);
+      esDeleteDraft(id);
+    }
+    if (esState.pendingApproveId && !panel) {
+      esDeleteDraft(esState.pendingApproveId);
+      esState.pendingApproveId = null;
     }
     // WME re-renders the toolbar - keep our button.
     if (esQueue().length && (!esState.listBtn || !document.body.contains(esState.listBtn))) esRenderList();
