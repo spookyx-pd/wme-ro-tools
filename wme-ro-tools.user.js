@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.3
+// @version      0.45.4
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.3';
+  const SCRIPT_VERSION = '0.45.4';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -9729,35 +9729,95 @@
     return (Math.atan2((b[0] - a[0]) * k, b[1] - a[1]) * 180) / Math.PI;
   }
 
-  // Default Waze prompt (opcode null): roundabout, else from the angle
-  // between the two segments at the node (approximation of Waze's rules).
-  function tiDefaultPhrase(ctx) {
-    const ids = tiTurnIds(ctx);
-    if (!ids) return tiVoice('CONTINUE');
-    let from;
-    let to;
-    try {
-      from = sdk.DataModel.Segments.getById({ segmentId: ids.fromSegId });
-      to = sdk.DataModel.Segments.getById({ segmentId: ids.toSegId });
-    } catch (e) {
-      return tiVoice('CONTINUE');
-    }
-    if (!from || !to) return tiVoice('CONTINUE');
-    if (from.junctionId || to.junctionId) return tiVoice('ROUNDABOUT');
+  // Angle of a turn (degrees, + = right) between the last piece of `from`
+  // and the first piece of `to`, in the travel directions.
+  function tiTurnAngle(from, fromFwd, to, toFwd) {
     const fc = from.geometry.coordinates;
     const tc = to.geometry.coordinates;
     // Travel direction: forward = A->B = coordinate order.
-    const f1 = ids.fromFwd ? fc[fc.length - 2] : fc[1];
-    const f2 = ids.fromFwd ? fc[fc.length - 1] : fc[0];
-    const t1 = ids.toFwd ? tc[0] : tc[tc.length - 1];
-    const t2 = ids.toFwd ? tc[1] : tc[tc.length - 2];
+    const f1 = fromFwd ? fc[fc.length - 2] : fc[1];
+    const f2 = fromFwd ? fc[fc.length - 1] : fc[0];
+    const t1 = toFwd ? tc[0] : tc[tc.length - 1];
+    const t2 = toFwd ? tc[1] : tc[tc.length - 2];
     let a = tiBearing(t1, t2) - tiBearing(f1, f2);
     while (a > 180) a -= 360;
     while (a <= -180) a += 360;
-    if (Math.abs(a) <= 20) return tiVoice('CONTINUE');
-    if (Math.abs(a) <= 45) return tiVoice(a > 0 ? 'KEEP_RIGHT' : 'KEEP_LEFT');
-    if (Math.abs(a) >= 170) return tiVoice('UTURN');
-    return tiVoice(a > 0 ? 'TURN_RIGHT' : 'TURN_LEFT');
+    return a;
+  }
+
+  // Default Waze prompt (opcode null) - the rules JAI (Junction Angle Info)
+  // shows (v0.45.4, Paul: "fie e implicit Waze caz în care [...]
+  // determinăm așa cum determină JAI"):
+  // - roundabout segment -> roundabout; same segment -> U-turn;
+  // - |angle| > 45.04° -> turn left / right (>= 170° U-turn);
+  // - within ±45.04°: the only allowed branch there -> continue; else the
+  //   "best continuation" (the only branch with the incoming street name)
+  //   continues, the other branches get keep - or exit when they lead to a
+  //   ramp from a non-ramp - on the side they lie (rightmost = right).
+  // Returns { op, angle, why }.
+  const TI_KEEP_ZONE_DEG = 45.04;
+  const TI_RAMP = 4;
+  function tiDefaultOp(ctx) {
+    const ids = tiTurnIds(ctx);
+    if (!ids) return { op: 'CONTINUE', why: '' };
+    const seg = (id) => {
+      try {
+        return sdk.DataModel.Segments.getById({ segmentId: id });
+      } catch (e) {
+        return null;
+      }
+    };
+    const name = (s) => {
+      try {
+        const st = s && s.primaryStreetId != null ? sdk.DataModel.Streets.getById({ streetId: s.primaryStreetId }) : null;
+        return (st && st.name) || '';
+      } catch (e) {
+        return '';
+      }
+    };
+    const from = seg(ids.fromSegId);
+    const to = seg(ids.toSegId);
+    if (!from || !to) return { op: 'CONTINUE', why: '' };
+    if (ids.fromSegId === ids.toSegId) return { op: 'UTURN', why: L('întoarcere pe același segment', 'back onto the same segment') };
+    if (from.junctionId || to.junctionId) return { op: 'ROUNDABOUT', why: L('sens giratoriu', 'roundabout') };
+    const a = tiTurnAngle(from, ids.fromFwd, to, ids.toFwd);
+    const deg = `${Math.abs(a).toFixed(1)}°`;
+    if (Math.abs(a) > TI_KEEP_ZONE_DEG) {
+      if (Math.abs(a) >= 170) return { op: 'UTURN', angle: a, why: deg };
+      return { op: a > 0 ? 'TURN_RIGHT' : 'TURN_LEFT', angle: a, why: L(`${deg}, peste 45°`, `${deg}, over 45°`) };
+    }
+    // Other allowed branches from the same approach inside the keep zone.
+    const nodeId = ids.fromFwd ? from.toNodeId : from.fromNodeId;
+    let turns = [];
+    try {
+      turns = sdk.DataModel.Turns.getTurnsThroughNode({ nodeId });
+    } catch (e) {
+      turns = [];
+    }
+    const others = turns
+      .filter((t) => t.fromSegmentId === from.id && t.fromSegmentFwd === ids.fromFwd && t.isAllowed && t.toSegmentId !== to.id && t.toSegmentId !== from.id)
+      .map((t) => {
+        const s = seg(t.toSegmentId);
+        return s ? { s, a: tiTurnAngle(from, ids.fromFwd, s, t.toSegmentFwd) } : null;
+      })
+      .filter((o) => o && Math.abs(o.a) <= TI_KEEP_ZONE_DEG);
+    if (!others.length) return { op: 'CONTINUE', angle: a, why: L(`${deg}, singura ramificație sub 45°`, `${deg}, the only branch under 45°`) };
+    const fromName = name(from);
+    const bc = fromName ? [to, ...others.map((o) => o.s)].filter((s) => name(s) === fromName) : [];
+    if (bc.length === 1 && bc[0] === to) return { op: 'CONTINUE', angle: a, why: L(`${deg}, continuarea firească (același nume)`, `${deg}, best continuation (same name)`) };
+    const right = others.every((o) => a > o.a);
+    const exit = to.roadType === TI_RAMP && from.roadType !== TI_RAMP;
+    return {
+      op: `${exit ? 'EXIT' : 'KEEP'}_${right ? 'RIGHT' : 'LEFT'}`,
+      angle: a,
+      why: exit ? L(`${deg}, spre rampă, ramificație ${right ? 'dreapta' : 'stânga'}`, `${deg}, to a ramp, ${right ? 'right' : 'left'} branch`) : L(`${deg}, ramificație ${right ? 'dreapta' : 'stânga'}`, `${deg}, ${right ? 'right' : 'left'} branch`),
+    };
+  }
+
+  // Readable name of a prompt type (for the toast).
+  function tiOpLabel(op) {
+    const d = CUSTOM_TEXT_DEFS.find((x) => x.key === `voice.${op}`);
+    return d ? d.label : op;
   }
 
   function tiSimulate(anchorEl) {
@@ -9774,8 +9834,14 @@
       phShowToast(L('Prompt voce „Fără”: Waze nu anunță acest viraj.', 'Voice prompt "None": Waze does not announce this turn.'), true, anchorEl.getBoundingClientRect());
       return;
     }
-    const phrase = op ? tiVoice(op) : tiDefaultPhrase(ctx);
+    // Forced in "Prompt voce", else Waze's default (JAI rules).
+    const def = op ? null : tiDefaultOp(ctx);
+    const useOp = op || def.op;
+    const phrase = tiVoice(useOp);
     const text = `${CT('voice.distance')} ${phrase} ${tts}`;
+    const kind = op
+      ? L(`Prompt voce: ${tiOpLabel(useOp)} (setat)`, `Voice prompt: ${tiOpLabel(useOp)} (set)`)
+      : L(`Implicit Waze → ${tiOpLabel(useOp)}${def.why ? ` (${def.why})` : ''}`, `Waze default → ${tiOpLabel(useOp)}${def.why ? ` (${def.why})` : ''}`);
     const svc = tiFindTtsService(ctx.panel);
     if (!svc) {
       phShowToast(L('Nu am găsit serviciul de voce al WME.', 'Could not find the WME voice service.'), true, anchorEl.getBoundingClientRect());
@@ -9786,7 +9852,7 @@
     try {
       if (!ctx.lonlat) throw new Error(L('lipsește poziția virajului', 'turn position is missing'));
       svc.sayTextInLocale(text, ctx.lonlat, locale);
-      phShowToast(`🔊 ${text}`, false, anchorEl.getBoundingClientRect());
+      phShowToast(`🔊 ${kind} · „${text}”`, false, anchorEl.getBoundingClientRect());
     } catch (e) {
       phShowToast(L(`Simularea vocală a eșuat: ${e.message}`, `Voice simulation failed: ${e.message}`), true, anchorEl.getBoundingClientRect());
     }
@@ -10252,7 +10318,7 @@
       tools.appendChild(tiBtn('+P', L('Transcrie zona principală (unde e cursorul în TTS, altfel la final)', 'Transcribes the main area (at the cursor in TTS, otherwise at the end)'), (b) => tiTtsAction('main', b), small));
       tools.appendChild(tiBtn(L('+Î', '+T'), L('Transcrie „Înspre” (unde e cursorul în TTS, altfel la final)', 'Transcribes "Towards" (at the cursor in TTS, otherwise at the end)'), (b) => tiTtsAction('towards', b), small));
       tools.appendChild(tiBtn('🗑', L('Șterge tot textul TTS', 'Clears all TTS text'), (b) => tiTtsAction('clear', b), small));
-      tools.appendChild(tiBtn(L('🔊 Simulare', '🔊 Simulate'), L(`Redă cu vocea WME instrucțiunea completă: „${CT('voice.distance')} virează la dreapta pe …” (după Prompt voce; implicit Waze = după unghi / giratoriu)`, `Plays the full instruction with the WME voice: "${CT('voice.distance')} virează la dreapta pe …" (by Voice prompt; Waze default = by angle / roundabout)`), (b) => tiSimulate(b), small));
+      tools.appendChild(tiBtn(L('🔊 Simulare', '🔊 Simulate'), L(`Redă cu vocea WME instrucțiunea completă: „${CT('voice.distance')} virează la dreapta pe …” (după Prompt voce; implicit Waze = regulile JAI: continuă / ține / ieși / virează)`, `Plays the full instruction with the WME voice: "${CT('voice.distance')} virează la dreapta pe …" (by Voice prompt; Waze default = JAI rules: continue / keep / exit / turn)`), (b) => tiSimulate(b), small));
       row.appendChild(tools);
     }
   }

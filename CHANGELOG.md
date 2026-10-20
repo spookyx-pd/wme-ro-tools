@@ -23,6 +23,18 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45.4 - „Simulare”: tipul de prompt ca în JAI (pe `dev`, nepublicată)
+
+- „🔊 Simulare” din „Instrucțiuni viraje” folosește promptul forțat din
+  „Prompt voce”, iar la „Implicit Waze” îl determină după regulile pe care
+  le arată JAI: peste 45° → virează; sub 45°: singura ramificație sau
+  continuarea firească (același nume) → continuă; celelalte → ține
+  dreapta / stânga, iar spre o rampă (dintr-un drum care nu e rampă) → ieși
+  prin dreapta / stânga; giratoriu, întoarcere U.
+- Mesajul afișat spune tipul și de ce, ex. „Implicit Waze → Ieși prin
+  dreapta (12.5°, spre rampă, ramificație dreapta) · „În 800 de metri, ieși
+  prin dreapta pe …””.
+
 ## 2026-10-20 - v0.45.3 - „Mesaj lung”: caseta de text la fel de înaltă ca previzualizarea (pe `dev`, nepublicată)
 
 - În fereastra „Mesaj lung pentru UR”, caseta în care scrii rămânea de 2
