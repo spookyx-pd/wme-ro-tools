@@ -84,7 +84,12 @@
     { group: 'ti', key: 'ti.busTaxi.chip', def: '⚠️⛔Except.🚌Bus🚕Taxi⚠️', label: L('Bus/Taxi: caseta din Înspre', 'Bus/Taxi: Towards chip') },
     { group: 'ti', key: 'ti.busTaxi.tts', def: '... Atenție! Interzis cu excepția Bus, Taxi', label: L('Bus/Taxi: TTS', 'Bus/Taxi: TTS') },
     { group: 'ti', key: 'ti.ringRoad', def: 'Centura București', label: L('TTS pentru insigna DN „CB”', 'TTS for the DN "CB" shield') },
-    { group: 'es', key: 'es.intro', def: '', label: L('Sugestii: text la început (opțional)', 'Suggestions: opening text (optional)') },
+    // v0.45 (Paul): opening texts of the message to the suggester. {data} /
+    // {ora} = when the suggestion was made, {nota} = the suggester's own
+    // note (line removed when the note is not included).
+    { group: 'es', key: 'es.introApprove', multiline: true, def: '👋 Salutare!\nAm aprobat editările pe care le-ai propus pentru harta Waze în data de {data}, {ora}, însă aș vrea să îți ofer câteva observații și recomandări care să te ajute să faci editări cât mai corecte pe viitor. 🙂\n✅ Aprobarea unei editări nu înseamnă neapărat că aceasta este complet corectă. Uneori, pentru a nu respinge întreaga contribuție, prefer să aprob editarea și apoi să fac eu ajustările necesare sau, după caz, să corectez ori să anulez anumite modificări.\n📝 Mai jos îți explic ce am observat, ce ar fi trebuit făcut diferit și de ce, astfel încât să îți fie mai ușor la următoarele editări.\n{nota}\nObservațiile mele:', label: L('Sugestii: început mesaj la APROBARE ({data}, {ora}, {nota})', 'Suggestions: message opening on APPROVAL ({data}, {ora}, {nota})') },
+    { group: 'es', key: 'es.introReject', multiline: true, def: '👋 Salutare!\nAm verificat editările pe care le-ai propus pentru harta Waze în data de {data}, {ora}, însă de această dată nu le-am putut aproba.\nAș vrea să îți ofer câteva observații și recomandări care să te ajute să înțelegi ce a fost corect, ce trebuie îmbunătățit și cum să faci editări cât mai bune pe viitor. 🙂\n❌ Respingerea unei editări nu înseamnă neapărat că tot ceea ce ai făcut este greșit. Uneori, o editare poate conține atât modificări corecte, cât și unele care necesită ajustări. Din păcate, nu putem aproba doar o parte dintr-o editare, motiv pentru care poate fi necesară respingerea acesteia în întregime.\n📝 Mai jos îți explic ce am observat la fiecare modificare, ce ai făcut bine, ce ar fi trebuit făcut diferit și de ce, astfel încât să îți fie mai ușor la următoarele editări.\n{nota}\nObservațiile mele:', label: L('Sugestii: început mesaj la RESPINGERE ({data}, {ora}, {nota})', 'Suggestions: message opening on REJECTION ({data}, {ora}, {nota})') },
+    { group: 'es', key: 'es.note', def: '🗒️ Nota ta: „{text}”', label: L('Sugestii: nota utilizatorului ({text})', "Suggestions: the user's note ({text})") },
     { group: 'es', key: 'es.ok', def: 'Corect', label: L('Sugestii: modificare corectă', 'Suggestions: correct change') },
     { group: 'es', key: 'es.bad', def: 'Greșit', label: L('Sugestii: modificare greșită', 'Suggestions: wrong change') },
     { group: 'es', key: 'es.redo', def: 'O refac eu', label: L('Sugestii: o refac eu', "Suggestions: I'll redo it") },
@@ -115,6 +120,7 @@
     { v: '0.45', items: [
       L('Sugestii de hartă: după respingere, modificările apar într-o listă în dreapta sus; cele nemarcate greșite se aplică pe hartă - inclusiv segment nou, neasfaltat, viraje și întoarceri U. Pentru nume de stradă și numere de imobil pe drum fără nume poți alege un nume din jur.', 'Map suggestions: after rejecting, the changes go to a list at the top right; those not marked wrong can be applied - including a new segment, unpaved, turns and U-turns. For street names and house numbers on an unnamed road you can pick a nearby name.'),
       L('„💬 Trimite în chat”: analiza ajunge în chatul WME cu utilizatorul (tu apeși Trimite), utilă și când aprobi sugestia. Întoarcerile U sunt numite clar în analiză.', '"💬 Send in chat": the review goes to the WME chat with the user (you press Send), useful also when you approve. U-turns are clearly named in the review.'),
+      L('Mesajul către utilizator începe cu un text de aprobare sau de respingere (data și ora sugestiei completate automat), opțional cu nota lui; textele se pot modifica din „Texte personalizabile”.', 'The message to the user starts with an approval or rejection text (date and time of the suggestion filled in), optionally with his note; the texts can be changed in "Customizable texts".'),
     ] },
     { v: '0.44', items: [
       L('Sugestii de hartă: „📝 Analiză modificări” - fiecare modificare propusă cu stare (corectă / greșită / o refac eu), explicație și „Aplică pe hartă” pentru tip drum, nume stradă și numere de imobil.', 'Map suggestions: "📝 Review changes" - each proposed change with a status (correct / wrong / I\'ll redo it), an explanation and "Apply on the map" for road type, street name and house numbers.'),
@@ -386,6 +392,8 @@
     updateCheck: true,
     // v0.44: helper for map edit suggestions (review, rejection dialog, apply).
     editSuggestionHelper: true,
+    // v0.45: include the suggester's own note in the message (checkbox).
+    esIncludeNote: false,
     nodeAngleLength: true, // angle + length on selected node
     segmentLength: true, // length on selected segment
     segmentAutomation: true, // segment parameter automation (unpaved/road type)
@@ -1074,11 +1082,17 @@
         const t = document.createElement('div');
         t.textContent = d.label;
         t.style.cssText = 'color: #888;';
-        const inp = document.createElement('input');
-        inp.type = 'text';
+        // Long templates: a textarea pre-filled with the default, so it can
+        // be edited instead of retyped.
+        const inp = document.createElement(d.multiline ? 'textarea' : 'input');
+        if (d.multiline) {
+          inp.rows = 8;
+          inp.style.resize = 'vertical';
+          inp.addEventListener('keydown', (ev) => ev.stopPropagation());
+        } else inp.type = 'text';
         inp.placeholder = d.def;
-        inp.value = (settings.customTexts && settings.customTexts[d.key]) || '';
-        inp.style.cssText = 'width: 100%; box-sizing: border-box; font-size: 12px;';
+        inp.value = (settings.customTexts && settings.customTexts[d.key]) || (d.multiline ? d.def : '');
+        inp.style.cssText = `width: 100%; box-sizing: border-box; font-size: 12px;${d.multiline ? ' resize: vertical; font-family: inherit;' : ''}`;
         inp.addEventListener('change', ctSave);
         ctInputs[d.key] = inp;
         r.append(t, inp);
@@ -10960,7 +10974,7 @@
     // The suggester's name is only in the window header ("Sursa: <name>");
     // `createdBy` is a numeric user id.
     const who = panel.querySelector('wz-caption wz-a');
-    return { esId: at.id, author: (who && who.textContent.trim()) || '', items };
+    return { esId: at.id, author: (who && who.textContent.trim()) || '', createdOn: at.createdOn || null, note: String(at.description || '').trim(), items };
   }
 
   function esItemLine(it) {
@@ -10975,21 +10989,64 @@
     redo: { icon: '↻', ct: 'es.redo', color: '#f18200', label: () => L('O refac eu', "I'll redo it") },
   };
 
-  // Plain-text message (e-mail / chat; no formatting needed).
-  function esComposeMessage(ctx, d) {
-    const parts = [];
-    const intro = CT('es.intro');
-    if (intro) parts.push(intro);
+  function esPad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  // Opening of the message (approve / reject template) with the date of the
+  // suggestion and, optionally, the suggester's note.
+  function esIntro(ctx, mode) {
+    const tpl = CT(mode === 'approve' ? 'es.introApprove' : 'es.introReject') || '';
+    const dt = ctx.createdOn ? new Date(ctx.createdOn) : null;
+    const data = dt ? `${esPad2(dt.getDate())}.${esPad2(dt.getMonth() + 1)}.${dt.getFullYear()}` : '';
+    const ora = dt ? `${esPad2(dt.getHours())}:${esPad2(dt.getMinutes())}` : '';
+    const note = settings.esIncludeNote && ctx.note ? CT('es.note').replace('{text}', ctx.note) : '';
+    return tpl
+      .replace(/\{data\}/g, data)
+      .replace(/\{ora\}/g, ora)
+      .replace(/^[ \t]*\{nota\}[ \t]*\n?/m, note ? `${note}\n` : '')
+      .replace(/\{nota\}/g, note)
+      .trim();
+  }
+
+  // Plain-text message (e-mail / chat; no formatting needed). `mode`:
+  // 'approve' | 'reject' - picks the opening text.
+  function esComposeMessage(ctx, d, mode) {
+    const obs = [];
     ctx.items.forEach((it) => {
       const st = d.statuses[it.key];
       const note = String(d.notes[it.key] || '').trim();
       if (!st && !note) return;
       const head = st ? `${ES_STATUS[st].icon} ${CT(ES_STATUS[st].ct)}` : '';
-      parts.push(`• ${esItemLine(it)}\n  ${[head, note].filter(Boolean).join(': ')}`);
+      obs.push(`• ${esItemLine(it)}\n  ${[head, note].filter(Boolean).join(': ')}`);
     });
+    if (!obs.length) return '';
+    const parts = [];
+    const intro = esIntro(ctx, mode || d.mode || 'reject');
+    if (intro) parts.push(intro);
+    parts.push(...obs);
     const outro = CT('es.outro');
     if (outro) parts.push(outro);
     return parts.join('\n\n');
+  }
+
+  // "Include the suggester's note" checkbox (remembered in the settings).
+  function esNoteCheckbox(ctx, onChange) {
+    const lab = document.createElement('label');
+    lab.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer;';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!settings.esIncludeNote;
+    cb.addEventListener('change', () => {
+      settings.esIncludeNote = cb.checked;
+      saveSettings();
+      if (onChange) onChange();
+    });
+    const txt = document.createElement('span');
+    txt.textContent = ctx.note ? L('Include nota utilizatorului în mesaj', "Include the user's note in the message") : L('Include nota utilizatorului (sugestia nu are notă)', "Include the user's note (no note on this suggestion)");
+    if (ctx.note) lab.title = ctx.note;
+    lab.append(cb, txt);
+    return lab;
   }
 
   // --- WME chat with the suggester -------------------------------------
@@ -11226,6 +11283,7 @@
     const t = currentTheme();
     const d = esDraft(ctx.esId);
     d.snapshot = { esId: ctx.esId, author: ctx.author, items: ctx.items };
+    if (!d.mode) d.mode = 'reject';
     esSaveDraft(ctx.esId, d);
 
     const box = document.createElement('div');
@@ -11270,6 +11328,47 @@
       `Pentru fiecare modificare a lui ${ctx.author || 'utilizator'}: alege starea și scrie explicația. După respingere, modificările nemarcate „Greșită” apar în lista din dreapta sus, de unde le poți aplica.`,
       `For each change by ${ctx.author || 'the user'}: pick a status and write the explanation. After rejecting, the changes not marked "Wrong" go to the list at the top right, where you can apply them.`
     );
+
+    // Message type (opening text for Copy / chat) + the suggester's note.
+    const opts = document.createElement('div');
+    opts.style.cssText = 'display:flex; flex-direction:column; gap:6px; padding:8px 12px 0;';
+    const modeRow = document.createElement('div');
+    modeRow.style.cssText = 'display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px;';
+    const modeLab = document.createElement('span');
+    modeLab.textContent = L('Mesaj pentru:', 'Message for:');
+    modeRow.appendChild(modeLab);
+    const modeBtns = {};
+    const paintMode = () => {
+      Object.entries(modeBtns).forEach(([k, b]) => {
+        const on = d.mode === k;
+        b.style.background = on ? (k === 'approve' ? '#2db84c' : '#e5484d') : 'transparent';
+        b.style.color = on ? '#fff' : t.menuText;
+      });
+    };
+    [
+      ['approve', L('✅ Aprobare', '✅ Approval')],
+      ['reject', L('❌ Respingere', '❌ Rejection')],
+    ].forEach(([k, text]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      b.style.cssText = `font-size:11px; padding:1px 8px; border:1px solid ${k === 'approve' ? '#2db84c' : '#e5484d'}; border-radius:10px; cursor:pointer;`;
+      b.addEventListener('click', () => {
+        d.mode = k;
+        esSaveDraft(ctx.esId, d);
+        paintMode();
+      });
+      modeBtns[k] = b;
+      modeRow.appendChild(b);
+    });
+    paintMode();
+    const modeHint = document.createElement('div');
+    modeHint.style.cssText = 'font-size:11px; opacity:0.6;';
+    modeHint.textContent = L(
+      'Alege textul de început pentru „Copiază” și „Trimite în chat”. „Respinge cu acest mesaj” folosește mereu textul de respingere. Mesajul rămâne editabil - nimic nu se trimite automat.',
+      'Picks the opening text for "Copy" and "Send in chat". "Reject with this message" always uses the rejection text. The message stays editable - nothing is sent automatically.'
+    );
+    opts.append(modeRow, esNoteCheckbox(ctx), modeHint);
 
     const list = document.createElement('div');
     list.style.cssText = 'overflow:auto; padding:6px 12px 10px; flex:1 1 auto; min-height:0;';
@@ -11339,8 +11438,8 @@
       foot.appendChild(b);
       return b;
     };
-    const needMsg = () => {
-      const msg = esComposeMessage(ctx, d);
+    const needMsg = (mode) => {
+      const msg = esComposeMessage(ctx, d, mode);
       if (!msg) phShowToast(L('Analiza e goală - alege o stare sau scrie o explicație.', 'The review is empty - pick a status or write an explanation.'), true);
       return msg;
     };
@@ -11370,7 +11469,7 @@
         L('Respinge cu acest mesaj', 'Reject with this message'),
         true,
         () => {
-          d.msg = esComposeMessage(ctx, d);
+          d.msg = esComposeMessage(ctx, d, 'reject');
           save();
           esCloseAnalysis();
           const panelEl = document.querySelector(ES_PANEL_SEL);
@@ -11381,7 +11480,7 @@
         L('Deschide fereastra de respingere cu mesajul compus (îl poți modifica acolo). Mesajul ajunge la utilizator prin e-mail.', 'Opens the rejection dialog with the composed message (you can edit it there). The user gets it by e-mail.')
       );
     }
-    box.append(head, sub, list, foot);
+    box.append(head, sub, opts, list, foot);
     document.body.appendChild(box);
   }
 
@@ -11514,7 +11613,7 @@
     mk(
       L('Inserează analiza', 'Insert the review'),
       () => {
-        const msg = esComposeMessage(ctx, esDraft(ctx.esId));
+        const msg = esComposeMessage(ctx, esDraft(ctx.esId), 'reject');
         if (!msg) {
           phShowToast(L('Analiza e goală - deschide „Analiză modificări”.', 'The review is empty - open "Review changes".'), true);
           return;
@@ -11533,7 +11632,10 @@
     note.style.cssText = 'opacity:0.6; align-self:center;';
     note.textContent = L('Textul se păstrează dacă închizi fereastra.', 'The text is kept if you close the window.');
     btns.appendChild(note);
-    box.append(cap, chips, btns);
+    const noteRow = document.createElement('div');
+    noteRow.style.cssText = 'margin-top:6px;';
+    noteRow.appendChild(esNoteCheckbox(ctx));
+    box.append(cap, chips, btns, noteRow);
     w.parentElement.appendChild(box);
     refreshUsed();
 

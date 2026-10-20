@@ -38,6 +38,18 @@
   de „Update turn direction”.
 - Reparat: schimbarea „segment nou” (fără atribute) lipsea din analiză și
   decala locurile celorlalte modificări.
+- **Texte de început pentru mesaj** (cerute de Paul): unul pentru aprobare,
+  unul pentru respingere, cu data și ora sugestiei completate automat
+  (`{data}`, `{ora}`). În analiză alegi „Mesaj pentru: ✅ Aprobare / ❌
+  Respingere” (pentru Copiază și chat); „Respinge cu acest mesaj” și
+  „Inserează analiza” folosesc mereu textul de respingere. Mesajul rămâne
+  editabil, nimic nu se trimite automat.
+- **Bifă „Include nota utilizatorului”** în analiză și în fereastra de
+  respingere (ținută minte în setări): nota lui (din sugestie) intră ca
+  „🗒️ Nota ta: „…”” înainte de „Observațiile mele:”.
+- Textele de început, nota și cuvintele de stare sunt în „Texte
+  personalizabile” (câmpurile lungi sunt acum casete pe mai multe rânduri,
+  precompletate cu textul implicit).
 
 ## 2026-10-19 - v0.44 - ajutor pentru sugestiile de hartă
 
