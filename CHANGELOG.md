@@ -23,6 +23,18 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45.6 - sugestii: modificările grupate pe stradă (pe `dev`, nepublicată)
+
+- Fiecare modificare primește strada și orașul segmentului (din hartă; la un
+  segment nou - strada propusă pentru el; altfel locul din fereastră, fără
+  județ).
+- Mesajul către utilizator e grupat pe străzi: „📍 Str. Costache Negri, Tudor
+  Vladimirescu - 2 modificări”, urmat de observațiile pentru acea stradă;
+  apoi următoarea stradă etc. Numărul arată toate modificările străzii din
+  sugestie.
+- Același grupaj apare și în panoul „Analiză modificări”; în lista de după
+  respingere fiecare rând arată strada.
+
 ## 2026-10-20 - v0.45.5 - sugestii: modificări de geometrie lizibile (pe `dev`, nepublicată)
 
 - „Geometrie” nu mai apare ca listă de coordonate GPS: în analiză și în lista

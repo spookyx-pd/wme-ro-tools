@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.5
+// @version      0.45.6
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.5';
+  const SCRIPT_VERSION = '0.45.6';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -11186,6 +11186,48 @@
     return wrap;
   }
 
+  function esPlaceOf(it, items) {
+    const id = it.kind === 'turn' && it.from ? it.from.seg : it.segmentId;
+    if (id != null && id > 0) {
+      try {
+        const a = sdk.DataModel.Segments.getAddress({ segmentId: id });
+        if (a) {
+          const street = (a.street && a.street.name) || L('Fără nume', 'No name');
+          const city = a.city && !a.city.isEmpty && a.city.name ? a.city.name : '';
+          return city ? `${street}, ${city}` : street;
+        }
+      } catch (e) {
+        // not loaded - fall through
+      }
+    }
+    if (id != null && id < 0) {
+      const st = items.find((x) => x.kind === 'street' && x.segmentId === id);
+      return st ? [st.streetName, st.cityName].filter(Boolean).join(', ') : L('Segment nou', 'New segment');
+    }
+    const parts = String(it.loc || '').split(',').map((x) => x.trim()).filter(Boolean);
+    if (parts.length >= 3 && /^(Județul|Municipiul)\b/i.test(parts[parts.length - 1])) parts.pop();
+    return parts.join(', ') || L('Alte modificări', 'Other changes');
+  }
+
+  // Changes grouped by street + city, in the order they first appear.
+  function esGroupByPlace(items) {
+    const groups = [];
+    items.forEach((it) => {
+      const key = it.place || '';
+      let g = groups.find((x) => x.place === key);
+      if (!g) {
+        g = { place: key, items: [] };
+        groups.push(g);
+      }
+      g.items.push(it);
+    });
+    return groups;
+  }
+
+  function esCountText(n) {
+    return L(`${n} ${n === 1 ? 'modificare' : 'modificări'}`, `${n} ${n === 1 ? 'change' : 'changes'}`);
+  }
+
   // Reads the open suggestion window: { esId, author, items } or null.
   function esReadPanel() {
     const panel = document.querySelector(ES_PANEL_SEL);
@@ -11319,6 +11361,13 @@
         items.push(it);
       });
     });
+    // Street + city of every change (v0.45.6, Paul: group the message by
+    // street). From the segment in the model, else the street proposed for
+    // that new segment in the same suggestion, else the window's location
+    // text without the county.
+    items.forEach((it) => {
+      it.place = esPlaceOf(it, items);
+    });
     // Points for turns on a new segment: take them from that segment.
     items.forEach((it) => {
       if (it.point || it.segmentId == null) return;
@@ -11379,13 +11428,20 @@
   // Plain-text message (e-mail / chat; no formatting needed). `mode`:
   // 'approve' | 'reject' - picks the opening text.
   function esComposeMessage(ctx, d, mode) {
+    // One block per street: "📍 Strada, Oraș - N modificări" + the observed
+    // changes of that street.
     const obs = [];
-    ctx.items.forEach((it) => {
-      const st = d.statuses[it.key];
-      const note = String(d.notes[it.key] || '').trim();
-      if (!st && !note) return;
-      const head = st ? `${ES_STATUS[st].icon} ${CT(ES_STATUS[st].ct)}` : '';
-      obs.push(`• ${esItemLine(it)}\n  ${[head, note].filter(Boolean).join(': ')}`);
+    esGroupByPlace(ctx.items).forEach((g) => {
+      const lines = [];
+      g.items.forEach((it) => {
+        const st = d.statuses[it.key];
+        const note = String(d.notes[it.key] || '').trim();
+        if (!st && !note) return;
+        const head = st ? `${ES_STATUS[st].icon} ${CT(ES_STATUS[st].ct)}` : '';
+        lines.push(`• ${esItemLine(it)}\n  ${[head, note].filter(Boolean).join(': ')}`);
+      });
+      if (!lines.length) return;
+      obs.push(`📍 ${g.place || L('Modificări', 'Changes')} - ${esCountText(g.items.length)}\n${lines.join('\n')}`);
     });
     if (!obs.length) return '';
     const parts = [];
@@ -11750,7 +11806,20 @@
     list.style.cssText = 'overflow:auto; padding:6px 12px 10px; flex:1 1 auto; min-height:0;';
     const save = () => esSaveDraft(ctx.esId, d);
 
-    ctx.items.forEach((it) => {
+    const groups = esGroupByPlace(ctx.items);
+    const rowItems = [];
+    groups.forEach((g) => {
+      const gh = document.createElement('div');
+      gh.style.cssText = 'font-weight:600; font-size:12px; margin-top:10px; opacity:0.9;';
+      gh.textContent = `📍 ${g.place} - ${esCountText(g.items.length)}`;
+      rowItems.push({ header: gh });
+      g.items.forEach((it) => rowItems.push({ it }));
+    });
+    rowItems.forEach(({ header, it }) => {
+      if (header) {
+        list.appendChild(header);
+        return;
+      }
       const row = document.createElement('div');
       row.style.cssText = `border:1px solid ${t.menuBorder}; border-radius:6px; padding:8px; margin-top:8px;`;
       const h = document.createElement('div');
@@ -12198,6 +12267,12 @@
     h.textContent = `${st ? `${st.icon} ` : ''}${it.label}`;
     if (st) h.title = st.label();
     content.appendChild(h);
+    if (it.place) {
+      const pl = document.createElement('div');
+      pl.style.cssText = 'font-size:11px; opacity:0.65;';
+      pl.textContent = `📍 ${it.place}`;
+      content.appendChild(pl);
+    }
     const vals = esValuesEl(it);
     if (vals) content.appendChild(vals);
     const act = document.createElement('div');
