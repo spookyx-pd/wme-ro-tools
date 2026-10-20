@@ -23,6 +23,23 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.46 - previzualizare poze din linkuri în UR / MP (pe `dev`, nepublicată)
+
+- **Nou:** în conversația UR / MP apare **🖼** după fiecare link (și după
+  linkurile pe care WME le face clicabile, și după cele scrise ca text).
+  Click → fereastră în editor cu poza: zoom cu rotița la cursor, mutare cu
+  mouse-ul, dublu-click = potrivește / 2x, butoane −/+, Potrivește, 1:1,
+  rotire 90°, ↗ (deschide linkul într-un tab nou, doar dacă vrei), ✕ / Esc.
+  Fereastra se mută de bara de titlu și se redimensionează din colț.
+- Merge cu linkuri directe la poze și cu pagini de găzduire (ibb.co / imgbb,
+  imgur, postimg etc.): poza e luată din pagină (og:image).
+- Punctul (sau altă punctuație) pus după link e ignorat; la linkurile native,
+  adresa e corectată și pentru click-ul obișnuit.
+- Opțiune nouă: „Previzualizare poze din linkuri (UR / MP)” (pornită).
+- Antet: `@connect` pentru ibb.co, imgbb.com, imgur.com, postimg.cc și `*`
+  (alte site-uri) - Tampermonkey poate cere permisiunea la primul link de pe
+  un site nou.
+
 ## 2026-10-20 - v0.45.8 - analiză: butoane după tipul mesajului, ciorne 3 zile (pe `dev`, nepublicată)
 
 - **Mesaj pentru: ✅ Aprobare** → jos rămâne un singur buton, „Aprobă și

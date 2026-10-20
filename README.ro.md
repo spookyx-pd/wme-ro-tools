@@ -80,6 +80,7 @@ Butoanele apar în fereastra nativă **Instrucțiuni viraje**. Nimic nu ajunge p
 - **Ciorna răspunsului.** Păstrează răspunsul netrimis pentru fiecare UR/MP, chiar dacă se reîncarcă fereastra sau pagina.
 - **Rânduri noi vizibile.** Aplicația Waze afișează comentariile fără rânduri noi. La trimitere, scriptul poate înlocui paragrafele și rândurile noi cu separatoare vizibile, cu o previzualizare a ce vede utilizatorul în aplicație.
 - **Casetă de răspuns mai mare:** 12 rânduri.
+- **Previzualizare poze din linkuri.** Un buton 🖼 după linkurile din conversație deschide poza într-o fereastră în editor (zoom cu rotița, mutare prin tragere, rotire). Merge cu linkuri directe la poze și cu pagini ca imgbb / ibb.co, imgur, postimg. Punctul pus după link e ignorat.
 
 ---
 

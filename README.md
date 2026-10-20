@@ -78,6 +78,7 @@ These extra controls appear in the native **Turn instructions** dialog. Nothing 
 - **Draft saver.** Keeps your unsent reply for each UR/MP, even if the window or the page reloads.
 - **Visible line breaks.** The Waze app shows comments without line breaks. When you send, the script can replace paragraph and line breaks with visible separators, with a preview of what the user will see in the app.
 - **Bigger reply box**: 12 lines.
+- **Image link preview.** A 🖼 button after links in the conversation opens the picture in a window inside the editor (zoom with the wheel, drag to pan, rotate). Works with direct picture links and hosting pages like imgbb / ibb.co, imgur, postimg. A dot typed after the link is ignored.
 
 ---
 

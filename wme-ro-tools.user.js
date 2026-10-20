@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.8
+// @version      0.46
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -17,6 +17,11 @@
 // @grant        unsafeWindow
 // @connect      update.greasyfork.org
 // @connect      greasyfork.org
+// @connect      ibb.co
+// @connect      imgbb.com
+// @connect      imgur.com
+// @connect      postimg.cc
+// @connect      *
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -35,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.8';
+  const SCRIPT_VERSION = '0.46';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -117,6 +122,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.46', items: [
+      L('Poze din linkuri în UR / MP: buton 🖼 lângă link, poza se vede într-o fereastră în editor, cu zoom, mutare și rotire (imgbb, imgur, postimg, linkuri directe; punctul de după link e ignorat).', 'Pictures from links in UR / MP: 🖼 button next to the link, the picture opens in a window inside the editor, with zoom, pan and rotate (imgbb, imgur, postimg, direct links; a dot after the link is ignored).'),
+    ] },
     { v: '0.45', items: [
       L('Sugestii de hartă: după respingere, modificările apar într-o listă în dreapta sus; cele nemarcate greșite se aplică pe hartă - inclusiv segment nou, neasfaltat, viraje și întoarceri U. Pentru nume de stradă și numere de imobil pe drum fără nume poți alege un nume din jur.', 'Map suggestions: after rejecting, the changes go to a list at the top right; those not marked wrong can be applied - including a new segment, unpaved, turns and U-turns. For street names and house numbers on an unnamed road you can pick a nearby name.'),
       L('„💬 Trimite în chat”: analiza ajunge în chatul WME cu utilizatorul (tu apeși Trimite), utilă și când aprobi sugestia. Întoarcerile U sunt numite clar în analiză.', '"💬 Send in chat": the review goes to the WME chat with the user (you press Send), useful also when you approve. U-turns are clearly named in the review.'),
@@ -405,6 +413,8 @@
     // v0.40: GPS coordinates in UR/MP texts (decimal or DMS) become
     // clickable - a click centers the map on them.
     urCoordLinks: true,
+    // v0.46: 🖼 preview button after image links in UR / MP conversations.
+    urImagePreview: true,
     // Off by default (unlike the rest) - forces the WME sidebar to stay
     // open, correcting any collapse/hide. Defensive measure, may conflict
     // with legitimate native behavior on narrow screens.
@@ -750,6 +760,12 @@
           urNlSyncCheckboxes();
           return;
         }
+        if (key === 'urImagePreview') {
+          settings[key] = checkbox.checked;
+          saveSettings();
+          if (!checkbox.checked) imgRemoveAll();
+          return;
+        }
         if (key === 'savedWarningsList') {
           settings[key] = checkbox.checked;
           saveSettings();
@@ -943,6 +959,12 @@
       L('Ajutor pentru sugestiile de hartă', 'Map edit suggestions helper'),
       L('Analiză pe fiecare modificare propusă, mesaj la respingere sau în chat, aplicarea modificărilor bune după respingere.', 'Review each proposed change, message on rejection or in the chat, apply the good changes after rejecting.'),
       L('În fereastra „Sugestie hartă”: butonul „📝 Analiză modificări” deschide un panou cu fiecare modificare propusă (valoarea veche tăiată, cea nouă, locul; întoarcerile U sunt numite ca atare), cu stare (✔ corectă / ✖ greșită / ↻ o refac eu) și explicație. Mesajul compus merge în fereastra de respingere („Respinge cu acest mesaj” - ajunge prin e-mail) sau în chatul WME cu utilizatorul („💬 Trimite în chat” - tu apeși Trimite; merge și când aprobi sugestia). Fereastra nativă de respingere devine mai mare, are lista modificărilor (click = inserează la cursor) și „Inserează analiza”; textul se păstrează pe fiecare sugestie. După respingere, modificările apar într-o listă în dreapta sus (butonul 📝 de lângă Salvează o redeschide): cele care nu sunt marcate greșite se pot aplica pe hartă - segment nou, tip drum, nume stradă (cu nume din jur la alegere), număr de imobil, neasfaltat, viraje și întoarceri U - ca editări nesalvate, pe care le verifici și le salvezi. Textele de stare se pot personaliza din „Texte personalizabile”.', 'In the "Map suggestion" window: the "📝 Review changes" button opens a panel with each proposed change (old value struck out, new value, location; U-turns are named as such), a status (✔ correct / ✖ wrong / ↻ I\'ll redo it) and an explanation. The composed message goes to the rejection dialog ("Reject with this message" - sent by e-mail) or to the WME chat with the user ("💬 Send in chat" - you press Send; also works when you approve). The native rejection dialog gets bigger, with the list of changes (click = insert at the cursor) and "Insert the review"; the text is kept per suggestion. After rejecting, the changes go to a list at the top right (the 📝 button next to Save reopens it): those not marked wrong can be applied on the map - new segment, road type, street name (with nearby names to choose from), house number, unpaved, turns and U-turns - as unsaved edits you check and save. The status texts can be customized in "Customizable texts".')
+    );
+    addToggle(
+      'urImagePreview',
+      L('Previzualizare poze din linkuri (UR / MP)', 'Image link preview (UR / MP)'),
+      L('Buton 🖼 lângă linkurile din conversație; poza se deschide într-o fereastră în editor, cu zoom și mutare.', '🖼 button next to links in the conversation; the picture opens in a window inside the editor, with zoom and pan.'),
+      L('În conversația UR / MP, după fiecare link apare 🖼. Click = fereastră în editor cu poza: rotița mouse-ului face zoom la cursor, tragi cu mouse-ul ca să muți poza, dublu-click = potrivește / 2x, butoane −/+, Potrivește, 1:1, rotire 90°, ↗ deschide linkul într-un tab nou, Esc închide. Fereastra se mută de bara de titlu și se redimensionează din colț. Merge cu linkuri directe la poze și cu pagini de găzduire (imgbb / ibb.co, imgur, postimg etc. - poza e luată din pagină). Punctul (sau altă punctuație) pus după link e ignorat. La primul link de pe un site nou Tampermonkey poate cere permisiunea de acces.', 'In the UR / MP conversation, a 🖼 appears after every link. Click = a window in the editor with the picture: mouse wheel zooms at the cursor, drag to move the picture, double click = fit / 2x, −/+ buttons, Fit, 1:1, rotate 90°, ↗ opens the link in a new tab, Esc closes. Drag the window by its title bar and resize it from the corner. Works with direct picture links and with hosting pages (imgbb / ibb.co, imgur, postimg etc. - the picture is taken from the page). A dot (or other punctuation) typed after the link is ignored. For the first link from a new site, Tampermonkey may ask for access permission.')
     );
     addToggle(
       'urCoordLinks',
@@ -10790,6 +10812,380 @@
   }
 
   // ---------------------------------------------------------------------
+  // Image link preview in UR / MP conversations (v0.46, Paul: "când cineva
+  // adaugă un link către o poză, precum cea din imgbb.com [...] să apară un
+  // buton de preview în dreptul linkului [...] uneori utilizatorii pun punct
+  // după linkul către imgbb.com [...] previzualizarea pozei să se facă în
+  // editor, într-o fereastră, cu posibilitatea de zoom și drag").
+  // - A 🖼 button is added after every http(s) link in the problem window
+  //   (anchors and plain-text URLs). Trailing punctuation is dropped.
+  // - Direct image URLs are shown as they are; pages (ibb.co/xyz, imgur...)
+  //   are fetched with GM_xmlhttpRequest (WME's CSP blocks fetch) and the
+  //   image is taken from og:image / twitter:image. If the host refuses a
+  //   direct <img>, the bytes come through GM_xmlhttpRequest as a blob.
+  // - Viewer: floating window (drag by the title, resizable), wheel zoom at
+  //   the cursor, drag to pan, double click = fit / 2x, rotate, Esc closes.
+  // ---------------------------------------------------------------------
+  const IMG_BTN_CLASS = 'wme-ro-tools-img-btn';
+  const IMG_VIEWER_ID = 'wme-ro-tools-img-viewer';
+  const IMG_POLL_MS = 900;
+  const IMG_URL_RE = /https?:\/\/[^\s<>"'`]+/g;
+  const IMG_EXT_RE = /\.(jpe?g|png|gif|webp|bmp|avif|heic)(\?|#|$)/i;
+  const imgResolveCache = new Map(); // page url -> Promise<image url|null>
+
+  // "https://ibb.co/5xtrGBNs." -> "https://ibb.co/5xtrGBNs"
+  function imgCleanUrl(u) {
+    let s = String(u || '').trim();
+    while (/[.,;:!?…)\]}»”"']$/.test(s)) {
+      // keep a ")" that closes a "(" inside the URL
+      if (s.endsWith(')') && (s.match(/\(/g) || []).length >= (s.match(/\)/g) || []).length) break;
+      s = s.slice(0, -1);
+    }
+    return s;
+  }
+
+  function imgGm(url, responseType) {
+    return new Promise((resolve) => {
+      if (typeof GM_xmlhttpRequest !== 'function') {
+        resolve(null);
+        return;
+      }
+      try {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url,
+          timeout: 20000,
+          responseType: responseType || 'text',
+          onload: (r) => resolve(r.status >= 200 && r.status < 300 ? r : null),
+          onerror: () => resolve(null),
+          ontimeout: () => resolve(null),
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  // Page / link -> direct image URL (or null).
+  function imgResolve(url) {
+    if (IMG_EXT_RE.test(url)) return Promise.resolve(url);
+    let m = /^https?:\/\/(?:www\.)?imgur\.com\/([A-Za-z0-9]{5,8})(?:[?#].*)?$/.exec(url);
+    if (m) return Promise.resolve(`https://i.imgur.com/${m[1]}.jpg`);
+    if (imgResolveCache.has(url)) return imgResolveCache.get(url);
+    const p = imgGm(url, 'text').then((r) => {
+      if (!r) return null;
+      const ct = String(r.responseHeaders || '').match(/content-type:\s*([^\r\n;]+)/i);
+      if (ct && /^image\//i.test(ct[1])) return r.finalUrl || url;
+      const html = String(r.responseText || '');
+      const pick = (re) => {
+        const x = re.exec(html);
+        return x ? x[1].replace(/&amp;/g, '&') : null;
+      };
+      const found =
+        pick(/<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]*content=["']([^"']+)["']/i) ||
+        pick(/<meta[^>]+content=["']([^"']+)["'][^>]*property=["']og:image["']/i) ||
+        pick(/<meta[^>]+name=["']twitter:image(?::src)?["'][^>]*content=["']([^"']+)["']/i) ||
+        pick(/<link[^>]+rel=["']image_src["'][^>]*href=["']([^"']+)["']/i);
+      if (!found) return null;
+      try {
+        return new URL(found, r.finalUrl || url).href;
+      } catch (e) {
+        return null;
+      }
+    });
+    imgResolveCache.set(url, p);
+    return p;
+  }
+
+  function imgMakeButton(url) {
+    const b = document.createElement('span');
+    b.className = IMG_BTN_CLASS;
+    b.textContent = '🖼';
+    b.title = L('Previzualizare imagine în editor', 'Preview the image in the editor');
+    b.style.cssText = 'cursor:pointer; margin:0 3px; padding:0 3px; border-radius:4px; border:1px solid currentColor; font-size:11px; line-height:14px; display:inline-block; vertical-align:baseline; opacity:0.85;';
+    b.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      imgOpenViewer(url);
+    });
+    return b;
+  }
+
+  function imgPoll() {
+    if (!settings.urImagePreview) return;
+    document.querySelectorAll('.problem-edit').forEach(imgScanPanel);
+  }
+
+  function imgScanPanel(panel) {
+    if (!/https?:\/\//.test(panel.textContent || '') && !panel.querySelector('a[href^="http"]')) return;
+    // Anchors made by WME.
+    panel.querySelectorAll('a[href^="http"]').forEach((a) => {
+      if (a.dataset.roImg || a.closest('form, wz-textarea, textarea')) return;
+      a.dataset.roImg = '1';
+      const url = imgCleanUrl(a.textContent && /^https?:\/\//.test(a.textContent.trim()) ? a.textContent.trim() : a.getAttribute('href'));
+      if (!/^https?:\/\/[^/]+\.[^/]+/.test(url)) return;
+      // A trailing dot typed by the user would break the native link too.
+      if (a.getAttribute('href') !== url && imgCleanUrl(a.getAttribute('href')) === url) a.setAttribute('href', url);
+      a.parentNode.insertBefore(imgMakeButton(url), a.nextSibling);
+    });
+    // Plain-text URLs.
+    const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT, {
+      acceptNode(n) {
+        if (!n.data || n.data.indexOf('http') < 0) return NodeFilter.FILTER_REJECT;
+        const el = n.parentElement;
+        if (!el || el.closest(`form, textarea, input, wz-textarea, a, script, style, .${IMG_BTN_CLASS}`)) return NodeFilter.FILTER_REJECT;
+        if (el.dataset && el.dataset.roImgDone) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      },
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach((node) => {
+      // Keep React's text node (text before the URL + the URL), add our
+      // button and the rest after it.
+      let current = node;
+      let guard = 0;
+      while (current && guard++ < 10) {
+        IMG_URL_RE.lastIndex = 0;
+        const m = IMG_URL_RE.exec(current.data);
+        if (!m) return;
+        const url = imgCleanUrl(m[0]);
+        const end = m.index + url.length;
+        const after = current.data.slice(end);
+        current.data = current.data.slice(0, end);
+        const btn = imgMakeButton(url);
+        current.parentNode.insertBefore(btn, current.nextSibling);
+        if (!after) return;
+        const rest = document.createTextNode(after);
+        btn.parentNode.insertBefore(rest, btn.nextSibling);
+        current = rest;
+      }
+    });
+  }
+
+  function imgCloseViewer() {
+    const v = document.getElementById(IMG_VIEWER_ID);
+    if (!v) return;
+    if (v._roCleanup) v._roCleanup();
+    v.remove();
+  }
+
+  function imgOpenViewer(url) {
+    imgCloseViewer();
+    const t = currentTheme();
+    const win = document.createElement('div');
+    win.id = IMG_VIEWER_ID;
+    const w = Math.min(900, Math.round(window.innerWidth * 0.6));
+    const h = Math.min(700, Math.round(window.innerHeight * 0.7));
+    win.style.cssText = `position:fixed; left:${Math.round((window.innerWidth - w) / 2)}px; top:${Math.round((window.innerHeight - h) / 2)}px; width:${w}px; height:${h}px; min-width:280px; min-height:220px; z-index:100003; display:flex; flex-direction:column; background:${t.menuBg}; color:${t.menuText}; border:1px solid ${t.menuBorder}; border-radius:8px; box-shadow:0 10px 32px rgba(0,0,0,0.5); resize:both; overflow:hidden; font:12px/1.4 Rubik, Arial, sans-serif;`;
+
+    const head = document.createElement('div');
+    head.style.cssText = `display:flex; align-items:center; gap:6px; padding:6px 8px; border-bottom:1px solid ${t.menuBorder}; cursor:move; flex:0 0 auto;`;
+    const title = document.createElement('div');
+    title.style.cssText = 'flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:0.85;';
+    title.textContent = url;
+    title.title = url;
+    const btnCss = `cursor:pointer; padding:1px 7px; border:1px solid ${t.menuBorder}; border-radius:4px; background:transparent; color:inherit; font:12px Rubik, Arial, sans-serif;`;
+    const hb = (text, tip, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = text;
+      b.title = tip;
+      b.style.cssText = btnCss;
+      b.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        fn();
+      });
+      head.appendChild(b);
+      return b;
+    };
+    head.appendChild(title);
+
+    const stage = document.createElement('div');
+    stage.style.cssText = 'position:relative; flex:1 1 auto; overflow:hidden; background:#111; cursor:grab; user-select:none;';
+    const img = document.createElement('img');
+    img.draggable = false;
+    img.style.cssText = 'position:absolute; left:0; top:0; transform-origin:0 0; max-width:none; max-height:none; display:none;';
+    const msg = document.createElement('div');
+    msg.style.cssText = 'position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#ccc; padding:16px; text-align:center;';
+    msg.textContent = L('Se încarcă imaginea…', 'Loading the image…');
+    stage.append(img, msg);
+
+    // View state: scale, rotation (0/90/180/270), translation of the image's
+    // top-left corner inside the stage.
+    const st = { s: 1, rot: 0, x: 0, y: 0, fit: 1 };
+    const dims = () => {
+      const r90 = st.rot % 180 !== 0;
+      return { w: r90 ? img.naturalHeight : img.naturalWidth, h: r90 ? img.naturalWidth : img.naturalHeight };
+    };
+    const apply = () => {
+      // rotate around the image center, then scale + move
+      const iw = img.naturalWidth;
+      const ih = img.naturalHeight;
+      img.style.transform = `translate(${st.x}px, ${st.y}px) scale(${st.s}) translate(${dims().w / 2}px, ${dims().h / 2}px) rotate(${st.rot}deg) translate(${-iw / 2}px, ${-ih / 2}px)`;
+      zoomLab.textContent = `${Math.round(st.s * 100)}%`;
+    };
+    const fitView = () => {
+      const r = stage.getBoundingClientRect();
+      const d = dims();
+      if (!d.w || !d.h) return;
+      st.fit = Math.min(r.width / d.w, r.height / d.h, 1);
+      st.s = st.fit;
+      st.x = (r.width - d.w * st.s) / 2;
+      st.y = (r.height - d.h * st.s) / 2;
+      apply();
+    };
+    const zoomAt = (factor, cx, cy) => {
+      const ns = Math.max(0.05, Math.min(20, st.s * factor));
+      st.x = cx - ((cx - st.x) * ns) / st.s;
+      st.y = cy - ((cy - st.y) * ns) / st.s;
+      st.s = ns;
+      apply();
+    };
+    const center = () => {
+      const r = stage.getBoundingClientRect();
+      return [r.width / 2, r.height / 2];
+    };
+    hb('−', L('Micșorează', 'Zoom out'), () => zoomAt(1 / 1.25, ...center()));
+    const zoomLab = document.createElement('span');
+    zoomLab.style.cssText = 'min-width:42px; text-align:center; opacity:0.8;';
+    head.appendChild(zoomLab);
+    hb('+', L('Mărește', 'Zoom in'), () => zoomAt(1.25, ...center()));
+    hb(L('Potrivește', 'Fit'), L('Toată imaginea în fereastră', 'Whole image in the window'), fitView);
+    hb('1:1', L('Mărime reală', 'Actual size'), () => {
+      const [cx, cy] = center();
+      zoomAt(1 / st.s, cx, cy);
+    });
+    hb('⟳', L('Rotește 90°', 'Rotate 90°'), () => {
+      st.rot = (st.rot + 90) % 360;
+      fitView();
+    });
+    hb('↗', L('Deschide linkul într-un tab nou', 'Open the link in a new tab'), () => window.open(url, '_blank', 'noopener'));
+    hb('✕', L('Închide (Esc)', 'Close (Esc)'), imgCloseViewer);
+
+    win.append(head, stage);
+    document.body.appendChild(win);
+
+    // Window drag by the title bar.
+    head.addEventListener('pointerdown', (ev) => {
+      if (ev.target.closest('button')) return;
+      const r0 = win.getBoundingClientRect();
+      const dx = ev.clientX - r0.left;
+      const dy = ev.clientY - r0.top;
+      const mv = (e) => {
+        win.style.left = `${Math.max(0, Math.min(window.innerWidth - 60, e.clientX - dx))}px`;
+        win.style.top = `${Math.max(0, Math.min(window.innerHeight - 40, e.clientY - dy))}px`;
+      };
+      const up = () => {
+        document.removeEventListener('pointermove', mv, true);
+        document.removeEventListener('pointerup', up, true);
+      };
+      document.addEventListener('pointermove', mv, true);
+      document.addEventListener('pointerup', up, true);
+    });
+    // Pan the image.
+    stage.addEventListener('pointerdown', (ev) => {
+      if (img.style.display === 'none') return;
+      ev.preventDefault();
+      stage.setPointerCapture(ev.pointerId);
+      stage.style.cursor = 'grabbing';
+      const sx = ev.clientX - st.x;
+      const sy = ev.clientY - st.y;
+      const mv = (e) => {
+        st.x = e.clientX - sx;
+        st.y = e.clientY - sy;
+        apply();
+      };
+      const up = () => {
+        stage.style.cursor = 'grab';
+        stage.removeEventListener('pointermove', mv);
+        stage.removeEventListener('pointerup', up);
+      };
+      stage.addEventListener('pointermove', mv);
+      stage.addEventListener('pointerup', up);
+    });
+    stage.addEventListener(
+      'wheel',
+      (ev) => {
+        if (img.style.display === 'none') return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const r = stage.getBoundingClientRect();
+        zoomAt(ev.deltaY < 0 ? 1.15 : 1 / 1.15, ev.clientX - r.left, ev.clientY - r.top);
+      },
+      { passive: false }
+    );
+    stage.addEventListener('dblclick', (ev) => {
+      const r = stage.getBoundingClientRect();
+      if (st.s > st.fit * 1.05) fitView();
+      else zoomAt(2 / st.s, ev.clientX - r.left, ev.clientY - r.top);
+    });
+    const onKey = (ev) => {
+      if (ev.key === 'Escape') {
+        ev.stopPropagation();
+        imgCloseViewer();
+      }
+    };
+    document.addEventListener('keydown', onKey, true);
+    let ro = null;
+    try {
+      ro = new ResizeObserver(() => {
+        if (img.style.display !== 'none' && Math.abs(st.s - st.fit) < 1e-6) fitView();
+      });
+      ro.observe(stage);
+    } catch (e) {
+      ro = null;
+    }
+    let blobUrl = null;
+    win._roCleanup = () => {
+      document.removeEventListener('keydown', onKey, true);
+      if (ro) ro.disconnect();
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
+
+    const fail = (text) => {
+      msg.style.display = 'flex';
+      msg.textContent = text;
+    };
+    const show = (src, viaBlob) =>
+      new Promise((resolve) => {
+        img.onload = () => {
+          msg.style.display = 'none';
+          img.style.display = 'block';
+          fitView();
+          resolve(true);
+        };
+        img.onerror = () => resolve(false);
+        if (viaBlob) img.removeAttribute('referrerpolicy');
+        else img.referrerPolicy = 'no-referrer';
+        img.src = src;
+      });
+    imgResolve(url).then(async (direct) => {
+      if (!document.body.contains(win)) return;
+      if (!direct) {
+        fail(L('Nu am găsit o imagine la acest link. Folosește ↗ ca să-l deschizi.', 'No image found at this link. Use ↗ to open it.'));
+        return;
+      }
+      title.textContent = direct;
+      if (await show(direct, false)) return;
+      // The host refused a direct <img> - get the bytes ourselves.
+      const r = await imgGm(direct, 'blob');
+      if (!document.body.contains(win)) return;
+      if (r && r.response) {
+        blobUrl = URL.createObjectURL(r.response);
+        if (await show(blobUrl, true)) return;
+      }
+      fail(L('Imaginea nu a putut fi încărcată. Folosește ↗ ca să deschizi linkul.', 'The image could not be loaded. Use ↗ to open the link.'));
+    });
+  }
+
+  function imgRemoveAll() {
+    document.querySelectorAll(`.${IMG_BTN_CLASS}`).forEach((b) => b.remove());
+    document.querySelectorAll('a[data-ro-img]').forEach((a) => delete a.dataset.roImg);
+    imgCloseViewer();
+  }
+
+  // ---------------------------------------------------------------------
   // Edit suggestions helper (v0.44 / v0.45, Paul): for a map edit
   // suggestion ("Sugestie hartă" window, `#ISSUE_WINDOW_MAP_SUGGESTION`):
   // - "Analiză modificări" panel: every proposed change with a status
@@ -12719,6 +13115,7 @@
     }, 700);
     setInterval(urBulkPoll, UR_FORM_POLL_MS);
     setInterval(coordPoll, COORD_POLL_MS);
+    setInterval(imgPoll, IMG_POLL_MS);
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);
