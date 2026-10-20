@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.2
+// @version      0.45.3
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.2';
+  const SCRIPT_VERSION = '0.45.3';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -7135,9 +7135,15 @@
       const row = document.createElement('div');
       row.style.cssText = 'display:flex; gap:8px; flex:1 1 auto; min-height:80px;';
       const draftArea = document.createElement('textarea');
+      // `height: auto` + stretch: WME's CSS gives textareas a fixed height,
+      // which beat the flex stretch (the box stayed 2 lines while the
+      // preview filled the row). Now both columns are as tall as the row.
       draftArea.style.cssText = `
         flex: 1 1 0;
         min-width: 0;
+        height: auto;
+        min-height: 0;
+        align-self: stretch;
         resize: none;
         box-sizing: border-box;
         font: 12px/1.4 Arial, sans-serif;
@@ -7153,7 +7159,7 @@
       // App-like card (light, no line breaks) - same look as the Send preview.
       const live = document.createElement('div');
       live.style.cssText =
-        'flex: 1 1 0; min-width: 0; overflow: auto; background:#fff; color:#1b1b1b; border:1px solid #d5d7db; border-radius:10px; padding:10px 12px; box-sizing:border-box; font:14px/1.35 Roboto, "Segoe UI", Arial, sans-serif; white-space:normal; overflow-wrap:anywhere;';
+        'flex: 1 1 0; min-width: 0; min-height: 0; align-self: stretch; overflow: auto; background:#fff; color:#1b1b1b; border:1px solid #d5d7db; border-radius:10px; padding:10px 12px; box-sizing:border-box; font:14px/1.35 Roboto, "Segoe UI", Arial, sans-serif; white-space:normal; overflow-wrap:anywhere;';
       row.appendChild(draftArea);
       row.appendChild(live);
       body.appendChild(row);

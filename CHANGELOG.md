@@ -23,6 +23,13 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45.3 - „Mesaj lung”: caseta de text la fel de înaltă ca previzualizarea (pe `dev`, nepublicată)
+
+- În fereastra „Mesaj lung pentru UR”, caseta în care scrii rămânea de 2
+  rânduri, iar previzualizarea ocupa toată înălțimea. Acum ambele coloane au
+  aceeași înălțime (a ferestrei) și cresc / scad împreună când o
+  redimensionezi.
+
 ## 2026-10-20 - v0.45.2 - instrucțiuni de viraj lizibile în analiză (pe `dev`, nepublicată)
 
 - „Update turn instruction” nu mai apare ca JSON: în analiză și în lista de
