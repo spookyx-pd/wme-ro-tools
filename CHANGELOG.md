@@ -23,6 +23,17 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45.7 - fereastra de respingere: mesajul se reface din analiză (pe `dev`, nepublicată)
+
+- Problema: la „Respinge”, caseta primea ciorna salvată mai devreme (ex. dintr-o
+  versiune fără numele străzilor), nu mesajul compus din analiza de acum.
+- Acum: dacă textul nu a fost modificat de mână, se compune din nou la fiecare
+  deschidere (cu străzile, stările și explicațiile actuale). Un text
+  modificat de mână se păstrează.
+- Buton nou **„↻ Refă din analiză”** în fereastra de respingere (cere
+  confirmare dacă textul a fost modificat de mână). Pentru ciornele vechi
+  (dinainte de 0.45.7) apasă-l o dată.
+
 ## 2026-10-20 - v0.45.6 - sugestii: modificările grupate pe stradă (pe `dev`, nepublicată)
 
 - Fiecare modificare primește strada și orașul segmentului (din hartă; la un

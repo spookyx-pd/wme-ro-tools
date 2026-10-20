@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.45.6
+// @version      0.45.7
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -35,7 +35,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.45.6';
+  const SCRIPT_VERSION = '0.45.7';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -11915,6 +11915,7 @@
         true,
         () => {
           d.msg = esComposeMessage(ctx, d, 'reject');
+          d.msgAuto = d.msg; // not edited by hand yet
           save();
           esCloseAnalysis();
           const panelEl = document.querySelector(ES_PANEL_SEL);
@@ -12020,8 +12021,22 @@
     const d = esDraft(ctx.esId);
     d.snapshot = { esId: ctx.esId, author: ctx.author, items: ctx.items };
     esSaveDraft(ctx.esId, d);
-    // Restore the draft (the native dialog always starts empty).
-    if (!String(w.value || '').trim() && d.msg) esSetText(w, d.msg);
+    // Fill the (always empty) native box: a text edited by hand is restored
+    // as it was; otherwise the message is composed again from the current
+    // review (v0.45.7: an old auto-composed draft could come back without
+    // the street names / latest notes).
+    if (!String(w.value || '').trim()) {
+      if (d.msg && d.msg !== d.msgAuto) esSetText(w, d.msg);
+      else {
+        const fresh = esComposeMessage(ctx, d, 'reject');
+        if (fresh) {
+          esSetText(w, fresh);
+          d.msg = fresh;
+          d.msgAuto = fresh;
+          esSaveDraft(ctx.esId, d);
+        } else if (d.msg) esSetText(w, d.msg);
+      }
+    }
 
     const t = currentTheme();
     const box = document.createElement('div');
@@ -12091,6 +12106,25 @@
         refreshUsed();
       },
       L('Adaugă mesajul compus din panoul „Analiză modificări”.', 'Adds the message built in the "Review changes" panel.')
+    );
+    mk(
+      L('↻ Refă din analiză', '↻ Rebuild from review'),
+      () => {
+        const dd = esDraft(ctx.esId);
+        const fresh = esComposeMessage(ctx, dd, 'reject');
+        if (!fresh) {
+          phShowToast(L('Analiza e goală - deschide „Analiză modificări”.', 'The review is empty - open "Review changes".'), true);
+          return;
+        }
+        const cur = String(w.value || '');
+        if (cur.trim() && cur !== dd.msgAuto && !window.confirm(L('Înlocuiești textul din casetă cu mesajul compus din analiză?', 'Replace the text in the box with the message built from the review?'))) return;
+        esSetText(w, fresh);
+        dd.msg = fresh;
+        dd.msgAuto = fresh;
+        esSaveDraft(ctx.esId, dd);
+        refreshUsed();
+      },
+      L('Înlocuiește textul cu mesajul compus acum din analiză (texte de început, străzi, stări, explicații).', 'Replaces the text with the message built now from the review (opening text, streets, statuses, explanations).')
     );
     mk(L('Golește', 'Clear'), () => {
       esSetText(w, '');
