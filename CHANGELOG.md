@@ -17,6 +17,28 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-20 - v0.45 - sugestii de hartă: listă de aplicat, chat, întoarceri U (NEPUBLICATĂ - în testare pe `dev`)
+
+- **După respingere** modificările nu mai rămân în panoul de analiză: apar
+  într-o listă în dreapta sus (stil „avertizări salvate”), păstrată în
+  localStorage până o ștergi; butonul 📝 de lângă Salvează o redeschide.
+  „Aplică pe hartă” doar pentru modificările care NU sunt marcate greșite;
+  „⌖” duce harta acolo. Înainte de respingere panoul nu mai are „Aplică”.
+- **Modificări noi reproductibile:** segment nou (geometrie, tip drum,
+  direcție), neasfaltat (și alte steaguri), viraje și întoarceri U (inclusiv
+  la capăt de drum, prin acțiunea WME de viraj). Modificările de pe
+  segmentul nou se aplică după ce aplici segmentul.
+- **Număr de imobil pe drum fără nume:** mesaj clar în loc de „Not allowed
+  to add a house number on projected segment” + câmp de nume (propunerea
+  fără numărul tastat greșit, străzile din jur) și „Pune numele și adaugă”.
+  Numele străzii are și „Alt nume…”.
+- **„💬 Trimite în chat”** în analiză: deschide chatul WME cu utilizatorul
+  și pune mesajul în casetă (Paul apasă Trimite).
+- **Întoarceri U** recunoscute: „Întoarcere U la capătul A/B al …” în loc
+  de „Update turn direction”.
+- Reparat: schimbarea „segment nou” (fără atribute) lipsea din analiză și
+  decala locurile celorlalte modificări.
+
 ## 2026-10-19 - v0.44 - ajutor pentru sugestiile de hartă
 
 - **Nou: „📝 Analiză modificări”** în fereastra „Sugestie hartă”: fiecare

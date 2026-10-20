@@ -87,9 +87,11 @@ Butoanele apar în fereastra nativă **Instrucțiuni viraje**. Nimic nu ajunge p
 WME permite doar acceptarea sau respingerea unei sugestii în întregime. Scriptul te ajută să răspunzi pe fiecare modificare:
 - **📝 Analiză modificări** în fereastra „Sugestie hartă” deschide un panou cu fiecare modificare propusă (valoarea veche tăiată → cea nouă, locul). O marchezi ✔ corectă / ✖ greșită / ↻ o refac eu și scrii explicația.
 - **Respinge cu acest mesaj** deschide fereastra de respingere a WME deja completată cu un mesaj simplu, compus din analiză (ajunge la utilizator prin e-mail). Respingerea propriu-zisă e mereu butonul WME.
+- **💬 Trimite în chat** deschide chatul WME cu utilizatorul și pune analiza în casetă; tu apeși Trimite. Util și când aprobi sugestia, dar vrei să-i explici ce poate face mai bine.
+- **Întoarcerile U** propuse sunt numite clar („Întoarcere U la capătul A/B al …”), nu doar „Update turn direction”.
 - **Fereastră de respingere mai mare**, cu lista modificărilor (un click inserează „• etichetă: vechi → nou” la cursor), „Inserează analiza” și „Golește”.
 - **Ciornă pe fiecare sugestie.** „Anulează” din WME închide toată fereastra sugestiei; textul, stările și explicațiile revin când o deschizi din nou.
-- **Aplică modificările bune.** După respingere, panoul revine, iar „Aplică pe hartă” reface tipul drumului, numele principal al străzii și numerele de imobil adăugate (în poziția aleasă de utilizator) ca editări nesalvate obișnuite, pe care le verifici și le salvezi.
+- **Aplică modificările bune.** După respingere, modificările apar într-o listă în dreapta sus (butonul 📝 de lângă Salvează o redeschide). Cele care nu sunt marcate greșite se pot reface cu „Aplică pe hartă”: segment nou, tip drum, nume de stradă (cu nume din jur la alegere), numere de imobil în poziția aleasă de utilizator, neasfaltat, viraje și întoarceri U. Sunt editări nesalvate obișnuite, pe care le verifici și le salvezi. Un număr de imobil pe un drum fără nume îți cere întâi un nume de stradă.
 
 ---
 

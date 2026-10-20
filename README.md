@@ -85,9 +85,11 @@ These extra controls appear in the native **Turn instructions** dialog. Nothing 
 WME only lets you accept or reject a suggestion as a whole. The script helps you answer change by change:
 - **📝 Review changes** in the "Map suggestion" window opens a panel with each proposed change (old value struck out → new value, location). Mark each one ✔ correct / ✖ wrong / ↻ I'll redo it and write an explanation.
 - **Reject with this message** opens WME's rejection dialog already filled with a plain-text message built from your review (it reaches the user by e-mail). The rejection itself is always WME's own button.
+- **💬 Send in chat** opens the WME chat with the user and puts the review in the box; you press Send. Useful also when you approve the suggestion but want to explain what could be done better.
+- **U-turns** in a suggestion are named clearly ("U-turn at end A/B of …"), not just "Update turn direction".
 - **Bigger rejection dialog** with the list of changes (a click inserts "• label: old → new" at the cursor), "Insert the review" and "Clear".
 - **Draft per suggestion.** WME's Cancel closes the whole suggestion window; your text, statuses and notes come back when you open it again.
-- **Apply the good changes.** After rejecting, the panel comes back and "Apply on the map" reproduces road type, primary street name and added house numbers (at the position the user chose) as ordinary unsaved edits, for you to review and save.
+- **Apply the good changes.** After rejecting, the changes go to a list at the top right (the 📝 button next to Save reopens it). Those not marked wrong can be reproduced with "Apply on the map": new segment, road type, street name (with nearby names to choose from), house numbers at the position the user chose, unpaved, turns and U-turns. They are ordinary unsaved edits for you to review and save. A house number on an unnamed road asks for a street name first.
 
 ---
 
