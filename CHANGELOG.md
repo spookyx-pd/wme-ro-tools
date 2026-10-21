@@ -23,6 +23,18 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-21 - v0.47.4 - Junction Box: avertizare și la creare / editare și după Salvează (pe `dev`, nepublicată)
+
+- Avertizarea pentru rutele nepermise apare acum și pentru un JB **creat sau
+  modificat și nesalvat**, chiar dacă nu e selectat (nu doar la JB-ul
+  selectat).
+- **După „Salvează”:** JB-urile create / modificate în salvarea respectivă
+  (și cel selectat) sunt verificate din nou după ce WME le reîncarcă. Dacă
+  vreunul are rute nepermise, apare o notificare roșie care **rămâne până o
+  închizi**: „Salvat: un Junction Box are N rute nepermise”, cu JB-ul
+  (buton care îl selectează și centrează harta) și fiecare rută (dinspre /
+  spre, motiv, desenată pe hartă la mouse).
+
 ## 2026-10-21 - v0.47.3 - „Ține panoul lateral deschis”: Issue Tracker + fără pâlpâire (pe `dev`, nepublicată)
 
 - Când panoul lateral dispare, scriptul deschide acum tab-ul **Issue

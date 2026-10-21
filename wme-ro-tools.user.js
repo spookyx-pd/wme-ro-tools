@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.47.3
+// @version      0.47.4
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.47.3';
+  const SCRIPT_VERSION = '0.47.4';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -8344,6 +8344,11 @@
     const orig = ctrl.save;
     ctrl.save = function (opts) {
       const force = !!(opts && opts.ignoreWarnings);
+      try {
+        jbBeforeSave();
+      } catch (e) {
+        // never break WME's save
+      }
       const result = orig.apply(this, arguments);
       if (!result || typeof result.then !== 'function') return result;
       return result.then(
@@ -8352,6 +8357,11 @@
             savedWarnOnSaveOk(force);
           } catch (e) {
             // ignore - never break WME's save
+          }
+          try {
+            jbAfterSave();
+          } catch (e) {
+            // ignore
           }
           return res;
         },
@@ -11402,7 +11412,7 @@
   const JB_WARN_ID = 'wme-ro-tools-jb-warn';
   const JB_POLL_MS = 700;
   const JB_ROUTE_LAYER = 'wme-ro-tools-jb-route';
-  const jbState = { id: null, sig: '', dismissedSig: '', layer: false };
+  const jbState = { sig: '', dismissedSig: '', layer: false, saved: null, pendingSave: null };
 
   function jbSegName(id) {
     try {
@@ -11517,7 +11527,33 @@
     jbClearRoute();
   }
 
-  function jbRender(id, bad, total) {
+  // Routes of a JB: { turns, bad } (bad = isAllowed === false).
+  function jbRoutes(id) {
+    let turns = [];
+    try {
+      turns = sdk.DataModel.BigJunctions.getAllPossibleTurns({ bigJunctionId: id }) || [];
+    } catch (e) {
+      turns = [];
+    }
+    return { turns, bad: turns.filter((x) => x && x.isAllowed === false) };
+  }
+
+  // JBs created / changed and not saved yet (legacy model: isNew / isUpdated).
+  function jbUnsavedIds() {
+    const col = window.W && window.W.model && window.W.model.bigJunctions;
+    if (!col) return [];
+    let arr = [];
+    try {
+      arr = typeof col.getObjectArray === 'function' ? col.getObjectArray() : Object.values(col.objects || {});
+    } catch (e) {
+      arr = [];
+    }
+    return arr.filter((o) => o && ((o.isNew && o.isNew()) || (o.isUpdated && o.isUpdated()))).map((o) => o.attributes.id);
+  }
+
+  // entries: [{ id, bad, total }]; mode: 'live' (selected / unsaved JB) or
+  // 'saved' (found after "Salvează" - stays until closed).
+  function jbRender(entries, mode) {
     const t = currentTheme();
     let box = document.getElementById(JB_WARN_ID);
     if (!box) {
@@ -11528,92 +11564,190 @@
     }
     const toolbar = document.querySelector('.toolbar');
     const top = toolbar ? toolbar.getBoundingClientRect().bottom + 8 : 50;
-    box.style.cssText = `position:fixed; top:${Math.round(top)}px; left:50%; transform:translateX(-50%); z-index:8; width:460px; max-width:calc(100vw - 32px); max-height:50vh; overflow:auto; box-sizing:border-box; padding:12px 16px 14px; font:12px/1.4 Rubik, Arial, sans-serif;`;
+    box.style.cssText = `position:fixed; top:${Math.round(top)}px; left:50%; transform:translateX(-50%); z-index:8; width:480px; max-width:calc(100vw - 32px); max-height:55vh; overflow:auto; box-sizing:border-box; padding:12px 16px 14px; font:12px/1.4 Rubik, Arial, sans-serif;`;
     box.textContent = '';
+    const nBad = entries.reduce((n, e) => n + e.bad.length, 0);
     const head = document.createElement('div');
     head.style.cssText = 'display:flex; align-items:center; gap:6px;';
     const alert = document.createElement('wz-alert');
     alert.setAttribute('level', 'page');
-    alert.setAttribute('variant', 'warning');
+    alert.setAttribute('variant', mode === 'saved' ? 'danger' : 'warning');
     alert.style.cssText = 'flex:1; min-width:0;';
     const at = document.createElement('span');
     at.setAttribute('slot', 'header');
-    at.textContent = L(`Junction Box: ${bad.length} din ${total} ${total === 1 ? 'rută' : 'rute'} ${bad.length === 1 ? 'nepermisă' : 'nepermise'}`, `Junction Box: ${bad.length} of ${total} ${total === 1 ? 'route' : 'routes'} not allowed`);
+    if (mode === 'saved') {
+      at.textContent = L(`Salvat: ${entries.length === 1 ? 'un Junction Box are' : `${entries.length} Junction Box-uri au`} ${nBad} ${nBad === 1 ? 'rută nepermisă' : 'rute nepermise'}`, `Saved: ${entries.length === 1 ? 'a Junction Box has' : `${entries.length} Junction Boxes have`} ${nBad} ${nBad === 1 ? 'route' : 'routes'} not allowed`);
+    } else {
+      const e0 = entries[0];
+      at.textContent = L(`Junction Box: ${e0.bad.length} din ${e0.total} ${e0.total === 1 ? 'rută' : 'rute'} ${e0.bad.length === 1 ? 'nepermisă' : 'nepermise'}`, `Junction Box: ${e0.bad.length} of ${e0.total} ${e0.total === 1 ? 'route' : 'routes'} not allowed`);
+    }
     alert.appendChild(at);
     head.appendChild(alert);
     head.appendChild(
-      savedWarnIconButton('w-icon-x', L('Ascunde (reapare dacă rutele se schimbă)', 'Hide (comes back if the routes change)'), () => {
-        jbState.dismissedSig = jbState.sig;
+      savedWarnIconButton('w-icon-x', mode === 'saved' ? L('Închide', 'Close') : L('Ascunde (reapare dacă rutele se schimbă)', 'Hide (comes back if the routes change)'), () => {
+        if (mode === 'saved') jbState.saved = null;
+        else jbState.dismissedSig = jbState.sig;
+        jbState.sig = '';
         jbHide();
       })
     );
     box.appendChild(head);
-    const center = jbCenter(id);
-    const side = (segId) => {
-      const x = jbSide(segId, center);
-      return x ? ` (${x})` : '';
-    };
-    bad.forEach((r) => {
-      const row = document.createElement('div');
-      row.style.cssText = `display:flex; align-items:flex-start; gap:6px; border-top:1px solid ${t.menuBorder}; padding:6px 2px; margin-top:6px;`;
-      const c = document.createElement('div');
-      c.style.cssText = 'flex:1; min-width:0;';
-      const l1 = document.createElement('div');
-      l1.style.fontWeight = '600';
-      l1.textContent = L(`Dinspre ${jbSegName(r.fromSegmentId)}${side(r.fromSegmentId)} → spre ${jbSegName(r.toSegmentId)}${side(r.toSegmentId)}`, `From ${jbSegName(r.fromSegmentId)}${side(r.fromSegmentId)} → to ${jbSegName(r.toSegmentId)}${side(r.toSegmentId)}`);
-      const l2 = document.createElement('div');
-      l2.style.cssText = 'opacity:0.75;';
-      l2.textContent = L(`segment ${r.fromSegmentId} → ${r.toSegmentId} · prin ${(r.segmentPath || []).length} ${(r.segmentPath || []).length === 1 ? 'segment' : 'segmente'} · ${jbReason(r)}`, `segment ${r.fromSegmentId} → ${r.toSegmentId} · through ${(r.segmentPath || []).length} segment(s) · ${jbReason(r)}`);
-      c.append(l1, l2);
-      row.appendChild(c);
-      const show = savedWarnIconButton('w-icon-recenter', L('Arată ruta pe hartă (mouse deasupra)', 'Show the route on the map (hover)'), () => jbShowRoute(r));
-      row.addEventListener('mouseenter', () => jbShowRoute(r));
-      row.addEventListener('mouseleave', jbClearRoute);
-      row.appendChild(show);
-      box.appendChild(row);
+    if (mode === 'saved') {
+      const note = document.createElement('div');
+      note.style.cssText = 'opacity:0.8; margin-top:6px;';
+      note.textContent = L('După salvare WME ar trebui să lase toate rutele permise - verifică dacă e intenționat (ex. o bretea care ocolește intersecția) sau e bug-ul care dezactivează ruta principală.', 'After saving WME should leave all routes allowed - check whether it is intended (e.g. a slip road around the junction) or the bug that disables the main route.');
+      box.appendChild(note);
+    }
+    entries.forEach((e) => {
+      const center = jbCenter(e.id);
+      const side = (segId) => {
+        const x = jbSide(segId, center);
+        return x ? ` (${x})` : '';
+      };
+      if (entries.length > 1 || mode === 'saved') {
+        const gh = document.createElement('div');
+        gh.style.cssText = 'display:flex; align-items:center; justify-content:space-between; margin-top:10px; font-weight:600;';
+        const gt = document.createElement('span');
+        gt.textContent = L(`Junction Box ${e.id} - ${e.bad.length} din ${e.total} nepermise`, `Junction Box ${e.id} - ${e.bad.length} of ${e.total} not allowed`);
+        gh.appendChild(gt);
+        gh.appendChild(
+          savedWarnIconButton('w-icon-recenter', L('Selectează JB-ul', 'Select the JB'), () => {
+            try {
+              const c = jbCenter(e.id);
+              if (c) sdk.Map.setMapCenter({ lonLat: { lon: c[0], lat: c[1] } });
+              sdk.Editing.setSelection({ selection: { objectType: 'bigJunction', ids: [e.id] } });
+            } catch (err) {
+              // not loaded
+            }
+          })
+        );
+        box.appendChild(gh);
+      }
+      e.bad.forEach((r) => {
+        const row = document.createElement('div');
+        row.style.cssText = `display:flex; align-items:flex-start; gap:6px; border-top:1px solid ${t.menuBorder}; padding:6px 2px; margin-top:6px;`;
+        const c = document.createElement('div');
+        c.style.cssText = 'flex:1; min-width:0;';
+        const l1 = document.createElement('div');
+        l1.style.fontWeight = '600';
+        l1.textContent = L(`Dinspre ${jbSegName(r.fromSegmentId)}${side(r.fromSegmentId)} → spre ${jbSegName(r.toSegmentId)}${side(r.toSegmentId)}`, `From ${jbSegName(r.fromSegmentId)}${side(r.fromSegmentId)} → to ${jbSegName(r.toSegmentId)}${side(r.toSegmentId)}`);
+        const l2 = document.createElement('div');
+        l2.style.cssText = 'opacity:0.75;';
+        l2.textContent = L(`segment ${r.fromSegmentId} → ${r.toSegmentId} · prin ${(r.segmentPath || []).length} ${(r.segmentPath || []).length === 1 ? 'segment' : 'segmente'} · ${jbReason(r)}`, `segment ${r.fromSegmentId} → ${r.toSegmentId} · through ${(r.segmentPath || []).length} segment(s) · ${jbReason(r)}`);
+        c.append(l1, l2);
+        row.appendChild(c);
+        row.appendChild(savedWarnIconButton('w-icon-recenter', L('Arată ruta pe hartă (mouse deasupra)', 'Show the route on the map (hover)'), () => jbShowRoute(r)));
+        row.addEventListener('mouseenter', () => jbShowRoute(r));
+        row.addEventListener('mouseleave', jbClearRoute);
+        box.appendChild(row);
+      });
     });
   }
 
   function jbPoll() {
     if (!settings.jbWarnings) {
-      if (jbState.id != null) {
-        jbState.id = null;
+      if (jbState.sig) {
+        jbState.sig = '';
+        jbState.saved = null;
         jbHide();
       }
       return;
     }
+    // After a save with a problem: that list stays until closed.
+    if (jbState.saved) {
+      const sig = `saved|${jbState.saved.map((e) => `${e.id}:${e.bad.length}`).join(',')}`;
+      if (sig !== jbState.sig || !document.getElementById(JB_WARN_ID)) {
+        jbState.sig = sig;
+        jbRender(jbState.saved, 'saved');
+      }
+      return;
+    }
+    // The selected JB, else a JB created / changed and not saved yet (v0.47.4:
+    // also right after creating one, even if WME does not select it).
     let sel = null;
     try {
       sel = sdk.Editing.getSelection();
     } catch (e) {
       sel = null;
     }
-    const id = sel && sel.objectType === 'bigJunction' && sel.ids && sel.ids.length === 1 ? sel.ids[0] : null;
-    if (id == null) {
-      if (jbState.id != null) {
-        jbState.id = null;
-        jbState.sig = '';
-        jbHide();
-      }
-      return;
-    }
-    let turns = [];
-    try {
-      turns = sdk.DataModel.BigJunctions.getAllPossibleTurns({ bigJunctionId: id }) || [];
-    } catch (e) {
-      turns = [];
-    }
-    const bad = turns.filter((x) => x && x.isAllowed === false);
-    const sig = `${id}|${turns.length}|${bad.map((x) => `${x.id}:${(x.restrictions || []).length}`).join(',')}`;
-    if (jbState.id !== id) jbState.dismissedSig = '';
-    jbState.id = id;
-    if (sig === jbState.sig && (document.getElementById(JB_WARN_ID) || !bad.length || sig === jbState.dismissedSig)) return;
+    const selId = sel && sel.objectType === 'bigJunction' && sel.ids && sel.ids.length === 1 ? sel.ids[0] : null;
+    const ids = selId != null ? [selId] : jbUnsavedIds();
+    const entries = [];
+    ids.forEach((id) => {
+      const r = jbRoutes(id);
+      if (r.bad.length) entries.push({ id, bad: r.bad, total: r.turns.length });
+    });
+    const sig = entries.map((e) => `${e.id}|${e.total}|${e.bad.map((x) => `${x.id}:${(x.restrictions || []).length}`).join(',')}`).join(';');
+    if (sig === jbState.sig && (document.getElementById(JB_WARN_ID) || !entries.length || sig === jbState.dismissedSig)) return;
     jbState.sig = sig;
-    if (!bad.length || sig === jbState.dismissedSig) {
+    if (!entries.length || sig === jbState.dismissedSig) {
       jbHide();
       return;
     }
-    jbRender(id, bad, turns.length);
+    jbRender(entries, 'live');
+  }
+
+  // --- check after "Salvează" (v0.47.4) ----------------------------------
+  // Before the save: remember the JBs being created / changed (+ the
+  // selected one) by their segments and centre - new JBs and segments get
+  // new ids when saved. After the save: find them again and check routes;
+  // if any is not allowed, a list that stays until closed.
+  function jbBeforeSave() {
+    if (!settings.jbWarnings) return;
+    const col = window.W && window.W.model && window.W.model.bigJunctions;
+    const ids = new Set(jbUnsavedIds());
+    try {
+      const sel = sdk.Editing.getSelection();
+      if (sel && sel.objectType === 'bigJunction') (sel.ids || []).forEach((x) => ids.add(x));
+    } catch (e) {
+      // ignore
+    }
+    jbState.pendingSave = [...ids].map((id) => {
+      const o = col && col.getObjectById(id);
+      return { id, segIds: (o && o.attributes && o.attributes.segIDs) || [], center: jbCenter(id) };
+    });
+  }
+
+  function jbAfterSave() {
+    const recs = jbState.pendingSave || [];
+    jbState.pendingSave = null;
+    if (!recs.length || !settings.jbWarnings) return;
+    // Give WME time to reload the saved objects (new ids).
+    setTimeout(() => {
+      let all = [];
+      try {
+        all = sdk.DataModel.BigJunctions.getAll() || [];
+      } catch (e) {
+        all = [];
+      }
+      const found = new Map();
+      recs.forEach((rec) => {
+        let jb = all.find((x) => x.id === rec.id);
+        if (!jb && rec.segIds.length) jb = all.find((x) => (x.segmentIds || []).some((sid) => rec.segIds.includes(sid)));
+        if (!jb && rec.center) {
+          let best = 40; // m
+          all.forEach((x) => {
+            const c = jbCenter(x.id);
+            if (!c) return;
+            const d = savedWarnPointToSegmentM(rec.center, c, c);
+            if (d < best) {
+              best = d;
+              jb = x;
+            }
+          });
+        }
+        if (jb) found.set(jb.id, jb);
+      });
+      const entries = [];
+      found.forEach((jb) => {
+        const r = jbRoutes(jb.id);
+        if (r.bad.length) entries.push({ id: jb.id, bad: r.bad, total: r.turns.length });
+      });
+      if (!entries.length) return;
+      jbState.saved = entries;
+      jbState.sig = '';
+      jbPoll();
+    }, 2500);
   }
 
   // ---------------------------------------------------------------------
