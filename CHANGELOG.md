@@ -23,6 +23,15 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-21 - v0.47.3 - „Ține panoul lateral deschis”: Issue Tracker + fără pâlpâire (pe `dev`, nepublicată)
+
+- Când panoul lateral dispare, scriptul deschide acum tab-ul **Issue
+  Tracker** (în loc de ecranul gol „Editare”).
+- Intervine doar dacă panoul rămâne ascuns ~1 secundă (2 verificări la
+  rând), ca să nu se mai „bată” cu WME când acesta îl ascunde scurt la
+  schimbarea panourilor - de acolo venea închis / deschis și ferestrele
+  care fugeau.
+
 ## 2026-10-21 - v0.47.2 - pastila de nivel 1 arată ca pastila de publicare (pe `dev`, nepublicată)
 
 - Pastila pentru nivelul 1 are acum aspectul pastilei de publicare: rotundă,

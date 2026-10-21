@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.47.2
+// @version      0.47.3
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.47.2';
+  const SCRIPT_VERSION = '0.47.3';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -233,6 +233,8 @@
   // Poll interval for detecting whether the WME sidebar (#sidebar) is
   // hidden/collapsed, used by the "keep sidebar open" option.
   const FORCE_SIDEBAR_OPEN_POLL_MS = 500;
+  // Tab opened by "Keep sidebar open" when the sidebar was left without one.
+  const SIDEBAR_FALLBACK_TAB = 'issue_tracker';
 
   // Screen-pixel distance from the node for the LENGTH badge, along each
   // segment's direction. Kept clear of WME's native Junction Angle Info
@@ -550,9 +552,20 @@
   // rule rather than an inline style we can just remove.
   const SIDEBAR_NATURAL_WIDTH_PX = 330;
 
+  // v0.47.3 (Paul: "se închide și se redeschide... face un flickering și
+  // îmi fug ferestrele"): act only when the sidebar has stayed hidden for
+  // two polls in a row (~1 s), so a short hide during WME's own panel
+  // switch is not fought (that back-and-forth was the flicker).
+  let sidebarHiddenPolls = 0;
+
   function enforceSidebarOpen() {
     const sidebar = document.getElementById('sidebar');
-    if (!sidebar || !isSidebarHidden(sidebar)) return;
+    if (!sidebar || !isSidebarHidden(sidebar)) {
+      sidebarHiddenPolls = 0;
+      return;
+    }
+    sidebarHiddenPolls++;
+    if (sidebarHiddenPolls < 2) return;
 
     // Step 1: restore the `show-sidebar` class on `.app`, in case a
     // future WME version starts relying on it again (currently inert).
@@ -589,10 +602,10 @@
     // themselves off real state (not our CSS) still behave as if no
     // sidebar column exists and overlap the one we forced visible.
     //
-    // Fix: explicitly select the `feature_editor` tab (the same one WME
-    // auto-selects on any segment/place selection) - it has an empty
-    // native screen, valid even with nothing selected, so the sidebar
-    // keeps a REAL active tab recognized by the rest of the app.
+    // Fix: explicitly select a real tab so the sidebar keeps an active tab
+    // recognized by the rest of the app. Since v0.47.3 (Paul: "hai să
+    // încercăm cu a deschide issue_tracker") it is the Issue Tracker, not
+    // `feature_editor` (the empty "nothing selected" screen).
     //
     // No SDK method for this. A synthetic click on the tab button
     // (`wz-navigation-item`) has no effect - WME ignores untrusted mouse
@@ -600,14 +613,14 @@
     // `history.replaceState` (not `pushState`, would flood browser
     // history on every poll) and dispatch a `popstate` event manually -
     // the event WME's internal router listens for on URL changes.
-    selectFeatureEditorTab();
+    selectSidebarFallbackTab();
   }
 
-  function selectFeatureEditorTab() {
+  function selectSidebarFallbackTab() {
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.get('tab') === 'feature_editor') return;
-      url.searchParams.set('tab', 'feature_editor');
+      if (url.searchParams.get('tab') === SIDEBAR_FALLBACK_TAB) return;
+      url.searchParams.set('tab', SIDEBAR_FALLBACK_TAB);
       history.replaceState(history.state, '', url.toString());
       window.dispatchEvent(new PopStateEvent('popstate', { state: history.state }));
     } catch (e) {
