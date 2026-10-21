@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.47.1
+// @version      0.47.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.47.1';
+  const SCRIPT_VERSION = '0.47.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -3061,7 +3061,7 @@
   const LOCK1_RESCAN_MS = 1000;
   const LOCK1_MAX_BADGES = 150;
   const LOCK1_SVG =
-    '<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="3"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+    '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
   const lock1State = { active: false, badges: new Map(), rafId: null, intervalId: null, styled: false };
 
   function lock1Style() {
@@ -3072,12 +3072,38 @@
     document.head.appendChild(st);
   }
 
+  // Same look as the publish-status pill (v0.47.2, Paul: "fă-l să arate
+  // similar cu ceva margine neagră și tooltip"): round dark badge with the
+  // theme's border, orange lock + 1; on hover it widens and says what it is.
   function lock1CreatePill() {
     const el = document.createElement('div');
     el.className = LOCK1_PILL_CLASS;
-    el.innerHTML = `${LOCK1_SVG}<span>1</span>`;
-    el.title = L('Blocat la nivelul 1', 'Locked at level 1');
-    el.style.cssText = `position:fixed; left:0; top:0; transform:translate(-50%,-50%); height:14px; padding:0 3px 0 2px; border-radius:7px; display:flex; align-items:center; gap:1px; background:#F18200; color:#fff; border:1px solid rgba(255,255,255,0.85); box-shadow:0 1px 3px rgba(0,0,0,0.35); font:700 9px/1 Arial, sans-serif; z-index:${OWN_UI_Z_INDEX}; pointer-events:auto; cursor:default; opacity:0.92;`;
+    el.style.cssText = `position:fixed; left:0; top:0; transform:translate(-50%,-50%); height:22px; max-width:30px; padding:0 4px; border-radius:11px; border-width:2px; border-style:solid; display:flex; align-items:center; justify-content:center; overflow:hidden; white-space:nowrap; font:600 11px/1 Arial, sans-serif; cursor:default; z-index:${OWN_UI_Z_INDEX}; box-shadow:0 1px 4px rgba(0,0,0,0.35); pointer-events:auto; transition:max-width 180ms ease, padding 180ms ease;`;
+    applyBadgeTheme(el);
+    const icon = document.createElement('span');
+    icon.style.cssText = 'display:inline-flex; align-items:center; gap:1px; flex-shrink:0; color:#F18200; font:700 10px/1 Arial, sans-serif;';
+    icon.innerHTML = `${LOCK1_SVG}<span>1</span>`;
+    const text = document.createElement('span');
+    text.style.cssText = 'display:inline-block; overflow:hidden; max-width:0; margin-left:0; transition:max-width 180ms ease, margin-left 180ms ease;';
+    text.textContent = L('Segment blocat la nivelul 1', 'Segment locked at level 1');
+    el.append(icon, text);
+    el.addEventListener('mouseenter', (ev) => {
+      if (ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.buttons) return;
+      el.style.maxWidth = '260px';
+      el.style.padding = '0 8px 0 6px';
+      el.style.justifyContent = 'flex-start';
+      el.style.zIndex = String(OWN_UI_MENU_Z_INDEX);
+      text.style.maxWidth = '220px';
+      text.style.marginLeft = '6px';
+    });
+    el.addEventListener('mouseleave', () => {
+      el.style.maxWidth = '30px';
+      el.style.padding = '0 4px';
+      el.style.justifyContent = 'center';
+      el.style.zIndex = String(OWN_UI_Z_INDEX);
+      text.style.maxWidth = '0';
+      text.style.marginLeft = '0';
+    });
     getMapOverlayContainer().appendChild(el);
     return el;
   }

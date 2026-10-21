@@ -23,6 +23,12 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-21 - v0.47.2 - pastila de nivel 1 arată ca pastila de publicare (pe `dev`, nepublicată)
+
+- Pastila pentru nivelul 1 are acum aspectul pastilei de publicare: rotundă,
+  fundal închis, margine, lacăt + „1” portocalii.
+- Cu mouse-ul deasupra se lărgește și scrie „Segment blocat la nivelul 1”.
+
 ## 2026-10-21 - v0.47.1 - indicator pentru segmentele blocate la nivelul 1 (pe `dev`, nepublicată)
 
 - **Nou:** o pastilă portocalie mică (lacăt + „1”) apare lângă fiecare
