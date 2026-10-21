@@ -23,6 +23,14 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-21 - v0.46.2 - reparat: butonul de previzualizare se înmulțea (pe `dev`, nepublicată)
+
+- La un link scris ca text (ex. în „Descriere” la UR), la fiecare ~1 s se mai
+  adăuga un buton de previzualizare după același link. Acum butonul apare o
+  singură dată.
+- Iconița e acum un desen (SVG), nu emoji-ul 🖼, care în unele fonturi apărea
+  ca un pătrat.
+
 ## 2026-10-20 - v0.46.1 - coordonate GPS: mai multe formate recunoscute (pe `dev`, nepublicată)
 
 - Coordonatele scrise ca „44*18'18.0'N si 26*10'41.6''E” devin acum link.

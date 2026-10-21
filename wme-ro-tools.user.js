@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.46.1
+// @version      0.46.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.46.1';
+  const SCRIPT_VERSION = '0.46.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -10905,9 +10905,10 @@
   function imgMakeButton(url) {
     const b = document.createElement('span');
     b.className = IMG_BTN_CLASS;
-    b.textContent = '🖼';
+    // SVG icon: the 🖼 emoji is missing from some fonts (shown as a box).
+    b.innerHTML = '<svg width="13" height="11" viewBox="0 0 16 13" fill="none" stroke="currentColor" stroke-width="1.6" style="display:block"><rect x="1" y="1" width="14" height="11" rx="1.5"/><circle cx="5" cy="4.6" r="1.3"/><path d="M1.8 11.2l4.2-4.2 3 3 2-2 3.4 3.4"/></svg>';
     b.title = L('Previzualizare imagine în editor', 'Preview the image in the editor');
-    b.style.cssText = 'cursor:pointer; margin:0 3px; padding:0 3px; border-radius:4px; border:1px solid currentColor; font-size:11px; line-height:14px; display:inline-block; vertical-align:baseline; opacity:0.85;';
+    b.style.cssText = 'cursor:pointer; margin:0 3px; padding:1px 3px; border-radius:4px; border:1px solid currentColor; display:inline-block; vertical-align:middle; opacity:0.85; color:var(--primary, #33ccff);';
     b.addEventListener('click', (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
@@ -10939,7 +10940,11 @@
         if (!n.data || n.data.indexOf('http') < 0) return NodeFilter.FILTER_REJECT;
         const el = n.parentElement;
         if (!el || el.closest(`form, textarea, input, wz-textarea, a, script, style, .${IMG_BTN_CLASS}`)) return NodeFilter.FILTER_REJECT;
-        if (el.dataset && el.dataset.roImgDone) return NodeFilter.FILTER_REJECT;
+        // Already handled: we split after the URL and put our button right
+        // after this node (v0.46.2 - without this check every poll added
+        // one more button after the same link).
+        const nx = n.nextSibling;
+        if (nx && nx.nodeType === 1 && nx.classList.contains(IMG_BTN_CLASS)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       },
     });
