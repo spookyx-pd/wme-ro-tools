@@ -23,6 +23,15 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-21 - v0.47.1 - indicator pentru segmentele blocate la nivelul 1 (pe `dev`, nepublicată)
+
+- **Nou:** o pastilă portocalie mică (lacăt + „1”) apare lângă fiecare
+  segment vizibil blocat la nivelul 1, discret, ca pastila de publicare.
+- Stă pe partea opusă a segmentului față de pastila de publicare, ca să nu se
+  suprapună. Cel mult 150 de pastile odată. Cât ții apăsat mouse-ul sau
+  Shift / Ctrl, lasă click-urile să treacă spre hartă.
+- Opțiune nouă: „Indicator segmente blocate la nivel 1” (pornită).
+
 ## 2026-10-21 - v0.47 - Junction Box: avertizare pentru rutele nepermise (pe `dev`, nepublicată)
 
 - **Nou:** cât timp e selectat un Junction Box (click pe el, imediat după

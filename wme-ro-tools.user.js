@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.47
+// @version      0.47.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.47';
+  const SCRIPT_VERSION = '0.47.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -124,6 +124,7 @@
   const VERSION_HISTORY = [
     { v: '0.47', items: [
       L('Junction Box: când selectezi, creezi sau modifici un JB, o avertizare arată rutele nepermise (dinspre ce segment, spre ce segment, de ce), cu ruta desenată pe hartă.', 'Junction Box: when you select, create or edit a JB, a warning shows its routes that are not allowed (from which segment, to which segment, why), with the route drawn on the map.'),
+      L('Pastilă portocalie discretă (lacăt + 1) lângă segmentele blocate la nivelul 1.', 'Discreet orange pill (lock + 1) next to segments locked at level 1.'),
     ] },
     { v: '0.46', items: [
       L('Poze din linkuri în UR / MP: buton 🖼 lângă link, poza se vede într-o fereastră în editor, cu zoom, mutare și rotire (imgbb, imgur, postimg, linkuri directe; punctul de după link e ignorat).', 'Pictures from links in UR / MP: 🖼 button next to the link, the picture opens in a window inside the editor, with zoom, pan and rotate (imgbb, imgur, postimg, direct links; a dot after the link is ignored).'),
@@ -444,6 +445,8 @@
     // Livemap - not just the selected one (that's `publishStatusIndicator`).
     // Selection-independent watchdog, like `forceSidebarOpen`.
     unpublishedSegmentsWarning: true,
+    // v0.47.1: orange lock-1 pill next to every visible level 1 segment.
+    lock1Badges: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
@@ -803,6 +806,11 @@
         }
         // Same pattern as "Keep sidebar open" - selection-independent
         // watchdog, started/stopped directly.
+        if (key === 'lock1Badges') {
+          if (checkbox.checked) startLock1Badges();
+          else stopLock1Badges();
+          return;
+        }
         if (key === 'unpublishedSegmentsWarning') {
           if (checkbox.checked) {
             startUnpublishedWarnWatchdog();
@@ -1054,6 +1062,12 @@
       L('Avertizare segmente nepublicate, pe toată zona vizibilă', 'Unpublished segments warning, across the whole visible area'),
       L('Pastilă ⚠️ lângă fiecare segment vizibil nepublicat încă pe Livemap.', '⚠️ pill next to every visible segment not yet published on Livemap.'),
       L('O pastilă rotundă lângă FIECARE segment vizibil pe hartă a cărui ultimă modificare NU a ajuns încă pe Livemap (nu doar la segmentul selectat - asta face deja "Indicator stare publicare pe Livemap" de mai sus). Poziționată lângă segment, fără să-l acopere (ca pastila de lungime). Trece cu mouse-ul peste ea: se extinde și arată exact "Ultima actualizare: ... de <utilizator>" (ca la istoricul segmentului), cu link către profilul utilizatorului. Funcționează independent de orice selecție - poate rămâne activă tot timpul.', 'A round pill next to EVERY segment visible on the map whose last edit has NOT reached Livemap yet (not just the selected segment - that is what "Livemap publish status indicator" above does). Placed next to the segment without covering it (like the length pill). Hover over it: it expands and shows exactly "Last update: ... by <user>" (as in the segment history), with a link to the user\'s profile. Works independently of any selection - can stay on all the time.')
+    );
+    addToggle(
+      'lock1Badges',
+      L('Indicator segmente blocate la nivel 1', 'Level 1 locked segments indicator'),
+      L('Pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1.', 'Small orange pill (lock + 1) next to every visible segment locked at level 1.'),
+      L('O pastilă portocalie discretă, cu un lacăt și cifra 1, apare lângă FIECARE segment vizibil pe hartă care are nivelul de blocare 1 (cel mai mic). Stă pe partea opusă a segmentului față de pastila de publicare, ca să nu se suprapună. Cel mult 150 de pastile simultan. Cât ții apăsat mouse-ul sau Shift / Ctrl, pastilele lasă click-urile să treacă spre hartă.', 'A discreet orange pill, with a lock and the number 1, appears next to EVERY segment visible on the map with lock level 1 (the lowest). It sits on the opposite side of the segment from the publish pill, so they do not overlap. At most 150 pills at once. While the mouse button or Shift / Ctrl is held, the pills let clicks through to the map.')
     );
     addToggle(
       'publishPillsFreshRecent',
@@ -3031,6 +3045,127 @@
     unpublishedWarnState.rafId = null;
     unpublishedWarnState.badges.forEach((badge) => badge.remove());
     unpublishedWarnState.badges.clear();
+  }
+
+  // ---------------------------------------------------------------------
+  // Lock level 1 indicator (v0.47.1, Paul: "un indicator lângă segmentele
+  // care sunt blocate la nivel 1 [...] pe ceva portocaliu că e un fel de
+  // avertizare. să fie discret precum iconița care ne arată un segment
+  // modificat recent" - for all L1 segments, Paul's choice).
+  // Small orange pill (lock + "1") next to every visible segment with
+  // `lockRank === 0` (= level 1), on the opposite side of the segment from
+  // the publish-status pill so the two never overlap. Same machinery as
+  // those pills: rescan every second, reposition every frame.
+  // ---------------------------------------------------------------------
+  const LOCK1_PILL_CLASS = 'wme-ro-tools-lock1-pill';
+  const LOCK1_RESCAN_MS = 1000;
+  const LOCK1_MAX_BADGES = 150;
+  const LOCK1_SVG =
+    '<svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="3"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+  const lock1State = { active: false, badges: new Map(), rafId: null, intervalId: null, styled: false };
+
+  function lock1Style() {
+    if (lock1State.styled) return;
+    lock1State.styled = true;
+    const st = document.createElement('style');
+    st.textContent = `.${UNPUBLISHED_WARN_PASSTHROUGH_CLASS} .${LOCK1_PILL_CLASS} { pointer-events: none !important; }`;
+    document.head.appendChild(st);
+  }
+
+  function lock1CreatePill() {
+    const el = document.createElement('div');
+    el.className = LOCK1_PILL_CLASS;
+    el.innerHTML = `${LOCK1_SVG}<span>1</span>`;
+    el.title = L('Blocat la nivelul 1', 'Locked at level 1');
+    el.style.cssText = `position:fixed; left:0; top:0; transform:translate(-50%,-50%); height:14px; padding:0 3px 0 2px; border-radius:7px; display:flex; align-items:center; gap:1px; background:#F18200; color:#fff; border:1px solid rgba(255,255,255,0.85); box-shadow:0 1px 3px rgba(0,0,0,0.35); font:700 9px/1 Arial, sans-serif; z-index:${OWN_UI_Z_INDEX}; pointer-events:auto; cursor:default; opacity:0.92;`;
+    getMapOverlayContainer().appendChild(el);
+    return el;
+  }
+
+  // Opposite side of the segment from the publish-status pill.
+  function lock1Position(coords) {
+    const base = computeSegmentBadgePosition(coords);
+    if (!base || base.rawX == null) return null;
+    // `base` is already pushed to one side of the segment (length badge /
+    // publish pill side) - start from the point on the segment instead and
+    // go the other way.
+    const len = Math.hypot(base.dx, base.dy) || 1;
+    const nx = base.dy / len;
+    const ny = -base.dx / len;
+    const off = SEGMENT_LENGTH_BADGE_SIDE_OFFSET_PX;
+    const { vw, vh, vx0, vy0 } = getMapViewportBounds();
+    return clampToViewport({ x: base.rawX + nx * off, y: base.rawY + ny * off }, vw, vh, VIEWPORT_CLAMP_MARGIN_PX, vx0, vy0);
+  }
+
+  function lock1Rescan() {
+    if (!lock1State.active) return;
+    const { vw, vh, vx0, vy0 } = getMapViewportBounds();
+    let segments;
+    try {
+      segments = sdk.DataModel.Segments.getAll();
+    } catch (e) {
+      segments = [];
+    }
+    const wanted = new Set();
+    for (const seg of segments) {
+      if (wanted.size >= LOCK1_MAX_BADGES) break;
+      if (seg.lockRank !== 0) continue;
+      const c = seg.geometry && seg.geometry.coordinates;
+      if (!c || c.length < 2 || !isSegmentPathInViewport(c, vw, vh, vx0, vy0)) continue;
+      wanted.add(seg.id);
+      if (!lock1State.badges.has(seg.id)) lock1State.badges.set(seg.id, lock1CreatePill());
+    }
+    lock1State.badges.forEach((el, id) => {
+      if (!wanted.has(id)) {
+        el.remove();
+        lock1State.badges.delete(id);
+      }
+    });
+  }
+
+  function lock1Raf() {
+    if (!lock1State.active) {
+      lock1State.rafId = null;
+      return;
+    }
+    if (lock1State.badges.size) getMapOverlayContainer();
+    lock1State.badges.forEach((el, id) => {
+      let seg = null;
+      try {
+        seg = sdk.DataModel.Segments.getById({ segmentId: id });
+      } catch (e) {
+        seg = null;
+      }
+      const c = seg && seg.geometry && seg.geometry.coordinates;
+      const pos = c && c.length >= 2 ? lock1Position(c) : null;
+      if (!pos) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = 'flex';
+      el.style.left = `${pos.x}px`;
+      el.style.top = `${pos.y}px`;
+    });
+    lock1State.rafId = requestAnimationFrame(lock1Raf);
+  }
+
+  function startLock1Badges() {
+    if (lock1State.active) return;
+    lock1Style();
+    lock1State.active = true;
+    lock1Rescan();
+    if (!lock1State.rafId) lock1State.rafId = requestAnimationFrame(lock1Raf);
+    if (!lock1State.intervalId) lock1State.intervalId = setInterval(lock1Rescan, LOCK1_RESCAN_MS);
+  }
+
+  function stopLock1Badges() {
+    lock1State.active = false;
+    if (lock1State.intervalId) clearInterval(lock1State.intervalId);
+    lock1State.intervalId = null;
+    if (lock1State.rafId) cancelAnimationFrame(lock1State.rafId);
+    lock1State.rafId = null;
+    lock1State.badges.forEach((el) => el.remove());
+    lock1State.badges.clear();
   }
 
   // ---------------------------------------------------------------------
@@ -13355,6 +13490,7 @@
     registerCutShortcut();
     if (settings.forceSidebarOpen) startForceSidebarOpenWatchdog();
     if (settings.unpublishedSegmentsWarning) startUnpublishedWarnWatchdog();
+    if (settings.lock1Badges) startLock1Badges();
     initIssueTrackerMapAll();
     initLocationLabelFix();
     initUnpublishedWarnPassthrough();
