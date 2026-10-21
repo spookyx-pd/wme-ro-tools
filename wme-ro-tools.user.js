@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.46.2
+// @version      0.47
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.46.2';
+  const SCRIPT_VERSION = '0.47';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -122,6 +122,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.47', items: [
+      L('Junction Box: când selectezi, creezi sau modifici un JB, o avertizare arată rutele nepermise (dinspre ce segment, spre ce segment, de ce), cu ruta desenată pe hartă.', 'Junction Box: when you select, create or edit a JB, a warning shows its routes that are not allowed (from which segment, to which segment, why), with the route drawn on the map.'),
+    ] },
     { v: '0.46', items: [
       L('Poze din linkuri în UR / MP: buton 🖼 lângă link, poza se vede într-o fereastră în editor, cu zoom, mutare și rotire (imgbb, imgur, postimg, linkuri directe; punctul de după link e ignorat).', 'Pictures from links in UR / MP: 🖼 button next to the link, the picture opens in a window inside the editor, with zoom, pan and rotate (imgbb, imgur, postimg, direct links; a dot after the link is ignored).'),
     ] },
@@ -415,6 +418,8 @@
     urCoordLinks: true,
     // v0.46: 🖼 preview button after image links in UR / MP conversations.
     urImagePreview: true,
+    // v0.47: warning for Junction Box routes that are not allowed.
+    jbWarnings: true,
     // Off by default (unlike the rest) - forces the WME sidebar to stay
     // open, correcting any collapse/hide. Defensive measure, may conflict
     // with legitimate native behavior on narrow screens.
@@ -760,6 +765,12 @@
           urNlSyncCheckboxes();
           return;
         }
+        if (key === 'jbWarnings') {
+          settings[key] = checkbox.checked;
+          saveSettings();
+          if (!checkbox.checked) jbHide();
+          return;
+        }
         if (key === 'urImagePreview') {
           settings[key] = checkbox.checked;
           saveSettings();
@@ -959,6 +970,12 @@
       L('Ajutor pentru sugestiile de hartă', 'Map edit suggestions helper'),
       L('Analiză pe fiecare modificare propusă, mesaj la respingere sau în chat, aplicarea modificărilor bune după respingere.', 'Review each proposed change, message on rejection or in the chat, apply the good changes after rejecting.'),
       L('În fereastra „Sugestie hartă”: butonul „📝 Analiză modificări” deschide un panou cu fiecare modificare propusă (valoarea veche tăiată, cea nouă, locul; întoarcerile U sunt numite ca atare), cu stare (✔ corectă / ✖ greșită / ↻ o refac eu) și explicație. Mesajul compus merge în fereastra de respingere („Respinge cu acest mesaj” - ajunge prin e-mail) sau în chatul WME cu utilizatorul („💬 Trimite în chat” - tu apeși Trimite; merge și când aprobi sugestia). Fereastra nativă de respingere devine mai mare, are lista modificărilor (click = inserează la cursor) și „Inserează analiza”; textul se păstrează pe fiecare sugestie. După respingere, modificările apar într-o listă în dreapta sus (butonul 📝 de lângă Salvează o redeschide): cele care nu sunt marcate greșite se pot aplica pe hartă - segment nou, tip drum, nume stradă (cu nume din jur la alegere), număr de imobil, neasfaltat, viraje și întoarceri U - ca editări nesalvate, pe care le verifici și le salvezi. Textele de stare se pot personaliza din „Texte personalizabile”.', 'In the "Map suggestion" window: the "📝 Review changes" button opens a panel with each proposed change (old value struck out, new value, location; U-turns are named as such), a status (✔ correct / ✖ wrong / ↻ I\'ll redo it) and an explanation. The composed message goes to the rejection dialog ("Reject with this message" - sent by e-mail) or to the WME chat with the user ("💬 Send in chat" - you press Send; also works when you approve). The native rejection dialog gets bigger, with the list of changes (click = insert at the cursor) and "Insert the review"; the text is kept per suggestion. After rejecting, the changes go to a list at the top right (the 📝 button next to Save reopens it): those not marked wrong can be applied on the map - new segment, road type, street name (with nearby names to choose from), house number, unpaved, turns and U-turns - as unsaved edits you check and save. The status texts can be customized in "Customizable texts".')
+    );
+    addToggle(
+      'jbWarnings',
+      L('Avertizare rute nepermise în Junction Box', 'Junction Box: routes not allowed warning'),
+      L('Când selectezi, creezi sau modifici un JB, arată rutele lui nepermise (dinspre ce segment, spre ce segment, de ce).', 'When you select, create or edit a JB, shows its routes that are not allowed (from which segment, to which segment, why).'),
+      L('Doar cât timp e selectat un singur Junction Box (click pe el, imediat după ce îl creezi sau cât îl modifici): fereastra de sub bara de sus listează rutele nepermise - dinspre ce stradă / segment, spre ce stradă / segment, prin câte segmente și motivul (interzisă, viraj dificil, restricție după program sau pe vehicule). Mouse-ul pe un rând desenează ruta pe hartă. Nu apare dacă toate rutele sunt permise. ✕ o ascunde până se schimbă rutele. Utilă mai ales când un JB recreat apare cu ruta principală dezactivată (bug WME).', 'Only while a single Junction Box is selected (clicked, just created or being edited): the window under the top bar lists the routes that are not allowed - from which street / segment, to which street / segment, through how many segments and why (not allowed, difficult turn, scheduled or vehicle restriction). Hovering a row draws the route on the map. It does not appear if all routes are allowed. ✕ hides it until the routes change. Useful especially when a recreated JB comes with its main route disabled (WME bug).')
     );
     addToggle(
       'urImagePreview',
@@ -11196,6 +11213,236 @@
   }
 
   // ---------------------------------------------------------------------
+  // Junction Box: warning about routes that are not allowed (v0.47, Paul:
+  // "când creez un JB nou sau interacționez cu un JB sau dau click pe un JB
+  // să îmi apară o avertizare să îmi spună dinspre ce segmente înspre ce
+  // segment e interzis" - only then, not all the time on the map; a bug
+  // sometimes recreates a JB with its main route disabled).
+  // While exactly one JB is selected (clicked, just created or being
+  // edited), its routes (`BigJunctions.getAllPossibleTurns`) are checked;
+  // the ones with `isAllowed: false` are listed in a small window under the
+  // toolbar, with the reason (restriction type / schedule) and "show on the
+  // map" (the route drawn through the box). The list refreshes when the
+  // routes change; closing it hides it until the routes change again.
+  // ---------------------------------------------------------------------
+  const JB_WARN_ID = 'wme-ro-tools-jb-warn';
+  const JB_POLL_MS = 700;
+  const JB_ROUTE_LAYER = 'wme-ro-tools-jb-route';
+  const jbState = { id: null, sig: '', dismissedSig: '', layer: false };
+
+  function jbSegName(id) {
+    try {
+      const seg = sdk.DataModel.Segments.getById({ segmentId: id });
+      const st = seg && seg.primaryStreetId != null ? sdk.DataModel.Streets.getById({ streetId: seg.primaryStreetId }) : null;
+      return (st && st.name) || L('fără nume', 'no name');
+    } catch (e) {
+      return '?';
+    }
+  }
+
+  // Where a segment lies relative to the JB centre ("N", "SE"...), so two
+  // routes on the same road can be told apart ("DN1 (S) → DN1 (N)").
+  function jbSide(segId, center) {
+    try {
+      const seg = sdk.DataModel.Segments.getById({ segmentId: segId });
+      const c = seg && seg.geometry.coordinates;
+      if (!c || !center) return '';
+      const p = c[Math.floor(c.length / 2)];
+      const k = Math.cos((center[1] * Math.PI) / 180);
+      const ang = (Math.atan2((p[0] - center[0]) * k, p[1] - center[1]) * 180) / Math.PI;
+      const names = LANG === 'ro' ? ['N', 'NE', 'E', 'SE', 'S', 'SV', 'V', 'NV'] : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      return names[Math.round(((ang + 360) % 360) / 45) % 8];
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function jbCenter(id) {
+    try {
+      const jb = sdk.DataModel.BigJunctions.getById({ bigJunctionId: id });
+      const ring = jb && jb.geometry && jb.geometry.coordinates && jb.geometry.coordinates[0];
+      if (!ring || !ring.length) return null;
+      let x = 0;
+      let y = 0;
+      ring.forEach((p) => {
+        x += p[0];
+        y += p[1];
+      });
+      return [x / ring.length, y / ring.length];
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Readable reason of a route that is not allowed.
+  function jbReason(t) {
+    const rs = t.restrictions || [];
+    if (!rs.length) return L('interzisă', 'not allowed');
+    return rs
+      .map((r) => {
+        const type = r.defaultType === 'DIFFICULT' ? L('viraj dificil', 'difficult turn') : r.defaultType === 'BLOCKED' ? L('blocată', 'blocked') : L(`restricție ${String(r.defaultType || '').toLowerCase()}`, `restriction ${String(r.defaultType || '').toLowerCase()}`);
+        const tf = (r.timeFrames || [])[0];
+        const always = !tf || ((!tf.weekdays || tf.weekdays.length === 7) && !tf.fromTime && !tf.toTime && !tf.startDate && !tf.endDate);
+        const veh = r.vehicleRules && Object.keys(r.vehicleRules).length ? L(', doar anumite vehicule', ', some vehicles only') : '';
+        return `${type}${always ? L(', permanent', ', always') : L(', după program', ', on a schedule')}${veh}`;
+      })
+      .join('; ');
+  }
+
+  function jbRouteLayer() {
+    if (jbState.layer) return true;
+    try {
+      sdk.Map.addLayer({
+        layerName: JB_ROUTE_LAYER,
+        styleRules: [
+          { predicate: (p) => p.kind === 'path', style: { strokeColor: '#e5484d', strokeWidth: 8, strokeOpacity: 0.85 } },
+          { predicate: (p) => p.kind === 'end', style: { strokeColor: '#ff9800', strokeWidth: 8, strokeOpacity: 0.9, strokeDashstyle: 'dash' } },
+        ],
+      });
+      jbState.layer = true;
+    } catch (e) {
+      console.warn(`${SCRIPT_NAME}: stratul pentru rutele JB nu a putut fi creat.`, e);
+    }
+    return jbState.layer;
+  }
+
+  function jbClearRoute() {
+    if (!jbState.layer) return;
+    try {
+      sdk.Map.removeAllFeaturesFromLayer({ layerName: JB_ROUTE_LAYER });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function jbShowRoute(t) {
+    if (!jbRouteLayer()) return;
+    jbClearRoute();
+    const feats = [];
+    const add = (id, kind) => {
+      try {
+        const seg = sdk.DataModel.Segments.getById({ segmentId: id });
+        if (seg) feats.push({ type: 'Feature', id: `jb-${kind}-${id}-${feats.length}`, geometry: seg.geometry, properties: { kind } });
+      } catch (e) {
+        // not loaded
+      }
+    };
+    add(t.fromSegmentId, 'end');
+    (t.segmentPath || []).forEach((id) => add(id, 'path'));
+    add(t.toSegmentId, 'end');
+    try {
+      sdk.Map.addFeaturesToLayer({ layerName: JB_ROUTE_LAYER, features: feats });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function jbHide() {
+    const el = document.getElementById(JB_WARN_ID);
+    if (el) el.remove();
+    jbClearRoute();
+  }
+
+  function jbRender(id, bad, total) {
+    const t = currentTheme();
+    let box = document.getElementById(JB_WARN_ID);
+    if (!box) {
+      box = document.createElement('div');
+      box.id = JB_WARN_ID;
+      box.className = 'save-popover'; // native look, dark / light
+      document.body.appendChild(box);
+    }
+    const toolbar = document.querySelector('.toolbar');
+    const top = toolbar ? toolbar.getBoundingClientRect().bottom + 8 : 50;
+    box.style.cssText = `position:fixed; top:${Math.round(top)}px; left:50%; transform:translateX(-50%); z-index:8; width:460px; max-width:calc(100vw - 32px); max-height:50vh; overflow:auto; box-sizing:border-box; padding:12px 16px 14px; font:12px/1.4 Rubik, Arial, sans-serif;`;
+    box.textContent = '';
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex; align-items:center; gap:6px;';
+    const alert = document.createElement('wz-alert');
+    alert.setAttribute('level', 'page');
+    alert.setAttribute('variant', 'warning');
+    alert.style.cssText = 'flex:1; min-width:0;';
+    const at = document.createElement('span');
+    at.setAttribute('slot', 'header');
+    at.textContent = L(`Junction Box: ${bad.length} din ${total} ${total === 1 ? 'rută' : 'rute'} ${bad.length === 1 ? 'nepermisă' : 'nepermise'}`, `Junction Box: ${bad.length} of ${total} ${total === 1 ? 'route' : 'routes'} not allowed`);
+    alert.appendChild(at);
+    head.appendChild(alert);
+    head.appendChild(
+      savedWarnIconButton('w-icon-x', L('Ascunde (reapare dacă rutele se schimbă)', 'Hide (comes back if the routes change)'), () => {
+        jbState.dismissedSig = jbState.sig;
+        jbHide();
+      })
+    );
+    box.appendChild(head);
+    const center = jbCenter(id);
+    const side = (segId) => {
+      const x = jbSide(segId, center);
+      return x ? ` (${x})` : '';
+    };
+    bad.forEach((r) => {
+      const row = document.createElement('div');
+      row.style.cssText = `display:flex; align-items:flex-start; gap:6px; border-top:1px solid ${t.menuBorder}; padding:6px 2px; margin-top:6px;`;
+      const c = document.createElement('div');
+      c.style.cssText = 'flex:1; min-width:0;';
+      const l1 = document.createElement('div');
+      l1.style.fontWeight = '600';
+      l1.textContent = L(`Dinspre ${jbSegName(r.fromSegmentId)}${side(r.fromSegmentId)} → spre ${jbSegName(r.toSegmentId)}${side(r.toSegmentId)}`, `From ${jbSegName(r.fromSegmentId)}${side(r.fromSegmentId)} → to ${jbSegName(r.toSegmentId)}${side(r.toSegmentId)}`);
+      const l2 = document.createElement('div');
+      l2.style.cssText = 'opacity:0.75;';
+      l2.textContent = L(`segment ${r.fromSegmentId} → ${r.toSegmentId} · prin ${(r.segmentPath || []).length} ${(r.segmentPath || []).length === 1 ? 'segment' : 'segmente'} · ${jbReason(r)}`, `segment ${r.fromSegmentId} → ${r.toSegmentId} · through ${(r.segmentPath || []).length} segment(s) · ${jbReason(r)}`);
+      c.append(l1, l2);
+      row.appendChild(c);
+      const show = savedWarnIconButton('w-icon-recenter', L('Arată ruta pe hartă (mouse deasupra)', 'Show the route on the map (hover)'), () => jbShowRoute(r));
+      row.addEventListener('mouseenter', () => jbShowRoute(r));
+      row.addEventListener('mouseleave', jbClearRoute);
+      row.appendChild(show);
+      box.appendChild(row);
+    });
+  }
+
+  function jbPoll() {
+    if (!settings.jbWarnings) {
+      if (jbState.id != null) {
+        jbState.id = null;
+        jbHide();
+      }
+      return;
+    }
+    let sel = null;
+    try {
+      sel = sdk.Editing.getSelection();
+    } catch (e) {
+      sel = null;
+    }
+    const id = sel && sel.objectType === 'bigJunction' && sel.ids && sel.ids.length === 1 ? sel.ids[0] : null;
+    if (id == null) {
+      if (jbState.id != null) {
+        jbState.id = null;
+        jbState.sig = '';
+        jbHide();
+      }
+      return;
+    }
+    let turns = [];
+    try {
+      turns = sdk.DataModel.BigJunctions.getAllPossibleTurns({ bigJunctionId: id }) || [];
+    } catch (e) {
+      turns = [];
+    }
+    const bad = turns.filter((x) => x && x.isAllowed === false);
+    const sig = `${id}|${turns.length}|${bad.map((x) => `${x.id}:${(x.restrictions || []).length}`).join(',')}`;
+    if (jbState.id !== id) jbState.dismissedSig = '';
+    jbState.id = id;
+    if (sig === jbState.sig && (document.getElementById(JB_WARN_ID) || !bad.length || sig === jbState.dismissedSig)) return;
+    jbState.sig = sig;
+    if (!bad.length || sig === jbState.dismissedSig) {
+      jbHide();
+      return;
+    }
+    jbRender(id, bad, turns.length);
+  }
+
+  // ---------------------------------------------------------------------
   // Edit suggestions helper (v0.44 / v0.45, Paul): for a map edit
   // suggestion ("Sugestie hartă" window, `#ISSUE_WINDOW_MAP_SUGGESTION`):
   // - "Analiză modificări" panel: every proposed change with a status
@@ -13126,6 +13373,7 @@
     setInterval(urBulkPoll, UR_FORM_POLL_MS);
     setInterval(coordPoll, COORD_POLL_MS);
     setInterval(imgPoll, IMG_POLL_MS);
+    setInterval(jbPoll, JB_POLL_MS);
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);

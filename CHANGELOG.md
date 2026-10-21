@@ -23,6 +23,19 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-21 - v0.47 - Junction Box: avertizare pentru rutele nepermise (pe `dev`, nepublicată)
+
+- **Nou:** cât timp e selectat un Junction Box (click pe el, imediat după
+  ce îl creezi, cât îl modifici), sub bara de sus apare o avertizare dacă
+  are rute nepermise: „Junction Box: 1 din 9 rute nepermisă”, apoi pentru
+  fiecare „Dinspre DN1 (N) → spre DN1 (S)”, segmentele, prin câte segmente
+  trece și motivul (interzisă, viraj dificil, după program, pe vehicule).
+- Mouse-ul pe un rând desenează ruta pe hartă (intrarea / ieșirea
+  portocaliu întrerupt, interiorul roșu).
+- Nu apare când toate rutele sunt permise și nici pe hartă în general - doar
+  la JB-ul selectat. ✕ o ascunde până se schimbă rutele.
+- Opțiune nouă: „Avertizare rute nepermise în Junction Box” (pornită).
+
 ## 2026-10-21 - v0.46.2 - reparat: butonul de previzualizare se înmulțea (pe `dev`, nepublicată)
 
 - La un link scris ca text (ex. în „Descriere” la UR), la fiecare ~1 s se mai
