@@ -23,6 +23,14 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-10-24 - v0.47.5 - lungimea în timp real la desenarea unui segment (pe `dev`, nepublicată)
+
+- **Nou:** cât desenezi un drum nou, lângă punctul de sub cursor apare
+  pastila de lungime (aceeași ca la mutarea unui nod), cu lungimea totală de
+  până atunci, inclusiv bucata până la cursor. Dispare la terminare (dublu-
+  click) sau Esc.
+- Opțiune nouă: „Lungime în timp real la desenarea unui segment” (pornită).
+
 ## 2026-10-21 - v0.47.4 - Junction Box: avertizare și la creare / editare și după Salvează (pe `dev`, nepublicată)
 
 - Avertizarea pentru rutele nepermise apare acum și pentru un JB **creat sau

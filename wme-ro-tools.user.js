@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.47.4
+// @version      0.47.5
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.47.4';
+  const SCRIPT_VERSION = '0.47.5';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -125,6 +125,7 @@
     { v: '0.47', items: [
       L('Junction Box: când selectezi, creezi sau modifici un JB, o avertizare arată rutele nepermise (dinspre ce segment, spre ce segment, de ce), cu ruta desenată pe hartă.', 'Junction Box: when you select, create or edit a JB, a warning shows its routes that are not allowed (from which segment, to which segment, why), with the route drawn on the map.'),
       L('Pastilă portocalie discretă (lacăt + 1) lângă segmentele blocate la nivelul 1.', 'Discreet orange pill (lock + 1) next to segments locked at level 1.'),
+      L('Lungimea în timp real, într-o pastilă lângă cursor, cât desenezi un segment nou.', 'Live length in a pill next to the cursor while drawing a new segment.'),
     ] },
     { v: '0.46', items: [
       L('Poze din linkuri în UR / MP: buton 🖼 lângă link, poza se vede într-o fereastră în editor, cu zoom, mutare și rotire (imgbb, imgur, postimg, linkuri directe; punctul de după link e ignorat).', 'Pictures from links in UR / MP: 🖼 button next to the link, the picture opens in a window inside the editor, with zoom, pan and rotate (imgbb, imgur, postimg, direct links; a dot after the link is ignored).'),
@@ -449,6 +450,8 @@
     unpublishedSegmentsWarning: true,
     // v0.47.1: orange lock-1 pill next to every visible level 1 segment.
     lock1Badges: true,
+    // v0.47.5: live length pill while drawing a new segment.
+    drawLengthBadge: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
@@ -819,6 +822,7 @@
         }
         // Same pattern as "Keep sidebar open" - selection-independent
         // watchdog, started/stopped directly.
+        if (key === 'drawLengthBadge') return;
         if (key === 'lock1Badges') {
           if (checkbox.checked) startLock1Badges();
           else stopLock1Badges();
@@ -1075,6 +1079,12 @@
       L('Avertizare segmente nepublicate, pe toată zona vizibilă', 'Unpublished segments warning, across the whole visible area'),
       L('Pastilă ⚠️ lângă fiecare segment vizibil nepublicat încă pe Livemap.', '⚠️ pill next to every visible segment not yet published on Livemap.'),
       L('O pastilă rotundă lângă FIECARE segment vizibil pe hartă a cărui ultimă modificare NU a ajuns încă pe Livemap (nu doar la segmentul selectat - asta face deja "Indicator stare publicare pe Livemap" de mai sus). Poziționată lângă segment, fără să-l acopere (ca pastila de lungime). Trece cu mouse-ul peste ea: se extinde și arată exact "Ultima actualizare: ... de <utilizator>" (ca la istoricul segmentului), cu link către profilul utilizatorului. Funcționează independent de orice selecție - poate rămâne activă tot timpul.', 'A round pill next to EVERY segment visible on the map whose last edit has NOT reached Livemap yet (not just the selected segment - that is what "Livemap publish status indicator" above does). Placed next to the segment without covering it (like the length pill). Hover over it: it expands and shows exactly "Last update: ... by <user>" (as in the segment history), with a link to the user\'s profile. Works independently of any selection - can stay on all the time.')
+    );
+    addToggle(
+      'drawLengthBadge',
+      L('Lungime în timp real la desenarea unui segment', 'Live length while drawing a segment'),
+      L('Cât desenezi un segment nou, o pastilă lângă cursor arată lungimea lui.', 'While you draw a new segment, a pill next to the cursor shows its length.'),
+      L('Când desenezi un drum nou (unealta de desenare segment), lângă cursor apare aceeași pastilă ca la mutarea unui nod, cu lungimea totală a segmentului desenat până acum, inclusiv bucata până la cursor, actualizată în timp real. Dispare când termini sau anulezi desenul.', 'When you draw a new road (segment drawing tool), the same pill as when moving a node appears next to the cursor, with the total length of the segment drawn so far, including the piece up to the cursor, updated live. It disappears when you finish or cancel the drawing.')
     );
     addToggle(
       'lock1Badges',
@@ -3205,6 +3215,76 @@
     lock1State.rafId = null;
     lock1State.badges.forEach((el) => el.remove());
     lock1State.badges.clear();
+  }
+
+  // ---------------------------------------------------------------------
+  // Live length while drawing a new segment (v0.47.5, Paul: "când desenez
+  // un nou segment să îmi arate într-o pilulă lungimea segmentului în timp
+  // real ca atunci când mut nodul unui segment").
+  // WME draws roads with an OpenLayers DrawFeature control (Path handler):
+  // while it is active, `handler.line.geometry` is the sketch including the
+  // point under the cursor; `getGeodesicLength(mapProjection)` gives metres.
+  // Same pill as the node / segment length, next to the cursor point.
+  // ---------------------------------------------------------------------
+  const DRAW_LEN_WATCH_MS = 250;
+  const drawLenState = { badge: null, rafId: null };
+
+  function drawLenHandler() {
+    const om = window.W && window.W.map && (window.W.map.getOLMap ? window.W.map.getOLMap() : window.W.map.olMap);
+    if (!om || !om.controls) return null;
+    const c = om.controls.find((x) => x && x.active && x.CLASS_NAME === 'OpenLayers.Control.DrawFeature' && x.handler && x.handler.CLASS_NAME === 'OpenLayers.Handler.Path');
+    return c ? { om, h: c.handler } : null;
+  }
+
+  function drawLenHide() {
+    if (drawLenState.badge) {
+      drawLenState.badge.remove();
+      drawLenState.badge = null;
+    }
+    if (drawLenState.rafId) cancelAnimationFrame(drawLenState.rafId);
+    drawLenState.rafId = null;
+  }
+
+  function drawLenFrame() {
+    drawLenState.rafId = null;
+    const d = settings.drawLengthBadge ? drawLenHandler() : null;
+    const g = d && d.h.line && d.h.line.geometry;
+    const pts = g && g.components;
+    if (!pts || pts.length < 2) {
+      if (drawLenState.badge) drawLenState.badge.style.display = 'none';
+      if (!d) {
+        drawLenHide();
+        return;
+      }
+      drawLenState.rafId = requestAnimationFrame(drawLenFrame);
+      return;
+    }
+    let m = 0;
+    try {
+      m = g.getGeodesicLength(d.om.getProjectionObject());
+    } catch (e) {
+      m = g.getLength();
+    }
+    if (!drawLenState.badge) drawLenState.badge = createLengthBadge();
+    const b = drawLenState.badge;
+    const last = pts[pts.length - 1];
+    const px = d.om.getPixelFromLonLat({ lon: last.x, lat: last.y });
+    const vp = d.om.viewPortDiv ? d.om.viewPortDiv.getBoundingClientRect() : { left: 0, top: 0 };
+    b.style.display = 'flex';
+    b.textContent = formatLength(m);
+    b.title = L('Lungimea segmentului desenat', 'Length of the segment being drawn');
+    b.style.left = `${Math.round(vp.left + px.x + 34)}px`;
+    b.style.top = `${Math.round(vp.top + px.y - 22)}px`;
+    drawLenState.rafId = requestAnimationFrame(drawLenFrame);
+  }
+
+  function drawLenWatch() {
+    if (!settings.drawLengthBadge) {
+      if (drawLenState.badge || drawLenState.rafId) drawLenHide();
+      return;
+    }
+    if (drawLenState.rafId) return; // loop already running
+    if (drawLenHandler()) drawLenState.rafId = requestAnimationFrame(drawLenFrame);
   }
 
   // ---------------------------------------------------------------------
@@ -13683,6 +13763,7 @@
     setInterval(coordPoll, COORD_POLL_MS);
     setInterval(imgPoll, IMG_POLL_MS);
     setInterval(jbPoll, JB_POLL_MS);
+    setInterval(drawLenWatch, DRAW_LEN_WATCH_MS);
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);
