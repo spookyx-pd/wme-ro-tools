@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.47.5
+// @version      0.48.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.47.5';
+  const SCRIPT_VERSION = '0.48.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -122,6 +122,10 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.48', items: [
+      L('Hartă mai aerisită: problemele de hartă la jumătate, pericolele permanente mai mici, camerele și trecerile CF la mărimea celorlalte pericole.', 'Less crowded map: map problems at half size, permanent hazards smaller, cameras and railroad crossings at the size of the other hazards.'),
+      L('Semafoarele în fundal: se desenează sub segmente și nu mai fură clicul (Alt apăsat le aduce deasupra).', 'Traffic lights in the background: drawn under segments, they no longer steal the click (hold Alt to bring them on top).'),
+    ] },
     { v: '0.47', items: [
       L('Junction Box: când selectezi, creezi sau modifici un JB, o avertizare arată rutele nepermise (dinspre ce segment, spre ce segment, de ce), cu ruta desenată pe hartă.', 'Junction Box: when you select, create or edit a JB, a warning shows its routes that are not allowed (from which segment, to which segment, why), with the route drawn on the map.'),
       L('Pastilă portocalie discretă (lacăt + 1) lângă segmentele blocate la nivelul 1.', 'Discreet orange pill (lock + 1) next to segments locked at level 1.'),
@@ -452,6 +456,12 @@
     lock1Badges: true,
     // v0.47.5: live length pill while drawing a new segment.
     drawLengthBadge: true,
+    // v0.48: smaller map icons (map problems at half size, permanent
+    // hazards ~10% smaller, camera / railroad pins at normal hazard size).
+    compactMapIcons: true,
+    // v0.48: traffic lights drawn under segments and not clickable (clicks
+    // reach segments / nodes / MPs); hold Alt to bring them back on top.
+    trafficLightsBehind: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
@@ -823,6 +833,10 @@
         // Same pattern as "Keep sidebar open" - selection-independent
         // watchdog, started/stopped directly.
         if (key === 'drawLengthBadge') return;
+        if (key === 'compactMapIcons' || key === 'trafficLightsBehind') {
+          mapIconsApply(true);
+          return;
+        }
         if (key === 'lock1Badges') {
           if (checkbox.checked) startLock1Badges();
           else stopLock1Badges();
@@ -1085,6 +1099,18 @@
       L('Lungime în timp real la desenarea unui segment', 'Live length while drawing a segment'),
       L('Cât desenezi un segment nou, o pastilă lângă cursor arată lungimea lui.', 'While you draw a new segment, a pill next to the cursor shows its length.'),
       L('Când desenezi un drum nou (unealta de desenare segment), lângă cursor apare aceeași pastilă ca la mutarea unui nod, cu lungimea totală a segmentului desenat până acum, inclusiv bucata până la cursor, actualizată în timp real. Dispare când termini sau anulezi desenul.', 'When you draw a new road (segment drawing tool), the same pill as when moving a node appears next to the cursor, with the total length of the segment drawn so far, including the piece up to the cursor, updated live. It disappears when you finish or cancel the drawing.')
+    );
+    addToggle(
+      'compactMapIcons',
+      L('Iconițe mai mici pe hartă', 'Smaller map icons'),
+      L('Problemele de hartă la jumătate, pericolele permanente mai mici, camerele și trecerile CF la mărimea celorlalte pericole.', 'Map problems at half size, permanent hazards smaller, cameras and railroad crossings at the size of the other hazards.'),
+      L('Pentru zonele aglomerate (ex. București la zoom 13-14): iconițele problemelor de hartă (MP - cercul alb cu magazin / casă) apar la jumătate din mărime, cu vârful în același punct. Camerele (de viteză, semafor, bandă autobuz, false) și trecerile la nivel cu calea ferată, care aveau pinul mare în stil vechi, ajung la mărimea celorlalte pericole permanente (limitatoare, treceri înălțate...). Toate pericolele permanente sunt cu ~10% mai mici, iar semafoarele cu ~20%. Se schimbă doar desenul - datele și selectarea rămân la fel.', 'For crowded areas (e.g. Bucharest at zoom 13-14): map problem icons (MP - the white circle with a store / house) are shown at half size, with the tip at the same point. Cameras (speed, red light, bus lane, dummy) and railroad crossings, which had the big old-style pin, get the size of the other permanent hazards (speed bumps, raised crosswalks...). All permanent hazards are ~10% smaller, traffic lights ~20%. Only the drawing changes - data and selection stay the same.')
+    );
+    addToggle(
+      'trafficLightsBehind',
+      L('Semafoarele în fundal', 'Traffic lights in the background'),
+      L('Semafoarele se desenează sub segmente și nu mai prind clicul; ține Alt apăsat ca să le aduci deasupra.', 'Traffic lights are drawn under the segments and no longer catch the click; hold Alt to bring them on top.'),
+      L('WME pune iconițele pericolelor permanente deasupra tuturor segmentelor și problemelor de hartă, așa că un semafor de lângă un nod sau un segment îți „fură” clicul și trebuie să faci mult zoom ca să selectezi ce e lângă el. Cu opțiunea activă, semafoarele (stratul „semafoare și indicatoare”) se desenează sub segmente, iar clicul ajunge la segmentul, nodul sau problema de dedesubt. Când vrei să selectezi chiar semaforul, ține apăsată tasta Alt: cât e apăsată, semafoarele revin deasupra și pot fi selectate.', 'WME draws permanent hazard icons above all segments and map problems, so a traffic light next to a node or segment "steals" your click and you have to zoom in a lot to select what is next to it. With this option, traffic lights (the "traffic lights and signs" layer) are drawn under the segments and the click reaches the segment, node or problem underneath. When you want to select the traffic light itself, hold the Alt key: while it is down, traffic lights come back on top and can be selected.')
     );
     addToggle(
       'lock1Badges',
@@ -3216,6 +3242,102 @@
     lock1State.badges.forEach((el) => el.remove());
     lock1State.badges.clear();
   }
+
+  // ---------------------------------------------------------------------
+  // Compact map icons + traffic lights in the background (v0.48).
+  // Findings (Bucharest, zoom 14):
+  //  - Map problems are SVG <image> elements (store-default.svg, 48x52)
+  //    inside the vector RootContainer, group `#<mapProblems layer id>_root`,
+  //    anchored at the bottom tip -> scale 0.5 around 50% 100%.
+  //  - The visible permanent hazards are HTML markers
+  //    (`.marker-layer .map-marker > [class*="permanentHazardMarker"]`,
+  //    CSS-module class hash may change), background-image + inline
+  //    width/height, centred by a translate(-50%,-50%) transform. Camera /
+  //    railroad pins (`map-pin-*.svg`) are 41.5x46 with margin-top -23px
+  //    (bottom anchor). We override width/height (!important beats the
+  //    inline style) so the native transform keeps the anchoring.
+  //  - The marker layers (z-index 6135+) sit above the whole SVG
+  //    RootContainer (z ~3125), so a traffic light covers segments. The
+  //    "traffic lights and signs" marker layer is moved just below the
+  //    RootContainer and made click-through; Alt held restores it.
+  // Layer ids are resolved at runtime; the <style> is rewritten only when
+  // they change.
+  // ---------------------------------------------------------------------
+  const MAP_ICONS_STYLE_ID = 'wme-ro-tools-map-icons';
+  const MAP_ICONS_POLL_MS = 3000;
+  const MAP_ICONS_ALT_CLASS = 'wme-ro-tools-tl-front';
+  const mapIconsState = { css: null, altBound: false };
+
+  function mapIconsLayers() {
+    const out = { mp: [], tl: null, rootZ: null };
+    try {
+      const om = window.W.map.getOLMap();
+      for (const l of om.layers) {
+        if (l.name === 'mapProblems') out.mp.push(l.id);
+        else if (l.name === 'permanent_hazard_traffic_lights_and_signs_markers' && l.div) out.tl = l.div.id;
+      }
+      const root = document.querySelector('svg[id^="OpenLayers_Layer_Vector_RootContainer_"]');
+      const rdiv = root && root.closest('.olLayerDiv');
+      const z = rdiv ? parseInt(rdiv.style.zIndex, 10) : NaN;
+      if (Number.isFinite(z)) out.rootZ = z;
+    } catch (e) {
+      // map not ready - next poll
+    }
+    return out;
+  }
+
+  function mapIconsBuildCss() {
+    const parts = [];
+    const lay = mapIconsLayers();
+    if (settings.compactMapIcons) {
+      const H = '.marker-layer [class*="permanentHazardMarker"]';
+      parts.push(
+        `${H}{width:21.6px!important;height:21.6px!important}`,
+        `${H}[style*="/map-pin-"]{width:22px!important;height:24.4px!important;margin-top:-12.2px!important}`,
+        `${H}[style*="traffic-light"]{width:19.2px!important;height:19.2px!important}`
+      );
+      if (lay.mp.length) {
+        parts.push(`${lay.mp.map((id) => `#${id}_root image`).join(',')}{transform-box:fill-box;transform-origin:50% 100%;transform:scale(0.5)}`);
+      }
+    }
+    if (settings.trafficLightsBehind && lay.tl && lay.rootZ !== null) {
+      const sel = `html:not(.${MAP_ICONS_ALT_CLASS}) #${lay.tl}`;
+      parts.push(`${sel}{z-index:${lay.rootZ - 1}!important}`, `${sel} *{pointer-events:none!important}`);
+    }
+    return parts.join('\n');
+  }
+
+  function mapIconsBindAlt() {
+    if (mapIconsState.altBound) return;
+    mapIconsState.altBound = true;
+    const set = (on) => document.documentElement.classList.toggle(MAP_ICONS_ALT_CLASS, on);
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Alt' && settings.trafficLightsBehind) set(true);
+    }, true);
+    window.addEventListener('keyup', (e) => {
+      if (e.key === 'Alt') set(false);
+    }, true);
+    window.addEventListener('blur', () => set(false));
+  }
+
+  function mapIconsApply(force) {
+    const css = mapIconsBuildCss();
+    if (!force && css === mapIconsState.css) return;
+    mapIconsState.css = css;
+    let st = document.getElementById(MAP_ICONS_STYLE_ID);
+    if (!css) {
+      if (st) st.remove();
+      return;
+    }
+    if (!st) {
+      st = document.createElement('style');
+      st.id = MAP_ICONS_STYLE_ID;
+      document.head.appendChild(st);
+    }
+    st.textContent = css;
+    if (settings.trafficLightsBehind) mapIconsBindAlt();
+  }
+
 
   // ---------------------------------------------------------------------
   // Live length while drawing a new segment (v0.47.5, Paul: "când desenez
@@ -13764,6 +13886,8 @@
     setInterval(imgPoll, IMG_POLL_MS);
     setInterval(jbPoll, JB_POLL_MS);
     setInterval(drawLenWatch, DRAW_LEN_WATCH_MS);
+    mapIconsApply(true);
+    setInterval(() => mapIconsApply(false), MAP_ICONS_POLL_MS);
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);

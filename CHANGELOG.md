@@ -23,6 +23,18 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-10 - v0.48.0 - hartă mai aerisită: iconițe mai mici, semafoare în fundal (pe `dev`, nepublicată)
+
+- **Nou - „Iconițe mai mici pe hartă”** (pornită): problemele de hartă (MP)
+  la jumătate din mărime, cu vârful în același loc; camerele și trecerile
+  la nivel cu calea ferată (pinul mare, stil vechi) la mărimea celorlalte
+  pericole permanente; toate pericolele permanente ~10% mai mici,
+  semafoarele ~20%.
+- **Nou - „Semafoarele în fundal”** (pornită): stratul „semafoare și
+  indicatoare” se desenează sub segmente și nu mai prinde clicul - acesta
+  ajunge la segment / nod / MP. Cât ții Alt apăsat, semafoarele revin
+  deasupra și pot fi selectate.
+
 ## 2026-10-24 - v0.47.5 - lungimea în timp real la desenarea unui segment (pe `dev`, nepublicată)
 
 - **Nou:** cât desenezi un drum nou, lângă punctul de sub cursor apare
