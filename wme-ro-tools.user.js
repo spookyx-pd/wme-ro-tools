@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.48.1
+// @version      0.48.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.48.1';
+  const SCRIPT_VERSION = '0.48.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -3267,10 +3267,12 @@
   const MAP_ICONS_POLL_MS = 3000;
   const MAP_ICONS_ALT_CLASS = 'wme-ro-tools-tl-front';
   const mapIconsState = { css: null, altBound: false };
-  // Scale factors: hazards x0.9; camera / railroad pins (41.5x46) to the
-  // normal hazard size (24px) x0.9; traffic lights x0.8.
+  // Scale factors: hazards x0.9; camera / railroad pins (41.5x46) x0.65
+  // (~27x30 - a bit above the other hazards, since the pin's tail takes
+  // part of its height; 0.52 was too small - Paul, v0.48.2); traffic
+  // lights x0.8.
   const MAP_ICONS_HZ = 0.9;
-  const MAP_ICONS_PIN = 0.52;
+  const MAP_ICONS_PIN = 0.65;
   const MAP_ICONS_TL = 0.8;
 
   function mapIconsLayers() {

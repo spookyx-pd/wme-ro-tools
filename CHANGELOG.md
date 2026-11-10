@@ -23,6 +23,11 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-10 - v0.48.2 - camere și treceri CF puțin mai mari (pe `dev`, nepublicată)
+
+- Pinii camerelor și ai trecerilor CF: ×0,65 (~27x30 px) în loc de ×0,52
+  (~22x24 px); original 41,5x46 px. Restul pericolelor neschimbate.
+
 ## 2026-11-10 - v0.48.1 - iconițe mici: fără „umbră”, săgeți proporționale (pe `dev`, nepublicată)
 
 - **Reparat:** sub pericolele micșorate rămânea, la mărimea veche, copia
