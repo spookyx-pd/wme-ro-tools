@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.48.0
+// @version      0.48.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -40,7 +40,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.48.0';
+  const SCRIPT_VERSION = '0.48.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -3267,13 +3267,19 @@
   const MAP_ICONS_POLL_MS = 3000;
   const MAP_ICONS_ALT_CLASS = 'wme-ro-tools-tl-front';
   const mapIconsState = { css: null, altBound: false };
+  // Scale factors: hazards x0.9; camera / railroad pins (41.5x46) to the
+  // normal hazard size (24px) x0.9; traffic lights x0.8.
+  const MAP_ICONS_HZ = 0.9;
+  const MAP_ICONS_PIN = 0.52;
+  const MAP_ICONS_TL = 0.8;
 
   function mapIconsLayers() {
-    const out = { mp: [], tl: null, rootZ: null };
+    const out = { mp: [], hz: [], tl: null, rootZ: null };
     try {
       const om = window.W.map.getOLMap();
       for (const l of om.layers) {
         if (l.name === 'mapProblems') out.mp.push(l.id);
+        else if (/^permanent_hazard_/.test(l.name) && !/_markers$/.test(l.name)) out.hz.push(l.id);
         else if (l.name === 'permanent_hazard_traffic_lights_and_signs_markers' && l.div) out.tl = l.div.id;
       }
       const root = document.querySelector('svg[id^="OpenLayers_Layer_Vector_RootContainer_"]');
@@ -3290,12 +3296,26 @@
     const parts = [];
     const lay = mapIconsLayers();
     if (settings.compactMapIcons) {
-      const H = '.marker-layer [class*="permanentHazardMarker"]';
+      // HTML markers: the whole `.map-marker` is scaled around its origin
+      // (= the hazard's map point), so the icon, its direction arrow
+      // (`arrow--*`, a sibling sized by --arrow-base) and the bigger
+      // selected state all shrink together and stay anchored.
+      const M = '.marker-layer .map-marker:has(> [class*="permanentHazardMarker"]';
       parts.push(
-        `${H}{width:21.6px!important;height:21.6px!important}`,
-        `${H}[style*="/map-pin-"]{width:22px!important;height:24.4px!important;margin-top:-12.2px!important}`,
-        `${H}[style*="traffic-light"]{width:19.2px!important;height:19.2px!important}`
+        `${M}){scale:${MAP_ICONS_HZ};transform-origin:0 0}`,
+        `${M}[style*="/map-pin-"]){scale:${MAP_ICONS_PIN}}`,
+        `${M}[style*="traffic-light"]){scale:${MAP_ICONS_TL}}`
       );
+      // SVG copies of the hazards (faded, opacity 0.5, in the vector
+      // layers) - same factors, otherwise they show as a big "shadow".
+      if (lay.hz.length) {
+        const img = (extra) => lay.hz.map((id) => `#${id}_root image${extra}`).join(',');
+        parts.push(
+          `${img('')}{transform-box:fill-box;transform-origin:50% 50%;transform:scale(${MAP_ICONS_HZ})}`,
+          `${img('[*|href*="/map-pin-"]')}{transform-origin:50% 100%;transform:scale(${MAP_ICONS_PIN})}`,
+          `${img('[*|href*="traffic-light"]')}{transform:scale(${MAP_ICONS_TL})}`
+        );
+      }
       if (lay.mp.length) {
         parts.push(`${lay.mp.map((id) => `#${id}_root image`).join(',')}{transform-box:fill-box;transform-origin:50% 100%;transform:scale(0.5)}`);
       }

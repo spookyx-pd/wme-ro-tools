@@ -23,6 +23,14 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-10 - v0.48.1 - iconițe mici: fără „umbră”, săgeți proporționale (pe `dev`, nepublicată)
+
+- **Reparat:** sub pericolele micșorate rămânea, la mărimea veche, copia
+  lor decolorată din WME (părea o „umbră”) - acum e micșorată la fel.
+- **Reparat:** săgeata de direcție a pericolului (la selectare / hover)
+  rămânea mare și departe de iconiță - acum se micșorează împreună cu ea
+  (se scalează tot markerul, în jurul punctului de pe hartă).
+
 ## 2026-11-10 - v0.48.0 - hartă mai aerisită: iconițe mai mici, semafoare în fundal (pe `dev`, nepublicată)
 
 - **Nou - „Iconițe mai mici pe hartă”** (pornită): problemele de hartă (MP)
