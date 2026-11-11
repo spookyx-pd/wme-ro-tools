@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.51.0
+// @version      0.51.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.51.0';
+  const SCRIPT_VERSION = '0.51.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -4441,12 +4441,10 @@
     }
     const arrow = el.querySelector('[class*="arrow--"]');
     const dir = arrow ? (/\bforward\b/.test(arrow.className) ? true : /\bbackward\b/.test(arrow.className) ? false : null) : null;
-    let all = [];
-    try {
-      all = sdk.DataModel.RoadClosures.getAll() || [];
-    } catch (e) {
-      all = [];
-    }
+    const all = rcAllClosures();
+    // Marker status class (statusActive / statusFinished / …) - used to
+    // tell apart several closures on the same segment and direction.
+    const mStatus = (/status([A-Z][a-zA-Z]+)--/.exec(String(el.className)) || [])[1] || '';
     // Nearest closed segment to the marker (distance in metres, local
     // equirectangular approximation - enough at this scale).
     const kx = 111320 * Math.cos((lat * Math.PI) / 180);
@@ -4490,9 +4488,51 @@
     });
     if (bestSeg === null || bestD > 60) return [];
     const list = bySeg.get(bestSeg);
-    const main = list.find((c) => dir === null || c.isForward === dir) || list[0];
+    const sameDir = list.filter((c) => dir === null || c.isForward === dir);
+    const statusOk = (c) => {
+      const st = String(c.status || '').toUpperCase();
+      if (/^Active$/i.test(mStatus)) return st === 'ACTIVE';
+      if (/^Finished/i.test(mStatus)) return /FINISH/.test(st);
+      return !!mStatus && st !== 'ACTIVE' && !/FINISH/.test(st);
+    };
+    const main = sameDir.find(statusOk) || sameDir[0] || list[0];
     // Same card = same segment + start + end + description.
     return list.filter((c) => c.startDate === main.startDate && c.endDate === main.endDate && (c.description || '') === (main.description || ''));
+  }
+
+  // All loaded closures. v0.51.1: `sdk.DataModel.RoadClosures.getAll()`
+  // (and getById) THROWS when a closure has `attributions: null` (seen on
+  // finished closures made by other users / older ones - "Cannot read
+  // properties of null (reading 'map')" inside the SDK), so one such
+  // closure in view broke the popup for all of them. Fallback: the
+  // W.model objects, through the SDK one by one, else from their raw
+  // attributes (segID, forward, startDate, endDate, reason, closureStatus).
+  function rcAllClosures() {
+    try {
+      return sdk.DataModel.RoadClosures.getAll() || [];
+    } catch (e) {
+      // fall through
+    }
+    let objs = [];
+    try {
+      objs = window.W.model.roadClosures.getObjectArray() || [];
+    } catch (e) {
+      objs = [];
+    }
+    return objs
+      .map((o) => {
+        const id = o.getID ? o.getID() : o.attributes && o.attributes.id;
+        try {
+          const c = sdk.DataModel.RoadClosures.getById({ roadClosureId: id });
+          if (c) return c;
+        } catch (e) {
+          // fall back to the raw attributes
+        }
+        const a = o.attributes || {};
+        if (a.closureType && a.closureType !== 'SEGMENT') return null;
+        return { id, segmentId: a.segID, isForward: !!a.forward, startDate: a.startDate, endDate: a.endDate, description: a.reason || '', status: a.closureStatus || '' };
+      })
+      .filter((c) => c && c.segmentId != null);
   }
 
   // "2026-08-28 19:26" -> "28-08-2026 19:26" (as on the WME card).

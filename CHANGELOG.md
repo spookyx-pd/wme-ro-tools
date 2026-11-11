@@ -23,6 +23,15 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.51.1 - drumuri închise: fereastra nu apărea în unele zone (pe `dev`, nepublicată)
+
+- **Reparat:** dacă în zona vizibilă exista o închidere fără date de
+  atribuire (de ex. închideri încheiate, ale altor editori), funcția din WME
+  care citește închiderile dădea eroare și fereastra nu mai apărea pentru
+  niciuna. Acum închiderile se citesc și direct din datele hărții.
+- Când pe același segment și sens sunt o închidere încheiată și una activă,
+  fereastra o arată pe cea a simbolului peste care ești.
+
 ## 2026-11-11 - v0.51.0 - butoane rapide la drumurile închise (pe `dev`, nepublicată)
 
 - **Nou:** cu mouse-ul pe simbolul unui drum închis (pe hartă) apare o
