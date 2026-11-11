@@ -23,6 +23,18 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.51.0 - butoane rapide la drumurile închise (pe `dev`, nepublicată)
+
+- **Nou:** cu mouse-ul pe simbolul unui drum închis (pe hartă) apare o
+  fereastră mică cu datele închiderii (descriere, început → sfârșit, un sens
+  / ambele sensuri, activă / programată / încheiată) și butoanele:
+  - „✏️ Editează” - selectează segmentul, deschide tabul „Drumuri închise”
+    și formularul de editare al închiderii;
+  - „🗑 Șterge” (click de 2 ori) - șterge închiderea (ambele sensuri dacă
+    sunt pe aceeași fișă, ca în WME); se aplică la Salvează, Ctrl+Z anulează.
+    Nu apare la închiderile deja încheiate.
+- Opțiune nouă: „Butoane rapide la drumurile închise” (pornită).
+
 ## 2026-11-11 - v0.50.4 - „Deschide un link”: cerc roșu la coordonatele linkului (pe `dev`, nepublicată)
 
 - La orice salt din „Deschide un link” (locație, deschide tot, selectare),

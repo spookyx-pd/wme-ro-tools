@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.50.4
+// @version      0.51.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.50.4';
+  const SCRIPT_VERSION = '0.51.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.51', items: [
+      L('Drumuri închise: cu mouse-ul pe simbolul unei închideri vezi datele ei și ai butoanele „Editează” (deschide direct formularul închiderii) și „Șterge”.', 'Road closures: hovering a closure symbol shows its data with "Edit" (opens the closure form directly) and "Delete" buttons.'),
+    ] },
     { v: '0.50', items: [
       L('Pastila de nivel 1: cu mouse-ul deasupra alegi rapid nivelul de blocare pentru segment.', 'Level 1 pill: hover it to quickly pick the lock level for the segment.'),
     ] },
@@ -466,6 +469,8 @@
     lock1Badges: true,
     // v0.47.5: live length pill while drawing a new segment.
     drawLengthBadge: true,
+    // v0.51: Edit / Delete buttons when hovering a road closure marker.
+    closureQuickActions: true,
     // v0.48: smaller map icons (map problems at half size, permanent
     // hazards ~10% smaller, camera / railroad pins at normal hazard size).
     compactMapIcons: true,
@@ -846,6 +851,10 @@
         // Same pattern as "Keep sidebar open" - selection-independent
         // watchdog, started/stopped directly.
         if (key === 'drawLengthBadge') return;
+        if (key === 'closureQuickActions') {
+          if (!checkbox.checked) rcHide();
+          return;
+        }
         if (key === 'permalinkTool') {
           if (checkbox.checked) plEnsureButton();
           else plRemoveAll();
@@ -1111,6 +1120,12 @@
       L('Avertizare segmente nepublicate, pe toată zona vizibilă', 'Unpublished segments warning, across the whole visible area'),
       L('Pastilă ⚠️ lângă fiecare segment vizibil nepublicat încă pe Livemap.', '⚠️ pill next to every visible segment not yet published on Livemap.'),
       L('O pastilă rotundă lângă FIECARE segment vizibil pe hartă a cărui ultimă modificare NU a ajuns încă pe Livemap (nu doar la segmentul selectat - asta face deja "Indicator stare publicare pe Livemap" de mai sus). Poziționată lângă segment, fără să-l acopere (ca pastila de lungime). Trece cu mouse-ul peste ea: se extinde și arată exact "Ultima actualizare: ... de <utilizator>" (ca la istoricul segmentului), cu link către profilul utilizatorului. Funcționează independent de orice selecție - poate rămâne activă tot timpul.', 'A round pill next to EVERY segment visible on the map whose last edit has NOT reached Livemap yet (not just the selected segment - that is what "Livemap publish status indicator" above does). Placed next to the segment without covering it (like the length pill). Hover over it: it expands and shows exactly "Last update: ... by <user>" (as in the segment history), with a link to the user\'s profile. Works independently of any selection - can stay on all the time.')
+    );
+    addToggle(
+      'closureQuickActions',
+      L('Butoane rapide la drumurile închise', 'Quick buttons on road closures'),
+      L('Cu mouse-ul pe simbolul unui drum închis apar „Editează” și „Șterge”.', 'Hovering a road closure symbol shows "Edit" and "Delete".'),
+      L('Când ții mouse-ul deasupra simbolului roșu al unui drum închis (pe hartă), apare deasupra lui o fereastră mică cu datele închiderii (descriere, început → sfârșit, un sens / ambele sensuri) și două butoane: „✏️ Editează” selectează segmentul, deschide tabul „Drumuri închise” și formularul de editare al închiderii; „🗑 Șterge” (click de 2 ori) șterge închiderea - ca la „Șterge” din WME, adică ambele sensuri dacă sunt pe aceeași fișă. Ștergerea se aplică la Salvează (până atunci se anulează cu Ctrl+Z); după salvare WME o păstrează ca „Încheiată mai devreme”. La închiderile deja încheiate apare doar „Editează”.', 'When you hover the red symbol of a road closure (on the map), a small window shows above it with the closure data (description, start → end, one / both directions) and two buttons: "✏️ Edit" selects the segment, opens the "Closures" tab and the closure\'s edit form; "🗑 Delete" (click twice) deletes the closure - like "Delete" in WME, i.e. both directions if they are on the same card. The deletion is applied on Save (until then Ctrl+Z undoes it); after saving WME keeps it as "Finished early". Closures that already ended only get "Edit".')
     );
     addToggle(
       'drawLengthBadge',
@@ -4378,6 +4393,334 @@
     const b = document.getElementById(PL_BTN_ID);
     if (b) b.remove();
   }
+
+  // ---------------------------------------------------------------------
+  // Road closure quick actions (v0.51). Paul: "când mă duc cu mouse hover
+  // peste un drum închis [...] să apară un buton de a mă duce direct în
+  // editarea drumului închis [...] butonul de editare și eventual ștergere".
+  // Findings: every closure is an HTML marker in the OpenLayers markers
+  // layer named 'closures' (`div.roadClosure--<hash>.map-marker`, one per
+  // closure / direction, child `arrow--<hash> forward|backward`); the
+  // layer's `markers[i].element` is the div and `.lonlat` its position (map
+  // projection). There is no closure id on the DOM, so the closure is found
+  // by position (nearest closed segment) + direction (arrow class).
+  // Edit = select the segment, open the segment's "Closures" tab (2nd tab
+  // of `#edit-panel wz-tabs`, clicked through its shadow-DOM label) and
+  // click the matching card (WME's own edit form opens). Delete =
+  // `sdk.DataModel.RoadClosures.deleteClosure` for the closures of the
+  // same card (same segment, start, end, description - like WME's own
+  // "Delete" on the card, usually both directions), 2-step confirm,
+  // unsaved and undoable.
+  // ---------------------------------------------------------------------
+  const RC_POPUP_CLASS = 'wme-ro-tools-rc-popup';
+  const rcState = { popup: null, el: null, hideT: null, bound: false, confirm: false, raf: null };
+
+  function rcLayer() {
+    try {
+      return window.W.map.getOLMap().layers.find((l) => l.name === 'closures' && l.markers) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Closure marker div -> the closures of its card ([] if not found).
+  function rcClosuresForMarker(el) {
+    const layer = rcLayer();
+    if (!layer) return [];
+    const mk = layer.markers.find((m) => m.element === el || (m.icon && m.icon.imageDiv === el));
+    if (!mk || !mk.lonlat) return [];
+    let lon;
+    let lat;
+    try {
+      const om = window.W.map.getOLMap();
+      const ll = new window.OpenLayers.LonLat(mk.lonlat.lon, mk.lonlat.lat).transform(om.getProjectionObject(), 'EPSG:4326');
+      lon = ll.lon;
+      lat = ll.lat;
+    } catch (e) {
+      return [];
+    }
+    const arrow = el.querySelector('[class*="arrow--"]');
+    const dir = arrow ? (/\bforward\b/.test(arrow.className) ? true : /\bbackward\b/.test(arrow.className) ? false : null) : null;
+    let all = [];
+    try {
+      all = sdk.DataModel.RoadClosures.getAll() || [];
+    } catch (e) {
+      all = [];
+    }
+    // Nearest closed segment to the marker (distance in metres, local
+    // equirectangular approximation - enough at this scale).
+    const kx = 111320 * Math.cos((lat * Math.PI) / 180);
+    const ky = 110540;
+    const distTo = (coords) => {
+      let best = Infinity;
+      for (let i = 1; i < coords.length; i++) {
+        const ax = (coords[i - 1][0] - lon) * kx;
+        const ay = (coords[i - 1][1] - lat) * ky;
+        const bx = (coords[i][0] - lon) * kx;
+        const by = (coords[i][1] - lat) * ky;
+        const dx = bx - ax;
+        const dy = by - ay;
+        const l2 = dx * dx + dy * dy;
+        const t = l2 > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+        best = Math.min(best, Math.hypot(ax + dx * t, ay + dy * t));
+      }
+      return best;
+    };
+    const bySeg = new Map();
+    all.forEach((c) => {
+      if (!bySeg.has(c.segmentId)) bySeg.set(c.segmentId, []);
+      bySeg.get(c.segmentId).push(c);
+    });
+    let bestSeg = null;
+    let bestD = Infinity;
+    bySeg.forEach((list, segId) => {
+      let seg = null;
+      try {
+        seg = sdk.DataModel.Segments.getById({ segmentId: segId });
+      } catch (e) {
+        seg = null;
+      }
+      const c = seg && seg.geometry && seg.geometry.coordinates;
+      if (!c || c.length < 2) return;
+      const d = distTo(c);
+      if (d < bestD) {
+        bestD = d;
+        bestSeg = segId;
+      }
+    });
+    if (bestSeg === null || bestD > 60) return [];
+    const list = bySeg.get(bestSeg);
+    const main = list.find((c) => dir === null || c.isForward === dir) || list[0];
+    // Same card = same segment + start + end + description.
+    return list.filter((c) => c.startDate === main.startDate && c.endDate === main.endDate && (c.description || '') === (main.description || ''));
+  }
+
+  // "2026-08-28 19:26" -> "28-08-2026 19:26" (as on the WME card).
+  function rcFmtDate(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}:\d{2}))?/.exec(String(s || ''));
+    return m ? `${m[3]}-${m[2]}-${m[1]}${m[4] ? ` ${m[4]}` : ''}` : String(s || '');
+  }
+
+  function rcSleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  async function rcEdit(closures) {
+    const c = closures[0];
+    rcHide();
+    try {
+      sdk.Editing.setSelection({ selection: { objectType: 'segment', ids: [c.segmentId] } });
+    } catch (e) {
+      phShowToast(L('Segmentul închis nu a putut fi selectat.', 'The closed segment could not be selected.'), true);
+      return;
+    }
+    // Open the "Closures" tab of the segment panel. The panel is re-rendered
+    // after the selection, so a click too early lands on the old tabs:
+    // click until the 2nd tab really is active.
+    let opened = false;
+    for (let i = 0; i < 30 && !opened; i++) {
+      await rcSleep(150);
+      const tabs = document.querySelector('#edit-panel wz-tabs');
+      if (!tabs) continue;
+      if (tabs.children[1] && tabs.children[1].hasAttribute('is-active')) {
+        opened = true;
+        break;
+      }
+      const labels = tabs.shadowRoot ? tabs.shadowRoot.querySelectorAll('.wz-tab-label') : null;
+      if (labels && labels.length >= 2) labels[1].click();
+    }
+    if (!opened) return;
+    // Click the matching card -> WME's edit form.
+    const want = [`${rcFmtDate(c.startDate)}`, `${rcFmtDate(c.endDate)}`];
+    for (let i = 0; i < 20; i++) {
+      await rcSleep(150);
+      const cards = [...document.querySelectorAll('#edit-panel wz-card[class*="closureCard"]')];
+      if (!cards.length) continue;
+      const card = cards.find((k) => want.every((w) => k.innerText.includes(w))) || (cards.length === 1 ? cards[0] : null);
+      if (card) card.click();
+      return;
+    }
+  }
+
+  function rcDelete(closures) {
+    let ok = 0;
+    closures.forEach((c) => {
+      try {
+        sdk.DataModel.RoadClosures.deleteClosure({ roadClosureId: c.id });
+        ok++;
+      } catch (e) {
+        console.warn(`${SCRIPT_NAME}: închiderea ${c.id} nu a putut fi ștearsă.`, e);
+      }
+    });
+    rcHide();
+    phShowToast(
+      ok
+        ? L(`${ok === 1 ? 'Închidere ștearsă' : `${ok} închideri șterse (ambele sensuri)`}. Nesalvat - apasă Salvează (Ctrl+Z anulează).`, `${ok === 1 ? 'Closure deleted' : `${ok} closures deleted (both directions)`}. Not saved - press Save (Ctrl+Z undoes).`)
+        : L('Închiderea nu a putut fi ștearsă (drepturi sau închidere din alt sistem).', 'The closure could not be deleted (permissions or a closure from another system).'),
+      !ok
+    );
+  }
+
+  function rcHide() {
+    clearTimeout(rcState.hideT);
+    rcState.hideT = null;
+    if (rcState.popup) rcState.popup.remove();
+    rcState.popup = null;
+    rcState.el = null;
+    rcState.confirm = false;
+  }
+
+  function rcScheduleHide() {
+    clearTimeout(rcState.hideT);
+    rcState.hideT = setTimeout(rcHide, 350);
+  }
+
+  function rcShow(el) {
+    if (rcState.el === el && rcState.popup) {
+      clearTimeout(rcState.hideT);
+      rcState.hideT = null;
+      return;
+    }
+    const closures = rcClosuresForMarker(el);
+    if (!closures.length) return;
+    rcHide();
+    const c = closures[0];
+    const t = currentTheme();
+    const box = document.createElement('div');
+    box.className = RC_POPUP_CLASS;
+    box.style.cssText = `position:fixed; left:0; top:0; z-index:${OWN_UI_MENU_Z_INDEX}; padding:6px 8px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 2px 8px rgba(0,0,0,0.4); font:11px/1.35 Arial, sans-serif; display:flex; flex-direction:column; gap:5px; pointer-events:auto; max-width:300px;`;
+    box.addEventListener('mouseenter', () => {
+      clearTimeout(rcState.hideT);
+      rcState.hideT = null;
+    });
+    box.addEventListener('mouseleave', rcScheduleHide);
+    ['mousedown', 'mouseup', 'click', 'dblclick'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
+
+    const info = document.createElement('div');
+    info.style.cssText = 'white-space:normal;';
+    const desc = c.description ? `„${c.description}” · ` : '';
+    const dirTxt = closures.length > 1 ? L('ambele sensuri', 'both directions') : L('un sens', 'one direction');
+    const st = String(c.status || '');
+    const finished = /FINISH/i.test(st);
+    const stTxt = finished ? L('încheiată', 'finished') : /ACTIVE/i.test(st) ? L('activă', 'active') : L('programată', 'scheduled');
+    info.textContent = `${desc}${rcFmtDate(c.startDate)} → ${c.endDate ? rcFmtDate(c.endDate) : L('fără sfârșit', 'no end')} · ${dirTxt} · ${stTxt}`;
+    box.appendChild(info);
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; gap:6px;';
+    const mk = (label, title, onClick, danger) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.title = title;
+      b.style.cssText = `height:24px; padding:0 10px; border-radius:12px; border:1px solid ${danger ? '#e5484d' : t.menuBorder}; background:transparent; color:${danger ? '#e5484d' : t.menuText}; font:600 11px/1 Arial, sans-serif; cursor:pointer; white-space:nowrap;`;
+      b.addEventListener('mouseenter', () => {
+        b.style.background = danger ? 'rgba(229,72,77,0.15)' : t.menuHoverBg;
+      });
+      b.addEventListener('mouseleave', () => {
+        b.style.background = 'transparent';
+      });
+      b.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        onClick(b);
+      });
+      return b;
+    };
+    row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => rcEdit(closures)));
+    // A finished closure can't be deleted any more (WME keeps it as
+    // history) - only "Edit" (= open it).
+    if (!finished) row.appendChild(
+      mk(
+        L('🗑 Șterge', '🗑 Delete'),
+        L('Șterge închiderea (click de 2 ori). Se aplică la Salvează (până atunci Ctrl+Z anulează); după salvare WME o arată „Încheiată mai devreme”.', 'Deletes the closure (click twice). Applied on Save (until then Ctrl+Z undoes); after saving WME shows it as "Finished early".'),
+        (b) => {
+          if (!rcState.confirm) {
+            rcState.confirm = true;
+            b.textContent = closures.length > 1 ? L('Sigur? (ambele sensuri)', 'Sure? (both directions)') : L('Sigur?', 'Sure?');
+            b.style.background = 'rgba(229,72,77,0.25)';
+            return;
+          }
+          rcDelete(closures);
+        },
+        true
+      )
+    );
+    box.appendChild(row);
+    getMapOverlayContainer().appendChild(box);
+    const r = el.getBoundingClientRect();
+    const br = box.getBoundingClientRect();
+    const { vw, vx0, vy0 } = getMapViewportBounds();
+    let left = r.left + r.width / 2 - br.width / 2;
+    left = Math.max(vx0 + 4, Math.min(vx0 + vw - br.width - 4, left));
+    let top = r.top - br.height - 6;
+    if (top < vy0 + 4) top = r.bottom + 6;
+    box.style.left = `${Math.round(left)}px`;
+    box.style.top = `${Math.round(top)}px`;
+    rcState.popup = box;
+    rcState.el = el;
+  }
+
+  // Closure markers have `pointer-events: none` (WME hit-tests the map
+  // itself), so they never get mouse events: one throttled `mousemove`
+  // checks whether the pointer is over a closure marker's box (+4px).
+  // The markers are re-created by WME on every pan / zoom - read live.
+  function rcMarkerAt(x, y) {
+    const layer = rcLayer();
+    if (!layer || !layer.div || layer.div.style.display === 'none' || !layer.getVisibility || !layer.getVisibility()) return null;
+    for (const mk of layer.markers) {
+      const el = mk.element;
+      if (!el || !el.isConnected) continue;
+      const r = el.getBoundingClientRect();
+      if (!r.width) continue;
+      if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 4 && y <= r.bottom + 4) return el;
+    }
+    return null;
+  }
+
+  function rcInit() {
+    if (rcState.bound) return;
+    rcState.bound = true;
+    let pending = null;
+    document.addEventListener(
+      'mousemove',
+      (ev) => {
+        if (!settings.closureQuickActions) return;
+        pending = ev;
+        if (rcState.raf) return;
+        rcState.raf = requestAnimationFrame(() => {
+          rcState.raf = null;
+          const e = pending;
+          if (!e) return;
+          if (rcState.popup && rcState.popup.contains(e.target)) {
+            clearTimeout(rcState.hideT);
+            rcState.hideT = null;
+            return;
+          }
+          if (e.buttons) {
+            if (rcState.popup) rcScheduleHide();
+            return;
+          }
+          let el = null;
+          try {
+            el = rcMarkerAt(e.clientX, e.clientY);
+          } catch (err) {
+            el = null;
+          }
+          if (el) {
+            try {
+              rcShow(el);
+            } catch (err) {
+              // ignore
+            }
+          } else if (rcState.popup && !rcState.hideT) {
+            rcScheduleHide();
+          }
+        });
+      },
+      { passive: true, capture: true }
+    );
+  }
+
 
   // ---------------------------------------------------------------------
   // Compact map icons + traffic lights in the background (v0.48).
@@ -15089,6 +15432,7 @@
     setInterval(() => mapIconsApply(false), MAP_ICONS_POLL_MS);
     plPoll();
     setInterval(plPoll, PL_POLL_MS);
+    rcInit();
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);
