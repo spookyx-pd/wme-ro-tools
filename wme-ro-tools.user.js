@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.48.2
+// @version      0.49.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -21,6 +21,10 @@
 // @connect      imgbb.com
 // @connect      imgur.com
 // @connect      postimg.cc
+// @connect      maps.app.goo.gl
+// @connect      goo.gl
+// @connect      www.google.com
+// @connect      maps.google.com
 // @connect      *
 // @run-at       document-idle
 // ==/UserScript==
@@ -40,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.48.2';
+  const SCRIPT_VERSION = '0.49.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -122,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.49', items: [
+      L('Buton 🔗 lângă căutare: lipești un permalink WME (și beta), un link Google Maps / Waze sau coordonate și mergi acolo fără reîncărcarea paginii - deschizi tot sau doar locația / segmentele / locul / UR-ul; setările straturilor sunt ignorate, iar „↩ Înapoi” te duce unde lucrai.', '🔗 button next to search: paste a WME permalink (beta too), a Google Maps / Waze link or coordinates and go there without reloading the page - open everything or only the location / segments / place / UR; layer settings are ignored, and "↩ Go back" returns you to where you were working.'),
+    ] },
     { v: '0.48', items: [
       L('Hartă mai aerisită: problemele de hartă la jumătate, pericolele permanente mai mici, camerele și trecerile CF la mărimea celorlalte pericole.', 'Less crowded map: map problems at half size, permanent hazards smaller, cameras and railroad crossings at the size of the other hazards.'),
       L('Semafoarele în fundal: se desenează sub segmente și nu mai fură clicul (Alt apăsat le aduce deasupra).', 'Traffic lights in the background: drawn under segments, they no longer steal the click (hold Alt to bring them on top).'),
@@ -462,6 +469,9 @@
     // v0.48: traffic lights drawn under segments and not clickable (clicks
     // reach segments / nodes / MPs); hold Alt to bring them back on top.
     trafficLightsBehind: true,
+    // v0.49: 🔗 button next to the top search box - open a WME permalink
+    // (beta too) / Google Maps / Waze link / coordinates without reloading.
+    permalinkTool: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
@@ -833,6 +843,11 @@
         // Same pattern as "Keep sidebar open" - selection-independent
         // watchdog, started/stopped directly.
         if (key === 'drawLengthBadge') return;
+        if (key === 'permalinkTool') {
+          if (checkbox.checked) plEnsureButton();
+          else plRemoveAll();
+          return;
+        }
         if (key === 'compactMapIcons' || key === 'trafficLightsBehind') {
           mapIconsApply(true);
           return;
@@ -1099,6 +1114,12 @@
       L('Lungime în timp real la desenarea unui segment', 'Live length while drawing a segment'),
       L('Cât desenezi un segment nou, o pastilă lângă cursor arată lungimea lui.', 'While you draw a new segment, a pill next to the cursor shows its length.'),
       L('Când desenezi un drum nou (unealta de desenare segment), lângă cursor apare aceeași pastilă ca la mutarea unui nod, cu lungimea totală a segmentului desenat până acum, inclusiv bucata până la cursor, actualizată în timp real. Dispare când termini sau anulezi desenul.', 'When you draw a new road (segment drawing tool), the same pill as when moving a node appears next to the cursor, with the total length of the segment drawn so far, including the piece up to the cursor, updated live. It disappears when you finish or cancel the drawing.')
+    );
+    addToggle(
+      'permalinkTool',
+      L('Buton „Deschide un link” lângă căutare', '"Open a link" button next to search'),
+      L('🔗 lângă bara de căutare: lipești un permalink (și beta), un link Google Maps / Waze sau coordonate și mergi acolo fără reîncărcarea paginii.', '🔗 next to the search bar: paste a permalink (beta too), a Google Maps / Waze link or coordinates and go there without reloading the page.'),
+      L('Fereastra arată ce conține linkul și cât de departe e de vizualizarea ta. Pentru un permalink WME (www sau beta) ai butoane separate: „Deschide tot” (ca și cum l-ai deschide în browser: locația, obiectele selectate, UR-ul / problema deschisă), „Doar locația”, „Selectează segmentele / nodurile / locul / JB-ul…” (cu zoom cât să se vadă toate) și „Deschide UR-ul / problema”. Obiectele selectate sunt și evidențiate cu mov, ca să le vezi și după ce UR-ul deschis le deselectează. Setările straturilor din permalink (s=…) și orice alt parametru sunt ignorate. Pentru Google Maps (inclusiv linkuri scurte maps.app.goo.gl), Waze sau coordonate GPS, harta se mută la coordonate. Locația de unde ai plecat e memorată pe durata sesiunii, cu buton „↩ Înapoi”; se păstrează cât treci de la un link la altul și se înlocuiește doar dacă te-ai întors singur departe (peste 2 km) de ultimul link deschis.', 'The window shows what the link contains and how far it is from your view. For a WME permalink (www or beta) there are separate buttons: "Open everything" (as if you opened it in the browser: location, selected objects, open UR / issue), "Location only", "Select the segments / nodes / place / JB…" (zoomed to show them all) and "Open the UR / issue". Selected objects are also highlighted in purple, so you still see them after the opened UR deselects them. Layer settings in the permalink (s=…) and any other parameter are ignored. For Google Maps (incl. maps.app.goo.gl short links), Waze or GPS coordinates the map moves to the coordinates. The place you left from is remembered for the session, with a "↩ Go back" button; it is kept while you move from link to link and replaced only if you went back by yourself far (over 2 km) from the last opened link.')
     );
     addToggle(
       'compactMapIcons',
@@ -3241,6 +3262,884 @@
     lock1State.rafId = null;
     lock1State.badges.forEach((el) => el.remove());
     lock1State.badges.clear();
+  }
+
+  // ---------------------------------------------------------------------
+  // Open a link (v0.49): 🔗 button next to the top search box -> a small
+  // window where you paste (or "Lipește" from the clipboard) a WME
+  // permalink (www / beta, any language path), a Google Maps link (incl.
+  // maps.app.goo.gl short links, resolved through GM_xmlhttpRequest), a
+  // Waze app / Live Map link or plain coordinates. The page is NOT
+  // reloaded: the map is moved with the SDK and the permalink's objects
+  // are selected / opened on demand (all at once or one kind at a time).
+  // Layer settings (`s=`) and every other parameter are ignored on purpose.
+  // Permalink parameters handled (WME's own list): env, lat, lon,
+  // zoomLevel (old `zoom` 0-10 = zoomLevel - 12), segments, nodes, venues,
+  // bigJunctions, mapComments, mapUpdateRequest, mapProblem ("2/<uuid>"),
+  // permanentHazards; `cameras` is only reported (no selectable type).
+  // The view you leave from is remembered for the session (sessionStorage)
+  // with a "↩ back" button - see `plRememberOrigin` for when it is replaced.
+  // ---------------------------------------------------------------------
+  const PL_BTN_ID = 'wme-ro-tools-pl-btn';
+  const PL_PANEL_ID = 'wme-ro-tools-pl-panel';
+  const PL_LAYER = 'wme-ro-tools-pl-highlight';
+  const PL_ORIGIN_KEY = 'wme-ro-tools-pl-origin';
+  const PL_POLL_MS = 2000;
+  // Zoom at which segments / places are loaded by WME (below it the
+  // objects can't be selected).
+  const PL_OBJ_MIN_ZOOM = 16;
+  // Current view farther than this from the last opened link = you went
+  // back to work elsewhere -> a new jump remembers the new origin.
+  const PL_ORIGIN_RESET_M = 2000;
+  const plState = { parsed: null, layer: false, lastTarget: null, busy: false };
+
+  // Kinds of selectable objects: permalink param -> SDK selection type,
+  // W.model collection, SDK getter.
+  const PL_KINDS = [
+    { param: 'segments', type: 'segment', model: 'segments', get: (id) => sdk.DataModel.Segments.getById({ segmentId: id }), ro: ['segment', 'segmente'], en: ['segment', 'segments'] },
+    { param: 'nodes', type: 'node', model: 'nodes', get: (id) => sdk.DataModel.Nodes.getById({ nodeId: id }), ro: ['nod', 'noduri'], en: ['node', 'nodes'] },
+    { param: 'venues', type: 'venue', model: 'venues', str: true, get: (id) => sdk.DataModel.Venues.getById({ venueId: id }), ro: ['loc', 'locuri'], en: ['place', 'places'] },
+    { param: 'bigJunctions', type: 'bigJunction', model: 'bigJunctions', get: (id) => sdk.DataModel.BigJunctions.getById({ bigJunctionId: id }), ro: ['Junction Box', 'Junction Box-uri'], en: ['Junction Box', 'Junction Boxes'] },
+    { param: 'mapComments', type: 'mapComment', model: 'mapComments', str: true, get: (id) => sdk.DataModel.MapComments.getById({ mapCommentId: id }), ro: ['comentariu de hartă', 'comentarii de hartă'], en: ['map comment', 'map comments'] },
+    { param: 'permanentHazards', type: 'permanentHazard', model: 'permanentHazards', get: (id) => sdk.DataModel.PermanentHazards.getById({ hazardId: id }), ro: ['pericol permanent', 'pericole permanente'], en: ['permanent hazard', 'permanent hazards'] },
+  ];
+
+  // --- parsing -----------------------------------------------------------
+
+  function plNum(v) {
+    if (v === null || v === undefined || String(v).trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function plIds(v, str) {
+    if (!v) return [];
+    return String(v)
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .map((x) => (str ? x : plNum(x)))
+      .filter((x) => x !== null && x !== '');
+  }
+
+  // Geohash (Waze app share links waze.com/ul/h<geohash>) -> { lat, lon }.
+  function plGeohash(hash) {
+    const B32 = '0123456789bcdefghjkmnpqrstuvwxyz';
+    let even = true;
+    const lat = [-90, 90];
+    const lon = [-180, 180];
+    for (const ch of hash.toLowerCase()) {
+      const v = B32.indexOf(ch);
+      if (v < 0) return null;
+      for (let b = 4; b >= 0; b--) {
+        const r = even ? lon : lat;
+        const mid = (r[0] + r[1]) / 2;
+        if ((v >> b) & 1) r[0] = mid;
+        else r[1] = mid;
+        even = !even;
+      }
+    }
+    return { lat: (lat[0] + lat[1]) / 2, lon: (lon[0] + lon[1]) / 2 };
+  }
+
+  function plValidLL(lat, lon) {
+    return lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0);
+  }
+
+  // Google Maps URL (already resolved) -> { lat, lon, zoom } or null.
+  // Priority: the place pin (!3d!4d), an explicit query, then the view.
+  function plParseGoogle(url) {
+    let u = url;
+    try {
+      u = decodeURIComponent(url);
+    } catch (e) {
+      // keep raw
+    }
+    const NUM = String.raw`(-?\d{1,3}(?:\.\d+)?)`;
+    let m = new RegExp(String.raw`!3d${NUM}!4d${NUM}`).exec(u);
+    const view = new RegExp(String.raw`@${NUM},${NUM}(?:,(\d+(?:\.\d+)?)z)?`).exec(u);
+    const zoom = view && view[3] ? Math.round(Number(view[3])) : null;
+    if (m) return { lat: plNum(m[1]), lon: plNum(m[2]), zoom, src: 'pin' };
+    m = new RegExp(String.raw`[?&](?:q|query|ll|center|destination|daddr|saddr|sll)=(?:loc:)?\s*${NUM}\s*,\s*\+?${NUM}`).exec(u);
+    if (m) return { lat: plNum(m[1]), lon: plNum(m[2]), zoom, src: 'query' };
+    m = new RegExp(String.raw`/(?:place|search|dir)/(?:[^/]*/)?${NUM}\s*,\s*\+?${NUM}`).exec(u);
+    if (m) return { lat: plNum(m[1]), lon: plNum(m[2]), zoom, src: 'query' };
+    if (view) return { lat: plNum(view[1]), lon: plNum(view[2]), zoom, src: 'view' };
+    return null;
+  }
+
+  // Text -> parse result:
+  //  { kind: 'wme', lat, lon, zoom, env, beta, ids: {param: [...]}, ur, mp, cameras, ignored: [...] }
+  //  { kind: 'coords', source, lat, lon, zoom }
+  //  { kind: 'short', url }      (needs resolving)
+  //  { kind: 'error', msg }
+  function plParse(text) {
+    const raw = String(text || '').trim();
+    if (!raw) return null;
+    const urlMatch = /https?:\/\/[^\s<>"']+/i.exec(raw) || (/^(?:www\.|beta\.)?waze\.com\//i.test(raw) ? [`https://${raw}`] : null);
+    if (urlMatch) {
+      const href = urlMatch[0].replace(/[).,;]+$/, '');
+      let u = null;
+      try {
+        u = new URL(href);
+      } catch (e) {
+        u = null;
+      }
+      if (u) {
+        const host = u.hostname.toLowerCase();
+        const p = u.searchParams;
+        if (/(^|\.)waze\.com$/.test(host) && /editor/i.test(u.pathname)) {
+          let zoom = plNum(p.get('zoomLevel'));
+          if (zoom === null && p.get('zoom') !== null) {
+            const z = plNum(p.get('zoom'));
+            if (z !== null) zoom = z <= 10 ? z + 12 : z;
+          }
+          const ids = {};
+          PL_KINDS.forEach((k) => {
+            const v = plIds(p.get(k.param), k.str);
+            if (v.length) ids[k.param] = v;
+          });
+          const known = new Set(['env', 'lat', 'lon', 'zoomLevel', 'zoom', 'mapUpdateRequest', 'mapProblem', 'cameras', ...PL_KINDS.map((k) => k.param)]);
+          const ignored = [...p.keys()].filter((k) => !known.has(k));
+          const res = {
+            kind: 'wme',
+            href,
+            beta: /^beta\./.test(host) || /beta/i.test(u.pathname),
+            env: p.get('env') || null,
+            lat: plNum(p.get('lat')),
+            lon: plNum(p.get('lon')),
+            zoom,
+            ids,
+            ur: plNum(p.get('mapUpdateRequest')),
+            mp: p.get('mapProblem') || null,
+            cameras: plIds(p.get('cameras')),
+            ignored,
+          };
+          if (!plValidLL(res.lat, res.lon)) {
+            return { kind: 'error', msg: L('Permalinkul nu are coordonate (lat / lon).', 'The permalink has no coordinates (lat / lon).') };
+          }
+          return res;
+        }
+        if (/(^|\.)waze\.com$/.test(host)) {
+          // App / Live Map links: ?ll=lat,lon | ?latlng= | to=ll.lat,lon | /ul/h<geohash>
+          const ll = p.get('ll') || p.get('latlng') || (p.get('to') || '').replace(/^ll\./, '') || (p.get('from') || '').replace(/^ll\./, '');
+          const m = /(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/.exec(ll || '');
+          if (m && plValidLL(plNum(m[1]), plNum(m[2]))) return { kind: 'coords', source: 'Waze', lat: plNum(m[1]), lon: plNum(m[2]), zoom: plNum(p.get('zoom')) };
+          const gh = /\/ul\/h([0-9a-z]{4,12})/i.exec(u.pathname);
+          const g = gh && plGeohash(gh[1]);
+          if (g) return { kind: 'coords', source: 'Waze', lat: g.lat, lon: g.lon, zoom: null };
+          return { kind: 'error', msg: L('Link Waze fără coordonate recunoscute.', 'Waze link without recognised coordinates.') };
+        }
+        if (/^(maps\.app\.goo\.gl|goo\.gl)$/.test(host)) return { kind: 'short', url: href };
+        if (/(^|\.)google\.[a-z.]+$/.test(host) || /^maps\.google\./.test(host)) {
+          const g = plParseGoogle(href);
+          if (g && plValidLL(g.lat, g.lon)) return { kind: 'coords', source: 'Google Maps', ...g };
+          return { kind: 'error', msg: L('Linkul Google Maps nu conține coordonate (ex. un link de căutare după nume).', 'The Google Maps link has no coordinates (e.g. a search by name).') };
+        }
+        if (/openstreetmap\.org$/.test(host)) {
+          const m = /map=(\d+)\/(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)/.exec(u.hash || href);
+          if (m) return { kind: 'coords', source: 'OpenStreetMap', lat: plNum(m[2]), lon: plNum(m[3]), zoom: plNum(m[1]) };
+        }
+      }
+    }
+    const c = coordFind(raw);
+    if (c && plValidLL(c.lat, c.lon)) return { kind: 'coords', source: L('coordonate', 'coordinates'), lat: c.lat, lon: c.lon, zoom: null };
+    return { kind: 'error', msg: L('Nu am recunoscut linkul: permalink WME (și beta), Google Maps, Waze sau coordonate GPS.', 'Link not recognised: WME permalink (beta too), Google Maps, Waze or GPS coordinates.') };
+  }
+
+  // maps.app.goo.gl -> final Google URL (GM_xmlhttpRequest follows the
+  // redirects; a consent page carries the target in `continue`).
+  function plResolveShort(url) {
+    return new Promise((resolve) => {
+      if (typeof GM_xmlhttpRequest !== 'function') {
+        resolve(null);
+        return;
+      }
+      try {
+        GM_xmlhttpRequest({
+          method: 'GET',
+          url,
+          timeout: 15000,
+          onload: (r) => {
+            let fin = r.finalUrl || '';
+            try {
+              const cu = new URL(fin);
+              if (/consent\./.test(cu.hostname) && cu.searchParams.get('continue')) fin = cu.searchParams.get('continue');
+            } catch (e) {
+              // keep
+            }
+            let g = plParseGoogle(fin);
+            // Some short links land on a page whose URL has no coordinates
+            // but whose HTML does (canonical / og:url / "@lat,lon").
+            if (!g || !plValidLL(g.lat, g.lon)) g = plParseGoogle(String(r.responseText || '').slice(0, 400000));
+            resolve(g && plValidLL(g.lat, g.lon) ? g : null);
+          },
+          onerror: () => resolve(null),
+          ontimeout: () => resolve(null),
+        });
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  // --- geometry / distance -------------------------------------------------
+
+  function plDistM(a, b) {
+    const R = 6371008.8;
+    const toR = Math.PI / 180;
+    const dLat = (b.lat - a.lat) * toR;
+    const dLon = (b.lon - a.lon) * toR;
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * toR) * Math.cos(b.lat * toR) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  function plBearingName(a, b) {
+    const toR = Math.PI / 180;
+    const y = Math.sin((b.lon - a.lon) * toR) * Math.cos(b.lat * toR);
+    const x = Math.cos(a.lat * toR) * Math.sin(b.lat * toR) - Math.sin(a.lat * toR) * Math.cos(b.lat * toR) * Math.cos((b.lon - a.lon) * toR);
+    const deg = (Math.atan2(y, x) / toR + 360) % 360;
+    const ro = ['N', 'NE', 'E', 'SE', 'S', 'SV', 'V', 'NV'];
+    const en = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const i = Math.round(deg / 45) % 8;
+    return L(ro[i], en[i]);
+  }
+
+  function plFmtDist(m) {
+    if (m < 1000) return `${Math.round(m)} m`;
+    const km = m < 100000 ? (m / 1000).toFixed(1) : String(Math.round(m / 1000));
+    return `${L(km.replace('.', ','), km)} km`;
+  }
+
+  function plFmtLL(p) {
+    return `${p.lat.toFixed(6)}, ${p.lon.toFixed(6)}`;
+  }
+
+  function plView() {
+    try {
+      const c = sdk.Map.getMapCenter();
+      return { lat: c.lat, lon: c.lon, zoom: sdk.Map.getZoomLevel() };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // GeoJSON geometry -> [minLon, minLat, maxLon, maxLat]
+  function plBbox(geoms) {
+    const b = [Infinity, Infinity, -Infinity, -Infinity];
+    const walk = (c) => {
+      if (typeof c[0] === 'number') {
+        b[0] = Math.min(b[0], c[0]);
+        b[1] = Math.min(b[1], c[1]);
+        b[2] = Math.max(b[2], c[0]);
+        b[3] = Math.max(b[3], c[1]);
+      } else c.forEach(walk);
+    };
+    geoms.forEach((g) => g && g.coordinates && walk(g.coordinates));
+    return Number.isFinite(b[0]) ? b : null;
+  }
+
+  // --- origin (where you left from) -------------------------------------
+
+  function plLoadOrigin() {
+    try {
+      const o = JSON.parse(window.sessionStorage.getItem(PL_ORIGIN_KEY) || 'null');
+      if (o && plValidLL(o.lat, o.lon)) return o;
+    } catch (e) {
+      // no storage
+    }
+    return null;
+  }
+
+  function plSaveOrigin(o) {
+    try {
+      if (o) window.sessionStorage.setItem(PL_ORIGIN_KEY, JSON.stringify(o));
+      else window.sessionStorage.removeItem(PL_ORIGIN_KEY);
+    } catch (e) {
+      // no storage - in-memory only
+    }
+    plState.origin = o;
+  }
+
+  function plOrigin() {
+    if (plState.origin === undefined) plState.origin = plLoadOrigin();
+    return plState.origin;
+  }
+
+  // Called before every jump. Keeps the FIRST origin while you move between
+  // links; replaced only when you are back far from the last opened link
+  // (you went back to your work by hand).
+  function plRememberOrigin(target) {
+    const cur = plView();
+    if (!cur) return;
+    const o = plOrigin();
+    const last = plState.lastTarget || (o && o.lastTarget) || null;
+    if (!o || (last && plDistM(cur, last) > PL_ORIGIN_RESET_M)) {
+      plSaveOrigin({ lat: cur.lat, lon: cur.lon, zoom: cur.zoom, at: Date.now(), lastTarget: target });
+    } else {
+      plSaveOrigin({ ...o, lastTarget: target });
+    }
+    plState.lastTarget = target;
+  }
+
+  function plGoBack() {
+    const o = plOrigin();
+    if (!o) return;
+    try {
+      plCloseProblem();
+      sdk.Editing.clearSelection();
+    } catch (e) {
+      // ignore
+    }
+    try {
+      sdk.Map.setMapCenter({ lonLat: { lon: o.lon, lat: o.lat }, zoomLevel: o.zoom });
+    } catch (e) {
+      return;
+    }
+    plSaveOrigin(null);
+    plState.lastTarget = null;
+    plClearHighlight();
+    plRender();
+  }
+
+  function plCloseProblem() {
+    try {
+      if (window.W && window.W.problemsController && window.W.problemsController.getCurrentProblem()) window.W.problemsController.closeProblem();
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // --- highlight layer (stays visible when a UR panel deselects them) ----
+
+  function plLayer() {
+    if (plState.layer) return true;
+    try {
+      sdk.Map.addLayer({
+        layerName: PL_LAYER,
+        styleRules: [
+          { predicate: (p) => p.kind === 'line', style: { strokeColor: '#c026d3', strokeWidth: 18, strokeOpacity: 0.55, strokeLinecap: 'round' } },
+          { predicate: (p) => p.kind === 'point', style: { pointRadius: 16, fillColor: '#c026d3', fillOpacity: 0.15, strokeColor: '#c026d3', strokeWidth: 3, strokeOpacity: 0.9 } },
+          { predicate: (p) => p.kind === 'area', style: { fillColor: '#c026d3', fillOpacity: 0.12, strokeColor: '#c026d3', strokeWidth: 4, strokeOpacity: 0.8 } },
+        ],
+      });
+      plState.layer = true;
+    } catch (e) {
+      console.warn(`${SCRIPT_NAME}: stratul de evidențiere pentru permalink nu a putut fi creat.`, e);
+    }
+    return plState.layer;
+  }
+
+  function plClearHighlight() {
+    plState.highlighted = false;
+    if (!plState.layer) return;
+    try {
+      sdk.Map.removeAllFeaturesFromLayer({ layerName: PL_LAYER });
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function plHighlight(found) {
+    if (!plLayer()) return;
+    plClearHighlight();
+    const feats = [];
+    found.forEach((f, i) => {
+      const g = f.geometry;
+      if (!g) return;
+      const kind = /Line/.test(g.type) ? 'line' : /Polygon/.test(g.type) ? 'area' : 'point';
+      feats.push({ type: 'Feature', id: `pl-${i}`, geometry: g, properties: { kind } });
+    });
+    if (!feats.length) return;
+    try {
+      sdk.Map.addFeaturesToLayer({ layerName: PL_LAYER, features: feats });
+      plState.highlighted = true;
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // --- actions -------------------------------------------------------------
+
+  function plSleep(ms) {
+    return new Promise((r) => setTimeout(r, ms));
+  }
+
+  // Waits (max ~12 s) until the objects are loaded: [{ id, geometry }] of
+  // those found (missing ones are simply absent).
+  async function plWaitObjects(kind, ids) {
+    const found = new Map();
+    for (let i = 0; i < 40 && found.size < ids.length; i++) {
+      ids.forEach((id) => {
+        if (found.has(id)) return;
+        try {
+          const o = kind.get(id);
+          if (o) found.set(id, { id, geometry: o.geometry || null });
+        } catch (e) {
+          // not loaded yet
+        }
+      });
+      if (found.size < ids.length) await plSleep(300);
+    }
+    return ids.filter((id) => found.has(id)).map((id) => found.get(id));
+  }
+
+  async function plWaitProblem(isUr, id) {
+    for (let i = 0; i < 40; i++) {
+      try {
+        const coll = isUr ? window.W.model.mapUpdateRequests : window.W.model.mapProblems;
+        const o = coll && coll.getObjectById(id);
+        if (o) return o;
+      } catch (e) {
+        // not loaded yet
+      }
+      await plSleep(300);
+    }
+    return null;
+  }
+
+  function plProblemGeometry(isUr, id) {
+    try {
+      const o = isUr ? sdk.DataModel.MapUpdateRequests.getById({ mapUpdateRequestId: id }) : sdk.DataModel.MapProblems.getById({ mapProblemId: id });
+      return o && o.geometry;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function plCenterOn(lat, lon, zoom) {
+    sdk.Map.setMapCenter({ lonLat: { lon, lat }, zoomLevel: Math.round(Math.min(sdk.Map.MAX_ZOOM_LEVEL || 22, Math.max(sdk.Map.MIN_ZOOM_LEVEL || 3, zoom))) });
+  }
+
+  // Fit the found objects in view, without going below the zoom where
+  // they stay loaded / selected.
+  function plFit(found, minZoom) {
+    const b = plBbox(found.map((f) => f.geometry));
+    if (!b) return;
+    const isPoint = b[0] === b[2] && b[1] === b[3];
+    try {
+      if (isPoint) {
+        plCenterOn(b[1], b[0], Math.max(sdk.Map.getZoomLevel(), minZoom));
+        return;
+      }
+      const padX = (b[2] - b[0]) * 0.25 + 0.0002;
+      const padY = (b[3] - b[1]) * 0.25 + 0.0002;
+      sdk.Map.zoomToExtent({ bbox: [b[0] - padX, b[1] - padY, b[2] + padX, b[3] + padY] });
+      if (sdk.Map.getZoomLevel() < minZoom) plCenterOn((b[1] + b[3]) / 2, (b[0] + b[2]) / 2, minZoom);
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function plStatus(msg, isError) {
+    const el = document.querySelector(`#${PL_PANEL_ID} .pl-status`);
+    if (!el) return;
+    el.textContent = msg || '';
+    el.style.color = isError ? '#e5484d' : '';
+  }
+
+  // One action at a time; every action starts with the origin bookkeeping.
+  async function plRun(fn) {
+    if (plState.busy) return;
+    plState.busy = true;
+    plPanelBusy(true);
+    try {
+      await fn();
+    } catch (e) {
+      console.warn(`${SCRIPT_NAME}: acțiune permalink eșuată.`, e);
+      plStatus(L('A apărut o eroare - vezi consola.', 'Something went wrong - see the console.'), true);
+    } finally {
+      plState.busy = false;
+      plPanelBusy(false);
+      plRender(true);
+    }
+  }
+
+  // Coordinates from Google / Waze / text: their zoom, but not a far-out
+  // one (a Google link is often at city level), 17 when missing.
+  function plCoordZoom(p) {
+    return Math.max(p.zoom || 17, 15);
+  }
+
+  function plJump(p, zoom) {
+    plRememberOrigin({ lat: p.lat, lon: p.lon });
+    plCenterOn(p.lat, p.lon, zoom);
+  }
+
+  // Select one kind of object from the permalink (and highlight it).
+  async function plSelectKind(p, kind, opts) {
+    const ids = p.ids[kind.param];
+    const zoom = Math.max(p.zoom || 17, PL_OBJ_MIN_ZOOM);
+    if (!(opts && opts.noJump)) {
+      plCloseProblem();
+      plJump(p, zoom);
+    }
+    plStatus(L(`Aștept să se încarce ${kind.ro[ids.length === 1 ? 0 : 1]}…`, `Waiting for the ${kind.en[ids.length === 1 ? 0 : 1]} to load…`));
+    const found = await plWaitObjects(kind, ids);
+    if (!found.length) {
+      plStatus(L(`Nu s-a încărcat niciun ${kind.ro[0]} din permalink (șters sau pe alt server).`, `None of the permalink's ${kind.en[1]} loaded (deleted or on another server).`), true);
+      return [];
+    }
+    sdk.Editing.setSelection({ selection: { objectType: kind.type, ids: found.map((f) => f.id) } });
+    plHighlight(found);
+    if (!(opts && opts.noFit)) plFit(found, PL_OBJ_MIN_ZOOM);
+    const miss = ids.length - found.length;
+    plStatus(
+      miss
+        ? L(`Selectat ${found.length} din ${ids.length} - ${miss} nu s-au încărcat (șterse sau mai departe).`, `Selected ${found.length} of ${ids.length} - ${miss} not loaded (deleted or farther away).`)
+        : L(`Selectat: ${found.length} ${kind.ro[found.length === 1 ? 0 : 1]}.`, `Selected: ${found.length} ${kind.en[found.length === 1 ? 0 : 1]}.`)
+    );
+    return found;
+  }
+
+  async function plOpenProblem(p, isUr, opts) {
+    const id = isUr ? p.ur : p.mp;
+    if (!(opts && opts.noJump)) plJump(p, p.zoom || 17);
+    plStatus(L('Aștept să se încarce problema…', 'Waiting for the issue to load…'));
+    const o = await plWaitProblem(isUr, id);
+    if (!o) {
+      plStatus(L(`${isUr ? 'UR-ul' : 'Problema de hartă'} nu s-a încărcat (închis(ă), filtrat(ă) în Issue Tracker sau pe alt server).`, `The ${isUr ? 'UR' : 'map problem'} did not load (closed, filtered out in the Issue Tracker or on another server).`), true);
+      return false;
+    }
+    if (!(opts && opts.noCenter)) {
+      const g = plProblemGeometry(isUr, id);
+      const b = g && plBbox([g]);
+      if (b) plCenterOn((b[1] + b[3]) / 2, (b[0] + b[2]) / 2, Math.max(sdk.Map.getZoomLevel(), 17));
+    }
+    window.W.problemsController.showProblem(o);
+    plStatus(L(`${isUr ? 'UR' : 'Problema de hartă'} deschis(ă).`, `${isUr ? 'UR' : 'Map problem'} opened.`));
+    return true;
+  }
+
+  // "Everything" = what the permalink itself does: same view, objects
+  // selected, issue opened. Selected objects are also highlighted, so they
+  // stay visible when the UR panel takes the selection away.
+  async function plOpenAll(p) {
+    const kinds = PL_KINDS.filter((k) => p.ids[k.param]);
+    const needObj = kinds.length > 0;
+    plCloseProblem();
+    plJump(p, needObj ? Math.max(p.zoom || 17, PL_OBJ_MIN_ZOOM) : p.zoom || 17);
+    const allFound = [];
+    for (const k of kinds) {
+      const f = await plSelectKind(p, k, { noJump: true, noFit: true });
+      allFound.push(...f);
+    }
+    if (allFound.length) plHighlight(allFound);
+    if (p.ur) await plOpenProblem(p, true, { noJump: true, noCenter: true });
+    else if (p.mp) await plOpenProblem(p, false, { noJump: true, noCenter: true });
+    const parts = [];
+    if (allFound.length) parts.push(L(`${allFound.length} obiecte selectate și evidențiate`, `${allFound.length} objects selected and highlighted`));
+    if (p.ur || p.mp) parts.push(L('problema deschisă', 'issue opened'));
+    plStatus(parts.length ? `${parts.join(' · ')}.` : L('Harta mutată la permalink.', 'Map moved to the permalink.'));
+  }
+
+  // --- UI --------------------------------------------------------------------
+
+  function plMkBtn(label, title, onClick, primary) {
+    const b = document.createElement('wz-button');
+    b.setAttribute('size', 'sm');
+    b.setAttribute('color', primary ? 'primary' : 'secondary');
+    b.textContent = label;
+    if (title) b.title = title;
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (b.hasAttribute('disabled')) return;
+      onClick();
+    });
+    return b;
+  }
+
+  function plPanelBusy(on) {
+    document.querySelectorAll(`#${PL_PANEL_ID} .pl-actions wz-button`).forEach((b) => {
+      if (on) b.setAttribute('disabled', '');
+      else b.removeAttribute('disabled');
+    });
+  }
+
+  function plPositionPanel(box) {
+    const btn = document.getElementById(PL_BTN_ID);
+    const toolbar = document.querySelector('.toolbar');
+    const top = toolbar ? toolbar.getBoundingClientRect().bottom + 6 : 44;
+    let left = 200;
+    if (btn) left = btn.getBoundingClientRect().right - 440;
+    left = Math.max(8, Math.min(window.innerWidth - 448, left));
+    box.style.top = `${Math.round(top)}px`;
+    box.style.left = `${Math.round(left)}px`;
+  }
+
+  function plOpenPanel() {
+    let box = document.getElementById(PL_PANEL_ID);
+    if (box) {
+      plClosePanel();
+      return;
+    }
+    box = document.createElement('div');
+    box.id = PL_PANEL_ID;
+    box.className = 'save-popover'; // native look, dark / light
+    box.style.cssText = 'position:fixed; z-index:9; width:440px; max-width:calc(100vw - 16px); max-height:75vh; overflow:auto; box-sizing:border-box; padding:12px 14px 14px; font:12px/1.45 Rubik, Arial, sans-serif;';
+    box.addEventListener('keydown', (ev) => {
+      ev.stopPropagation(); // keep WME shortcuts out of the input
+      if (ev.key === 'Escape') plClosePanel();
+    });
+
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex; align-items:center; gap:6px; margin-bottom:8px;';
+    const title = document.createElement('div');
+    title.style.cssText = 'flex:1; font-weight:600; font-size:13px;';
+    title.textContent = L('Deschide un link', 'Open a link');
+    head.appendChild(title);
+    head.appendChild(savedWarnIconButton('w-icon-x', L('Închide', 'Close'), plClosePanel));
+    box.appendChild(head);
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; gap:6px; align-items:center;';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'pl-input';
+    input.placeholder = L('Permalink WME / beta, Google Maps, Waze sau coordonate', 'WME / beta permalink, Google Maps, Waze or coordinates');
+    input.style.cssText = 'flex:1; min-width:0; height:30px; box-sizing:border-box; padding:0 8px; border-radius:6px; border:1px solid rgba(128,128,128,0.5); background:transparent; color:inherit; font:inherit;';
+    input.value = plState.text || '';
+    let t = null;
+    input.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => plSetText(input.value), 250);
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        plSetText(input.value).then(() => {
+          const p = plState.parsed;
+          if (p && p.kind === 'wme') plRun(() => plOpenAll(p));
+          else if (p && p.kind === 'coords') plRun(async () => plJump(p, plCoordZoom(p)));
+        });
+      }
+    });
+    row.appendChild(input);
+    row.appendChild(
+      plMkBtn(L('📋 Lipește', '📋 Paste'), L('Ia linkul din clipboard', 'Take the link from the clipboard'), async () => {
+        try {
+          const txt = await navigator.clipboard.readText();
+          input.value = txt || '';
+          plSetText(input.value);
+        } catch (e) {
+          plStatus(L('Browserul nu permite citirea clipboardului - apasă Ctrl+V în câmp.', 'The browser does not allow reading the clipboard - press Ctrl+V in the field.'), true);
+          input.focus();
+        }
+      })
+    );
+    box.appendChild(row);
+
+    const body = document.createElement('div');
+    body.className = 'pl-body';
+    box.appendChild(body);
+    const status = document.createElement('div');
+    status.className = 'pl-status';
+    status.style.cssText = 'margin-top:8px; min-height:16px; opacity:0.9;';
+    box.appendChild(status);
+    const origin = document.createElement('div');
+    origin.className = 'pl-origin';
+    box.appendChild(origin);
+
+    document.body.appendChild(box);
+    plPositionPanel(box);
+    plRender();
+    setTimeout(() => input.focus(), 50);
+  }
+
+  function plClosePanel() {
+    const box = document.getElementById(PL_PANEL_ID);
+    if (box) box.remove();
+  }
+
+  async function plSetText(text) {
+    plState.text = text;
+    const tok = (plState.tok = (plState.tok || 0) + 1);
+    let p = plParse(text);
+    if (p && p.kind === 'short') {
+      plState.parsed = null;
+      plRender();
+      plStatus(L('Rezolv linkul scurt Google…', 'Resolving the short Google link…'));
+      const g = await plResolveShort(p.url);
+      if (tok !== plState.tok) return;
+      p = g ? { kind: 'coords', source: 'Google Maps', ...g } : { kind: 'error', msg: L('Linkul scurt nu a putut fi rezolvat (sau nu conține coordonate).', 'The short link could not be resolved (or has no coordinates).') };
+      plStatus('');
+    }
+    if (tok !== plState.tok) return;
+    if (!p || (plState.parsed && JSON.stringify(plState.parsed) !== JSON.stringify(p))) plClearHighlight();
+    plState.parsed = p;
+    plRender();
+  }
+
+  function plLine(parent, html) {
+    const d = document.createElement('div');
+    d.style.cssText = 'margin-top:4px;';
+    d.textContent = html;
+    parent.appendChild(d);
+    return d;
+  }
+
+  // keepStatus: re-render after an action without wiping its message.
+  function plRender(keepStatus) {
+    const box = document.getElementById(PL_PANEL_ID);
+    if (!box) return;
+    plState.renderedView = plView();
+    const body = box.querySelector('.pl-body');
+    body.textContent = '';
+    if (!keepStatus) plStatus('');
+    const p = plState.parsed;
+    if (p && p.kind === 'error') {
+      plStatus(p.msg, true);
+    } else if (p && (p.kind === 'wme' || p.kind === 'coords')) {
+      const info = document.createElement('div');
+      info.style.cssText = 'margin-top:10px; padding:8px 10px; border-radius:6px; background:rgba(128,128,128,0.12);';
+      const cur = plView();
+      if (p.kind === 'wme') {
+        const envNow = (() => {
+          try {
+            return new URLSearchParams(location.search).get('env');
+          } catch (e) {
+            return null;
+          }
+        })();
+        const what = [L('Permalink WME', 'WME permalink')];
+        if (p.beta) what.push('beta');
+        if (p.env) what.push(`env ${p.env}`);
+        if (p.zoom) what.push(`zoom ${p.zoom}`);
+        plLine(info, what.join(' · ')).style.fontWeight = '600';
+        if (p.env && envNow && p.env !== envNow) {
+          plLine(info, L(`⚠ Permalinkul e pe serverul „${p.env}”, tu ești pe „${envNow}”: obiectele nu se vor găsi, doar locația.`, `⚠ The permalink is on the "${p.env}" server, you are on "${envNow}": the objects won't be found, only the location.`)).style.color = '#e8590c';
+        }
+      } else {
+        plLine(info, `${p.source}${p.zoom ? ` · zoom ${p.zoom}` : ''}`).style.fontWeight = '600';
+      }
+      const dist = cur ? ` - ${L('la', 'at')} ${plFmtDist(plDistM(cur, p))} ${L('spre', 'to the')} ${plBearingName(cur, p)} ${L('de vizualizarea ta', 'of your view')}` : '';
+      plLine(info, `📍 ${plFmtLL(p)}${dist}`);
+      if (p.kind === 'wme') {
+        const parts = PL_KINDS.filter((k) => p.ids[k.param]).map((k) => {
+          const n = p.ids[k.param].length;
+          return `${n} ${L(k.ro[n === 1 ? 0 : 1], k.en[n === 1 ? 0 : 1])}`;
+        });
+        if (p.ur) parts.push(`UR ${p.ur}`);
+        if (p.mp) parts.push(L('problemă de hartă', 'map problem'));
+        if (p.cameras.length) parts.push(L(`${p.cameras.length} camere (vechi, nu se pot selecta)`, `${p.cameras.length} cameras (legacy, can't be selected)`));
+        plLine(info, parts.length ? `${L('Conține', 'Contains')}: ${parts.join(', ')}` : L('Fără obiecte selectate - doar locația.', 'No selected objects - location only.'));
+        if (p.ignored.length) {
+          const ig = plLine(info, L(`Ignorat: ${p.ignored.join(', ')}${p.ignored.includes('s') ? ' (setările straturilor nu se aplică)' : ''}`, `Ignored: ${p.ignored.join(', ')}${p.ignored.includes('s') ? ' (layer settings are not applied)' : ''}`));
+          ig.style.opacity = '0.7';
+        }
+      }
+      body.appendChild(info);
+
+      const acts = document.createElement('div');
+      acts.className = 'pl-actions';
+      acts.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;';
+      if (p.kind === 'wme') {
+        acts.appendChild(plMkBtn(L('▶ Deschide tot', '▶ Open everything'), L('Ca și cum ai deschide permalinkul în browser, fără reîncărcarea paginii: locația, obiectele selectate (și evidențiate), problema deschisă.', 'As if you opened the permalink in the browser, without reloading the page: the location, the selected (and highlighted) objects, the open issue.'), () => plRun(() => plOpenAll(p)), true));
+      }
+      acts.appendChild(
+        plMkBtn(L('📍 Doar locația', '📍 Location only'), L('Mută harta la coordonate, fără să selecteze nimic.', 'Moves the map to the coordinates without selecting anything.'), () =>
+          plRun(async () => {
+            plJump(p, p.kind === 'wme' ? p.zoom || 17 : plCoordZoom(p));
+            plStatus(L('Harta mutată.', 'Map moved.'));
+          })
+        )
+      );
+      if (p.kind === 'wme') {
+        PL_KINDS.filter((k) => p.ids[k.param]).forEach((k) => {
+          const n = p.ids[k.param].length;
+          acts.appendChild(plMkBtn(L(`Selectează ${n === 1 ? k.ro[0] : `${n} ${k.ro[1]}`}`, `Select ${n === 1 ? k.en[0] : `${n} ${k.en[1]}`}`), L('Mută harta, selectează și evidențiază doar aceste obiecte (zoom cât să se vadă toate).', 'Moves the map, selects and highlights only these objects (zoomed to show them all).'), () => plRun(() => plSelectKind(p, k))));
+        });
+        if (p.ur) acts.appendChild(plMkBtn(L(`Deschide UR ${p.ur}`, `Open UR ${p.ur}`), '', () => plRun(() => plOpenProblem(p, true))));
+        if (p.mp) acts.appendChild(plMkBtn(L('Deschide problema de hartă', 'Open the map problem'), '', () => plRun(() => plOpenProblem(p, false))));
+      }
+      if (plState.highlighted) acts.appendChild(plMkBtn(L('Șterge evidențierea', 'Clear highlight'), '', () => {
+        plClearHighlight();
+        plRender(true);
+      }));
+      body.appendChild(acts);
+    } else if (!p) {
+      plLine(body, L('Lipește un permalink WME (și beta), un link Google Maps / Waze sau coordonate GPS. Setările straturilor din permalink (s=…) sunt ignorate.', 'Paste a WME permalink (beta too), a Google Maps / Waze link or GPS coordinates. Layer settings in the permalink (s=…) are ignored.')).style.cssText = 'margin-top:8px; opacity:0.75;';
+    }
+
+    // Origin
+    const ob = box.querySelector('.pl-origin');
+    ob.textContent = '';
+    const o = plOrigin();
+    if (o) {
+      ob.style.cssText = 'margin-top:10px; padding-top:8px; border-top:1px solid rgba(128,128,128,0.3); display:flex; align-items:center; gap:6px; flex-wrap:wrap;';
+      const cur = plView();
+      const txt = document.createElement('div');
+      txt.style.cssText = 'flex:1; min-width:180px;';
+      txt.textContent = L(`Ai plecat de la ${plFmtLL(o)} (zoom ${o.zoom}, ${savedWarnTime(o.at)})${cur ? ` - acum la ${plFmtDist(plDistM(cur, o))}` : ''}.`, `You left from ${plFmtLL(o)} (zoom ${o.zoom}, ${savedWarnTime(o.at)})${cur ? ` - now ${plFmtDist(plDistM(cur, o))} away` : ''}.`);
+      ob.appendChild(txt);
+      ob.appendChild(plMkBtn(L('↩ Înapoi', '↩ Go back'), L('Revino la locația și zoom-ul de unde ai plecat (închide problema, deselectează, șterge evidențierea).', 'Return to the location and zoom you left from (closes the issue, deselects, clears the highlight).'), plGoBack, true));
+      ob.appendChild(plMkBtn(L('Uită', 'Forget'), L('Șterge locația memorată.', 'Forget the remembered location.'), () => {
+        plSaveOrigin(null);
+        plState.lastTarget = null;
+        plRender(true);
+      }));
+    } else {
+      ob.style.cssText = '';
+    }
+  }
+
+  function plEnsureButton() {
+    const existing = document.getElementById(PL_BTN_ID);
+    if (!settings.permalinkTool) {
+      if (existing) existing.remove();
+      plClosePanel();
+      return;
+    }
+    const search = document.getElementById('search-autocomplete');
+    if (!search || !search.parentElement) return;
+    if (existing && existing.isConnected) {
+      plPlaceButton(existing, search);
+      return;
+    }
+    const b = document.createElement('wz-button');
+    b.id = PL_BTN_ID;
+    b.setAttribute('color', 'clear-icon');
+    b.setAttribute('size', 'sm');
+    b.title = L('Deschide un link: permalink WME (și beta), Google Maps, Waze sau coordonate - fără reîncărcarea paginii', 'Open a link: WME permalink (beta too), Google Maps, Waze or coordinates - without reloading the page');
+    // Absolute (not a flex item): the toolbar is `space-between`, a flex
+    // item would land far from the search box and shift it.
+    b.style.cssText = 'position:absolute; top:50%; transform:translateY(-50%); z-index:1;';
+    const i = document.createElement('i');
+    i.className = 'w-icon w-icon-link';
+    b.appendChild(i);
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      plOpenPanel();
+    });
+    search.insertAdjacentElement('afterend', b);
+    plPlaceButton(b, search);
+  }
+
+  function plPlaceButton(b, search) {
+    const host = search.parentElement;
+    const left = `${Math.round(search.getBoundingClientRect().right - host.getBoundingClientRect().left + 6)}px`;
+    if (b.style.left !== left) b.style.left = left;
+  }
+
+  function plPoll() {
+    try {
+      plEnsureButton();
+    } catch (e) {
+      // toolbar not ready
+    }
+    // Panel open: refresh the distances once the map has moved.
+    if (!plState.busy && document.getElementById(PL_PANEL_ID)) {
+      const v = plView();
+      const r = plState.renderedView;
+      if (v && (!r || r.zoom !== v.zoom || plDistM(r, v) > 50)) plRender(true);
+    }
+  }
+
+  function plRemoveAll() {
+    plClosePanel();
+    plClearHighlight();
+    const b = document.getElementById(PL_BTN_ID);
+    if (b) b.remove();
   }
 
   // ---------------------------------------------------------------------
@@ -13910,6 +14809,8 @@
     setInterval(drawLenWatch, DRAW_LEN_WATCH_MS);
     mapIconsApply(true);
     setInterval(() => mapIconsApply(false), MAP_ICONS_POLL_MS);
+    plPoll();
+    setInterval(plPoll, PL_POLL_MS);
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);

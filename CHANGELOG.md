@@ -23,6 +23,24 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.49.0 - „Deschide un link”: permalink / Google Maps / Waze fără reîncărcare (pe `dev`, nepublicată)
+
+- **Nou:** buton 🔗 lângă bara de căutare de sus → fereastră unde lipești
+  (sau „📋 Lipește” din clipboard) un permalink WME (www sau beta, orice
+  limbă), un link Google Maps (și scurt, maps.app.goo.gl), Waze (app /
+  Live Map) sau coordonate GPS.
+- Arată ce conține linkul și la ce distanță / în ce direcție e față de
+  vizualizarea ta; avertizează dacă permalinkul e pe alt server (env).
+- Butoane: „Deschide tot” (ca permalinkul, fără reîncărcarea paginii),
+  „Doar locația”, „Selectează segmentele / nodurile / locul / JB-ul /
+  comentariul / pericolul” (cu zoom cât să se vadă toate), „Deschide UR-ul”,
+  „Deschide problema de hartă”. Obiectele selectate sunt evidențiate cu mov
+  (rămân vizibile când UR-ul deschis le deselectează).
+- Setările straturilor din permalink (`s=`) și orice alt parametru sunt
+  ignorate.
+- Locația de plecare e memorată pe sesiune, cu „↩ Înapoi” și „Uită”.
+- Opțiune nouă: „Buton „Deschide un link” lângă căutare” (pornită).
+
 ## 2026-11-10 - v0.48.2 - camere și treceri CF puțin mai mari (pe `dev`, nepublicată)
 
 - Pinii camerelor și ai trecerilor CF: ×0,65 (~27x30 px) în loc de ×0,52
