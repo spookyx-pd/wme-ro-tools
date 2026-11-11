@@ -23,6 +23,18 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.51.2 - drumuri închise: fereastră cu detalii, Duplicat, Ziua următoare (pe `dev`, nepublicată)
+
+- Fereastra de la hover pe o închidere arată acum: starea (activă /
+  programată / încheiată), descrierea (sau „fără descriere”), intervalul cu
+  durata, sensul (A → B / B → A / ambele), nodul de început cu numele lui și
+  dacă e închis, detectarea traficului, cine a creat-o și când, ultima
+  actualizare.
+- Butoane noi: „⧉ Duplicat” și „↻ Ziua următoare” (acțiunile WME din meniul
+  închiderii; „Ziua următoare” și „Șterge” doar la închiderile neîncheiate).
+- „Editează” mai sigur: așteaptă ca tabul „Drumuri închise” să rămână
+  activ și, dacă formularul nu s-a deschis, mai încearcă o dată.
+
 ## 2026-11-11 - v0.51.1 - drumuri închise: fereastra nu apărea în unele zone (pe `dev`, nepublicată)
 
 - **Reparat:** dacă în zona vizibilă exista o închidere fără date de

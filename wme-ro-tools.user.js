@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.51.1
+// @version      0.51.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.51.1';
+  const SCRIPT_VERSION = '0.51.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -127,7 +127,7 @@
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
     { v: '0.51', items: [
-      L('Drumuri închise: cu mouse-ul pe simbolul unei închideri vezi datele ei și ai butoanele „Editează” (deschide direct formularul închiderii) și „Șterge”.', 'Road closures: hovering a closure symbol shows its data with "Edit" (opens the closure form directly) and "Delete" buttons.'),
+      L('Drumuri închise: cu mouse-ul pe simbolul unei închideri vezi detaliile ei (descriere, interval, sens, noduri, detectarea traficului, cine a creat-o / actualizat-o) și ai butoanele „Editează” (deschide direct formularul), „Duplicat”, „Ziua următoare” și „Șterge”.', 'Road closures: hovering a closure symbol shows its details (description, period, direction, nodes, traffic detection, who created / updated it) with "Edit" (opens the form directly), "Duplicate", "Next day" and "Delete" buttons.'),
     ] },
     { v: '0.50', items: [
       L('Pastila de nivel 1: cu mouse-ul deasupra alegi rapid nivelul de blocare pentru segment.', 'Level 1 pill: hover it to quickly pick the lock level for the segment.'),
@@ -1124,8 +1124,8 @@
     addToggle(
       'closureQuickActions',
       L('Butoane rapide la drumurile închise', 'Quick buttons on road closures'),
-      L('Cu mouse-ul pe simbolul unui drum închis apar „Editează” și „Șterge”.', 'Hovering a road closure symbol shows "Edit" and "Delete".'),
-      L('Când ții mouse-ul deasupra simbolului roșu al unui drum închis (pe hartă), apare deasupra lui o fereastră mică cu datele închiderii (descriere, început → sfârșit, un sens / ambele sensuri) și două butoane: „✏️ Editează” selectează segmentul, deschide tabul „Drumuri închise” și formularul de editare al închiderii; „🗑 Șterge” (click de 2 ori) șterge închiderea - ca la „Șterge” din WME, adică ambele sensuri dacă sunt pe aceeași fișă. Ștergerea se aplică la Salvează (până atunci se anulează cu Ctrl+Z); după salvare WME o păstrează ca „Încheiată mai devreme”. La închiderile deja încheiate apare doar „Editează”.', 'When you hover the red symbol of a road closure (on the map), a small window shows above it with the closure data (description, start → end, one / both directions) and two buttons: "✏️ Edit" selects the segment, opens the "Closures" tab and the closure\'s edit form; "🗑 Delete" (click twice) deletes the closure - like "Delete" in WME, i.e. both directions if they are on the same card. The deletion is applied on Save (until then Ctrl+Z undoes it); after saving WME keeps it as "Finished early". Closures that already ended only get "Edit".')
+      L('Cu mouse-ul pe simbolul unui drum închis vezi detaliile și ai Editează, Duplicat, Ziua următoare, Șterge.', 'Hovering a road closure symbol shows its details with Edit, Duplicate, Next day, Delete.'),
+      L('Când ții mouse-ul deasupra simbolului roșu al unui drum închis (pe hartă), apare deasupra lui o fereastră mică cu starea (activă / programată / încheiată), descrierea (sau „fără descriere”), intervalul și durata, sensul (A → B, B → A sau ambele), nodul de început cu numele lui și dacă e închis, detectarea traficului (activă / dezactivată), cine a creat-o și când, ultima actualizare. Butoane: „✏️ Editează” selectează segmentul, deschide tabul „Drumuri închise” și formularul de editare al închiderii; „⧉ Duplicat” și „↻ Ziua următoare” rulează acțiunile WME din meniul închiderii; „🗑 Șterge” (click de 2 ori) șterge închiderea - ca la „Șterge” din WME, adică ambele sensuri dacă sunt pe aceeași fișă. Ștergerea se aplică la Salvează (până atunci se anulează cu Ctrl+Z); după salvare WME o păstrează ca „Încheiată mai devreme”. La închiderile deja încheiate apare doar „Editează”.', 'When you hover the red symbol of a road closure (on the map), a small window shows above it with the status (active / scheduled / finished), description (or "no description"), period and duration, direction (A → B, B → A or both), the start node with its name and whether it is closed, traffic detection (enabled / disabled), who created it and when, last update. Buttons: "✏️ Edit" selects the segment, opens the "Closures" tab and the closure\'s edit form; "⧉ Duplicate" and "↻ Next day" run the WME actions from the closure menu; "🗑 Delete" (click twice) deletes the closure - like "Delete" in WME, i.e. both directions if they are on the same card. The deletion is applied on Save (until then Ctrl+Z undoes it); after saving WME keeps it as "Finished early". Closures that already ended only get "Edit".')
     );
     addToggle(
       'drawLengthBadge',
@@ -4500,39 +4500,132 @@
     return list.filter((c) => c.startDate === main.startDate && c.endDate === main.endDate && (c.description || '') === (main.description || ''));
   }
 
-  // All loaded closures. v0.51.1: `sdk.DataModel.RoadClosures.getAll()`
-  // (and getById) THROWS when a closure has `attributions: null` (seen on
-  // finished closures made by other users / older ones - "Cannot read
-  // properties of null (reading 'map')" inside the SDK), so one such
-  // closure in view broke the popup for all of them. Fallback: the
-  // W.model objects, through the SDK one by one, else from their raw
-  // attributes (segID, forward, startDate, endDate, reason, closureStatus).
+  // All loaded segment closures, normalised. v0.51.1: `sdk.DataModel.
+  // RoadClosures.getAll()` (and getById) THROWS when a closure has
+  // `attributions: null` (finished closures of other users - "Cannot read
+  // properties of null (reading 'map')" inside the SDK), which broke the
+  // popup for the whole area. v0.51.2: read W.model.roadClosures directly
+  // (it also has what the SDK object lacks: `permanent` = "Disable traffic
+  // detection", `fromNodeClosed`, numeric createdBy / updatedBy); the SDK
+  // is only a fallback.
   function rcAllClosures() {
+    let objs = null;
     try {
-      return sdk.DataModel.RoadClosures.getAll() || [];
+      objs = window.W.model.roadClosures.getObjectArray();
     } catch (e) {
-      // fall through
+      objs = null;
     }
-    let objs = [];
+    if (objs) {
+      return objs
+        .map((o) => {
+          const a = o.attributes || {};
+          if (a.closureType && a.closureType !== 'SEGMENT') return null;
+          return {
+            id: o.getID ? o.getID() : a.id,
+            segmentId: a.segID,
+            isForward: !!a.forward,
+            startDate: a.startDate,
+            endDate: a.endDate,
+            description: a.reason || '',
+            status: a.closureStatus || '',
+            permanent: !!a.permanent,
+            fromNodeClosed: !!a.fromNodeClosed,
+            createdBy: a.createdBy,
+            createdOn: a.createdOn,
+            updatedBy: a.updatedBy,
+            updatedOn: a.updatedOn,
+          };
+        })
+        .filter((c) => c && c.segmentId != null);
+    }
     try {
-      objs = window.W.model.roadClosures.getObjectArray() || [];
+      return (sdk.DataModel.RoadClosures.getAll() || []).map((c) => ({
+        ...c,
+        permanent: !!c.isPermanent,
+        fromNodeClosed: null,
+        createdBy: c.modificationData && c.modificationData.createdBy,
+        createdOn: c.modificationData && c.modificationData.createdOn,
+        updatedBy: c.modificationData && c.modificationData.updatedBy,
+        updatedOn: c.modificationData && c.modificationData.updatedOn,
+      }));
     } catch (e) {
-      objs = [];
+      return [];
     }
-    return objs
-      .map((o) => {
-        const id = o.getID ? o.getID() : o.attributes && o.attributes.id;
+  }
+
+  // User id (W.model) or name (SDK) -> "name(level)".
+  function rcUser(u) {
+    if (u === null || u === undefined || u === '') return '';
+    if (typeof u === 'string' && !/^\d+$/.test(u)) return u;
+    try {
+      const o = window.W.model.users.getObjectById(Number(u));
+      const a = o && o.attributes;
+      if (a && a.userName) return Number.isFinite(a.rank) ? `${a.userName}(${a.rank + 1})` : a.userName;
+    } catch (e) {
+      // unknown user
+    }
+    return `#${u}`;
+  }
+
+  // ms timestamp -> "Mie 11-11-2026, 22:09" (as in the WME closure form).
+  function rcFmtTs(ms) {
+    if (!ms) return '';
+    const d = new Date(ms);
+    if (Number.isNaN(d.getTime())) return '';
+    const p = (n) => String(n).padStart(2, '0');
+    const days = LANG === 'en' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['Dum', 'Lun', 'Mar', 'Mie', 'Joi', 'Vin', 'Sâm'];
+    return `${days[d.getDay()]} ${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  // Closure duration "5 z 18 h" / "45 min".
+  function rcDuration(c) {
+    const parse = (x) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(x || ''));
+      return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]).getTime() : NaN;
+    };
+    const ms = parse(c.endDate) - parse(c.startDate);
+    if (!Number.isFinite(ms) || ms <= 0) return '';
+    const min = Math.round(ms / 60000);
+    const dd = Math.floor(min / 1440);
+    const hh = Math.floor((min % 1440) / 60);
+    const mm = min % 60;
+    const parts = [];
+    if (dd) parts.push(`${dd} ${L('z', 'd')}`);
+    if (hh) parts.push(`${hh} h`);
+    if (!dd && mm) parts.push(`${mm} min`);
+    return parts.join(' ');
+  }
+
+  // The node a closure starts from (A for A→B, B for B→A) and its name as
+  // WME shows it in "Closed nodes": the street names of the OTHER segments
+  // at that node (e.g. "A6").
+  function rcStartNode(c) {
+    let seg = null;
+    try {
+      seg = sdk.DataModel.Segments.getById({ segmentId: c.segmentId });
+    } catch (e) {
+      seg = null;
+    }
+    if (!seg) return null;
+    const letter = c.isForward ? 'A' : 'B';
+    const nodeId = c.isForward ? seg.fromNodeId : seg.toNodeId;
+    const names = new Set();
+    try {
+      const node = sdk.DataModel.Nodes.getById({ nodeId });
+      (node && node.connectedSegmentIds ? node.connectedSegmentIds : []).forEach((sid) => {
+        if (sid === c.segmentId) return;
         try {
-          const c = sdk.DataModel.RoadClosures.getById({ roadClosureId: id });
-          if (c) return c;
+          const o = sdk.DataModel.Segments.getById({ segmentId: sid });
+          const st = o && o.primaryStreetId ? sdk.DataModel.Streets.getById({ streetId: o.primaryStreetId }) : null;
+          if (st && st.name) names.add(st.name);
         } catch (e) {
-          // fall back to the raw attributes
+          // skip
         }
-        const a = o.attributes || {};
-        if (a.closureType && a.closureType !== 'SEGMENT') return null;
-        return { id, segmentId: a.segID, isForward: !!a.forward, startDate: a.startDate, endDate: a.endDate, description: a.reason || '', status: a.closureStatus || '' };
-      })
-      .filter((c) => c && c.segmentId != null);
+      });
+    } catch (e) {
+      // no node data
+    }
+    return { letter, nodeId, name: [...names].join(' / ') };
   }
 
   // "2026-08-28 19:26" -> "28-08-2026 19:26" (as on the WME card).
@@ -4545,41 +4638,73 @@
     return new Promise((r) => setTimeout(r, ms));
   }
 
-  async function rcEdit(closures) {
-    const c = closures[0];
-    rcHide();
+  // Select the segment, open its "Closures" tab and return the card of
+  // these closures (or null). The panel is re-rendered after the selection
+  // (and WME may switch back to "General" a moment later), so the 2nd tab
+  // is clicked until it has stayed active for two checks in a row.
+  async function rcOpenCard(c) {
     try {
       sdk.Editing.setSelection({ selection: { objectType: 'segment', ids: [c.segmentId] } });
     } catch (e) {
       phShowToast(L('Segmentul închis nu a putut fi selectat.', 'The closed segment could not be selected.'), true);
-      return;
+      return null;
     }
-    // Open the "Closures" tab of the segment panel. The panel is re-rendered
-    // after the selection, so a click too early lands on the old tabs:
-    // click until the 2nd tab really is active.
-    let opened = false;
-    for (let i = 0; i < 30 && !opened; i++) {
+    let stable = 0;
+    for (let i = 0; i < 40 && stable < 2; i++) {
       await rcSleep(150);
       const tabs = document.querySelector('#edit-panel wz-tabs');
-      if (!tabs) continue;
-      if (tabs.children[1] && tabs.children[1].hasAttribute('is-active')) {
-        opened = true;
-        break;
+      if (!tabs || !tabs.children[1]) {
+        stable = 0;
+        continue;
       }
+      if (tabs.children[1].hasAttribute('is-active')) {
+        stable++;
+        continue;
+      }
+      stable = 0;
       const labels = tabs.shadowRoot ? tabs.shadowRoot.querySelectorAll('.wz-tab-label') : null;
       if (labels && labels.length >= 2) labels[1].click();
     }
-    if (!opened) return;
-    // Click the matching card -> WME's edit form.
-    const want = [`${rcFmtDate(c.startDate)}`, `${rcFmtDate(c.endDate)}`];
+    if (stable < 2) {
+      phShowToast(L('Tabul „Drumuri închise” nu s-a deschis - încearcă din nou.', 'The "Closures" tab did not open - try again.'), true);
+      return null;
+    }
+    const want = [rcFmtDate(c.startDate), rcFmtDate(c.endDate)];
     for (let i = 0; i < 20; i++) {
-      await rcSleep(150);
       const cards = [...document.querySelectorAll('#edit-panel wz-card[class*="closureCard"]')];
-      if (!cards.length) continue;
-      const card = cards.find((k) => want.every((w) => k.innerText.includes(w))) || (cards.length === 1 ? cards[0] : null);
-      if (card) card.click();
+      if (cards.length) return cards.find((k) => want.every((w) => k.innerText.includes(w))) || (cards.length === 1 ? cards[0] : null);
+      await rcSleep(150);
+    }
+    return null;
+  }
+
+  // kind: 'edit' (click the card = WME's edit form), 'duplicate' or
+  // 'repeat' (WME's own items of the card's ⋮ menu - "Duplicat", "Repetă
+  // ziua următoare"; matched by text RO / EN, else by position).
+  async function rcCardAction(closures, kind) {
+    rcHide();
+    const card = await rcOpenCard(closures[0]);
+    if (!card) return;
+    if (kind === 'edit') {
+      card.click();
+      // Form not open (e.g. the card was re-rendered) - one more try.
+      await rcSleep(500);
+      if (!document.querySelector('#edit-panel #closure_reason')) {
+        const again = await rcOpenCard(closures[0]);
+        if (again) again.click();
+      }
       return;
     }
+    const items = [...card.querySelectorAll('wz-menu-item')];
+    const re = kind === 'duplicate' ? /dupli/i : /repet|repeat|next day|ziua/i;
+    let item = items.find((m) => re.test(m.textContent || ''));
+    if (!item && kind === 'duplicate') item = items.length >= 4 ? items[2] : items[items.length - 1];
+    if (!item && kind === 'repeat' && items.length >= 4) item = items[3];
+    if (!item) {
+      phShowToast(L('WME nu oferă această acțiune pentru închidere.', 'WME does not offer this action for the closure.'), true);
+      return;
+    }
+    item.click();
   }
 
   function rcDelete(closures) {
@@ -4628,7 +4753,7 @@
     const t = currentTheme();
     const box = document.createElement('div');
     box.className = RC_POPUP_CLASS;
-    box.style.cssText = `position:fixed; left:0; top:0; z-index:${OWN_UI_MENU_Z_INDEX}; padding:6px 8px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 2px 8px rgba(0,0,0,0.4); font:11px/1.35 Arial, sans-serif; display:flex; flex-direction:column; gap:5px; pointer-events:auto; max-width:300px;`;
+    box.style.cssText = `position:fixed; left:0; top:0; z-index:${OWN_UI_MENU_Z_INDEX}; padding:8px 10px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 2px 10px rgba(0,0,0,0.45); font:11px/1.4 Arial, sans-serif; display:flex; flex-direction:column; gap:6px; pointer-events:auto; width:max-content; max-width:400px;`;
     box.addEventListener('mouseenter', () => {
       clearTimeout(rcState.hideT);
       rcState.hideT = null;
@@ -4636,23 +4761,66 @@
     box.addEventListener('mouseleave', rcScheduleHide);
     ['mousedown', 'mouseup', 'click', 'dblclick'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
 
-    const info = document.createElement('div');
-    info.style.cssText = 'white-space:normal;';
-    const desc = c.description ? `„${c.description}” · ` : '';
-    const dirTxt = closures.length > 1 ? L('ambele sensuri', 'both directions') : L('un sens', 'one direction');
-    const st = String(c.status || '');
-    const finished = /FINISH/i.test(st);
-    const stTxt = finished ? L('încheiată', 'finished') : /ACTIVE/i.test(st) ? L('activă', 'active') : L('programată', 'scheduled');
-    info.textContent = `${desc}${rcFmtDate(c.startDate)} → ${c.endDate ? rcFmtDate(c.endDate) : L('fără sfârșit', 'no end')} · ${dirTxt} · ${stTxt}`;
-    box.appendChild(info);
+    // Header: title + status pill.
+    const st = String(c.status || '').toUpperCase();
+    const finished = /FINISH/.test(st);
+    const active = st === 'ACTIVE';
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex; align-items:center; gap:8px;';
+    const title = document.createElement('span');
+    title.style.cssText = 'font-weight:700; font-size:12px;';
+    title.textContent = L('⛔ Drum închis', '⛔ Road closure');
+    const pill = document.createElement('span');
+    const pc = finished ? '#8a8f98' : active ? '#e5484d' : '#f0a020';
+    pill.style.cssText = `padding:1px 8px; border-radius:9px; font-weight:700; font-size:10px; color:#fff; background:${pc};`;
+    pill.textContent = finished ? L('Încheiată', 'Finished') : active ? L('Activă', 'Active') : L('Programată', 'Scheduled');
+    head.append(title, pill);
+    box.appendChild(head);
+
+    // Label / value grid.
+    const grid = document.createElement('div');
+    grid.style.cssText = 'display:grid; grid-template-columns:auto 1fr; column-gap:8px; row-gap:3px;';
+    const line = (label, value, dim) => {
+      const k = document.createElement('span');
+      k.style.cssText = 'opacity:0.65; white-space:nowrap;';
+      k.textContent = label;
+      const v = document.createElement('span');
+      v.style.cssText = `overflow-wrap:anywhere;${dim ? ' opacity:0.6; font-style:italic;' : ''}`;
+      v.textContent = value;
+      grid.append(k, v);
+    };
+    line(L('Descriere', 'Description'), c.description || L('fără descriere', 'no description'), !c.description);
+    const dur = rcDuration(c);
+    line(L('Interval', 'Period'), `${rcFmtDate(c.startDate)} → ${c.endDate ? rcFmtDate(c.endDate) : L('fără sfârșit', 'no end')}${dur ? ` (${dur})` : ''}`);
+    const both = closures.some((x) => x.isForward) && closures.some((x) => !x.isForward);
+    line(L('Sens', 'Direction'), both ? L('ambele sensuri (A ⇆ B)', 'both directions (A ⇆ B)') : c.isForward ? 'A → B' : 'B → A');
+    // Closed nodes: the start node of each closure of the card.
+    const nodeTxt = closures
+      .slice()
+      .sort((x, y) => (x.isForward === y.isForward ? 0 : x.isForward ? -1 : 1))
+      .map((x) => {
+        const n = rcStartNode(x);
+        if (!n) return null;
+        const closed = x.fromNodeClosed === null ? '?' : x.fromNodeClosed ? L('închis', 'closed') : L('deschis', 'open');
+        return `${L('nod', 'node')} ${n.letter}${n.name ? ` (${n.name})` : ''}: ${closed}`;
+      })
+      .filter(Boolean)
+      .join(' · ');
+    if (nodeTxt) line(L('Noduri', 'Nodes'), nodeTxt);
+    line(L('Detectare trafic', 'Traffic detection'), c.permanent ? L('dezactivată (închidere fixă)', 'disabled (fixed closure)') : L('activă', 'enabled'));
+    const cr = rcFmtTs(c.createdOn);
+    line(L('Creat', 'Created'), cr ? `${cr}${c.createdBy != null ? ` ${L('de', 'by')} ${rcUser(c.createdBy)}` : ''}` : '—', !cr);
+    const up = rcFmtTs(c.updatedOn);
+    line(L('Actualizat', 'Updated'), up ? `${up}${c.updatedBy != null ? ` ${L('de', 'by')} ${rcUser(c.updatedBy)}` : ''}` : L('niciodată', 'never'), !up);
+    box.appendChild(grid);
 
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex; gap:6px;';
-    const mk = (label, title, onClick, danger) => {
+    row.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;';
+    const mk = (label, title2, onClick, danger) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = label;
-      b.title = title;
+      b.title = title2;
       b.style.cssText = `height:24px; padding:0 10px; border-radius:12px; border:1px solid ${danger ? '#e5484d' : t.menuBorder}; background:transparent; color:${danger ? '#e5484d' : t.menuText}; font:600 11px/1 Arial, sans-serif; cursor:pointer; white-space:nowrap;`;
       b.addEventListener('mouseenter', () => {
         b.style.background = danger ? 'rgba(229,72,77,0.15)' : t.menuHoverBg;
@@ -4666,25 +4834,29 @@
       });
       return b;
     };
-    row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => rcEdit(closures)));
-    // A finished closure can't be deleted any more (WME keeps it as
-    // history) - only "Edit" (= open it).
-    if (!finished) row.appendChild(
-      mk(
-        L('🗑 Șterge', '🗑 Delete'),
-        L('Șterge închiderea (click de 2 ori). Se aplică la Salvează (până atunci Ctrl+Z anulează); după salvare WME o arată „Încheiată mai devreme”.', 'Deletes the closure (click twice). Applied on Save (until then Ctrl+Z undoes); after saving WME shows it as "Finished early".'),
-        (b) => {
-          if (!rcState.confirm) {
-            rcState.confirm = true;
-            b.textContent = closures.length > 1 ? L('Sigur? (ambele sensuri)', 'Sure? (both directions)') : L('Sigur?', 'Sure?');
-            b.style.background = 'rgba(229,72,77,0.25)';
-            return;
-          }
-          rcDelete(closures);
-        },
-        true
-      )
-    );
+    row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => rcCardAction(closures, 'edit')));
+    row.appendChild(mk(L('⧉ Duplicat', '⧉ Duplicate'), L('„Duplicat” din meniul închiderii (WME deschide formularul cu o copie).', '"Duplicate" from the closure menu (WME opens the form with a copy).'), () => rcCardAction(closures, 'duplicate')));
+    if (!finished) {
+      row.appendChild(mk(L('↻ Ziua următoare', '↻ Next day'), L('„Repetă ziua următoare” din meniul închiderii (acțiunea WME).', '"Repeat next day" from the closure menu (the WME action).'), () => rcCardAction(closures, 'repeat')));
+      // A finished closure can't be deleted any more (WME keeps it as
+      // history).
+      row.appendChild(
+        mk(
+          L('🗑 Șterge', '🗑 Delete'),
+          L('Șterge închiderea (click de 2 ori). Se aplică la Salvează (până atunci Ctrl+Z anulează); după salvare WME o arată „Încheiată mai devreme”.', 'Deletes the closure (click twice). Applied on Save (until then Ctrl+Z undoes); after saving WME shows it as "Finished early".'),
+          (b) => {
+            if (!rcState.confirm) {
+              rcState.confirm = true;
+              b.textContent = closures.length > 1 ? L('Sigur? (ambele sensuri)', 'Sure? (both directions)') : L('Sigur?', 'Sure?');
+              b.style.background = 'rgba(229,72,77,0.25)';
+              return;
+            }
+            rcDelete(closures);
+          },
+          true
+        )
+      );
+    }
     box.appendChild(row);
     getMapOverlayContainer().appendChild(box);
     const r = el.getBoundingClientRect();
