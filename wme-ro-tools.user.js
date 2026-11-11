@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.50.3
+// @version      0.50.4
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.50.3';
+  const SCRIPT_VERSION = '0.50.4';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -1122,7 +1122,7 @@
       'permalinkTool',
       L('Buton „Deschide un link” lângă căutare', '"Open a link" button next to search'),
       L('🔗 lângă bara de căutare: lipești un permalink (și beta), un link Google Maps / Waze sau coordonate și mergi acolo fără reîncărcarea paginii.', '🔗 next to the search bar: paste a permalink (beta too), a Google Maps / Waze link or coordinates and go there without reloading the page.'),
-      L('Fereastra arată ce conține linkul și cât de departe e de vizualizarea ta. Pentru un permalink WME (www sau beta) ai butoane separate: „Deschide tot” (ca și cum l-ai deschide în browser: locația, obiectele selectate, UR-ul / problema deschisă), „Doar locația”, „Selectează segmentele / nodurile / locul / JB-ul…” (cu zoom cât să se vadă toate) și „Deschide UR-ul / problema”. Obiectele selectate sunt și evidențiate cu mov, ca să le vezi și după ce UR-ul deschis le deselectează. Setările straturilor din permalink (s=…) și orice alt parametru sunt ignorate. Pentru Google Maps (inclusiv linkuri scurte maps.app.goo.gl), Waze sau coordonate GPS, harta se mută la coordonate. Locația de unde ai plecat e memorată pe durata sesiunii, cu buton „↩ Înapoi”; se păstrează cât treci de la un link la altul și se înlocuiește doar dacă te-ai întors singur departe (peste 2 km) de ultimul link deschis.', 'The window shows what the link contains and how far it is from your view. For a WME permalink (www or beta) there are separate buttons: "Open everything" (as if you opened it in the browser: location, selected objects, open UR / issue), "Location only", "Select the segments / nodes / place / JB…" (zoomed to show them all) and "Open the UR / issue". Selected objects are also highlighted in purple, so you still see them after the opened UR deselects them. Layer settings in the permalink (s=…) and any other parameter are ignored. For Google Maps (incl. maps.app.goo.gl short links), Waze or GPS coordinates the map moves to the coordinates. The place you left from is remembered for the session, with a "↩ Go back" button; it is kept while you move from link to link and replaced only if you went back by yourself far (over 2 km) from the last opened link.')
+      L('Fereastra arată ce conține linkul și cât de departe e de vizualizarea ta. Pentru un permalink WME (www sau beta) ai butoane separate: „Deschide tot” (ca și cum l-ai deschide în browser: locația, obiectele selectate, UR-ul / problema deschisă), „Doar locația”, „Selectează segmentele / nodurile / locul / JB-ul…” (cu zoom cât să se vadă toate) și „Deschide UR-ul / problema”. Obiectele selectate sunt și evidențiate cu mov, ca să le vezi și după ce UR-ul deschis le deselectează. Setările straturilor din permalink (s=…) și orice alt parametru sunt ignorate. Pentru Google Maps (inclusiv linkuri scurte maps.app.goo.gl), Waze sau coordonate GPS, harta se mută la coordonate. Punctul exact al coordonatelor din link e marcat pe hartă cu un cerc roșu (rămâne și când faci zoom, până apeși „Șterge marcajele”, „↩ Înapoi” sau deschizi alt link). Locația de unde ai plecat e memorată pe durata sesiunii, cu buton „↩ Înapoi”; se păstrează cât treci de la un link la altul și se înlocuiește doar dacă te-ai întors singur departe (peste 2 km) de ultimul link deschis.', 'The window shows what the link contains and how far it is from your view. For a WME permalink (www or beta) there are separate buttons: "Open everything" (as if you opened it in the browser: location, selected objects, open UR / issue), "Location only", "Select the segments / nodes / place / JB…" (zoomed to show them all) and "Open the UR / issue". Selected objects are also highlighted in purple, so you still see them after the opened UR deselects them. Layer settings in the permalink (s=…) and any other parameter are ignored. For Google Maps (incl. maps.app.goo.gl short links), Waze or GPS coordinates the map moves to the coordinates. The exact point of the coordinates in the link is marked on the map with a red circle (it stays when you zoom, until "Clear markers", "↩ Go back" or another link). The place you left from is remembered for the session, with a "↩ Go back" button; it is kept while you move from link to link and replaced only if you went back by yourself far (over 2 km) from the last opened link.')
     );
     addToggle(
       'compactMapIcons',
@@ -3817,6 +3817,9 @@
           { predicate: (p) => p.kind === 'line', style: { strokeColor: '#c026d3', strokeWidth: 18, strokeOpacity: 0.55, strokeLinecap: 'round' } },
           { predicate: (p) => p.kind === 'point', style: { pointRadius: 16, fillColor: '#c026d3', fillOpacity: 0.15, strokeColor: '#c026d3', strokeWidth: 3, strokeOpacity: 0.9 } },
           { predicate: (p) => p.kind === 'area', style: { fillColor: '#c026d3', fillOpacity: 0.12, strokeColor: '#c026d3', strokeWidth: 4, strokeOpacity: 0.8 } },
+          // v0.50.4: the link's exact coordinates (red dot + halo).
+          { predicate: (p) => p.kind === 'target-halo', style: { pointRadius: 20, fillColor: '#e5484d', fillOpacity: 0.12, strokeColor: '#e5484d', strokeWidth: 2, strokeOpacity: 0.7 } },
+          { predicate: (p) => p.kind === 'target', style: { pointRadius: 6, fillColor: '#e5484d', fillOpacity: 1, strokeColor: '#ffffff', strokeWidth: 2, strokeOpacity: 1 } },
         ],
       });
       plState.layer = true;
@@ -3826,8 +3829,37 @@
     return plState.layer;
   }
 
+  // Highlighted objects (`hlFeats`) + the red marker at the link's exact
+  // coordinates (`target`, v0.50.4 - Paul: "să apară [...] un cerc roșu
+  // [...] unde sunt acele coordonate GPS", the map center is hard to tell
+  // after zooming). Both stay anchored on the map until "Clear", "Go back"
+  // or a new link.
+  function plDraw() {
+    if (!plLayer()) return;
+    try {
+      sdk.Map.removeAllFeaturesFromLayer({ layerName: PL_LAYER });
+    } catch (e) {
+      // ignore
+    }
+    const feats = (plState.hlFeats || []).slice();
+    const t = plState.target;
+    if (t) {
+      const g = { type: 'Point', coordinates: [t.lon, t.lat] };
+      feats.push({ type: 'Feature', id: 'pl-target-halo', geometry: g, properties: { kind: 'target-halo' } });
+      feats.push({ type: 'Feature', id: 'pl-target', geometry: g, properties: { kind: 'target' } });
+    }
+    if (!feats.length) return;
+    try {
+      sdk.Map.addFeaturesToLayer({ layerName: PL_LAYER, features: feats });
+    } catch (e) {
+      // ignore
+    }
+  }
+
   function plClearHighlight() {
     plState.highlighted = false;
+    plState.hlFeats = [];
+    plState.target = null;
     if (!plState.layer) return;
     try {
       sdk.Map.removeAllFeaturesFromLayer({ layerName: PL_LAYER });
@@ -3837,8 +3869,6 @@
   }
 
   function plHighlight(found) {
-    if (!plLayer()) return;
-    plClearHighlight();
     const feats = [];
     found.forEach((f, i) => {
       const g = f.geometry;
@@ -3846,13 +3876,9 @@
       const kind = /Line/.test(g.type) ? 'line' : /Polygon/.test(g.type) ? 'area' : 'point';
       feats.push({ type: 'Feature', id: `pl-${i}`, geometry: g, properties: { kind } });
     });
-    if (!feats.length) return;
-    try {
-      sdk.Map.addFeaturesToLayer({ layerName: PL_LAYER, features: feats });
-      plState.highlighted = true;
-    } catch (e) {
-      // ignore
-    }
+    plState.hlFeats = feats;
+    plState.highlighted = feats.length > 0 || !!plState.target;
+    plDraw();
   }
 
   // --- actions -------------------------------------------------------------
@@ -3965,6 +3991,9 @@
   function plJump(p, zoom) {
     plRememberOrigin({ lat: p.lat, lon: p.lon });
     plCenterOn(p.lat, p.lon, zoom);
+    plState.target = { lat: p.lat, lon: p.lon };
+    plState.highlighted = true;
+    plDraw();
   }
 
   // Select one kind of object from the permalink (and highlight it).
@@ -4260,7 +4289,7 @@
         if (p.ur) acts.appendChild(plMkBtn(L(`Deschide UR ${p.ur}`, `Open UR ${p.ur}`), '', () => plRun(() => plOpenProblem(p, true))));
         if (p.mp) acts.appendChild(plMkBtn(L('Deschide problema de hartă', 'Open the map problem'), '', () => plRun(() => plOpenProblem(p, false))));
       }
-      if (plState.highlighted) acts.appendChild(plMkBtn(L('Șterge evidențierea', 'Clear highlight'), '', () => {
+      if (plState.highlighted) acts.appendChild(plMkBtn(L('Șterge marcajele', 'Clear markers'), L('Șterge cercul roșu al coordonatelor și evidențierea mov a obiectelor.', 'Removes the red coordinates circle and the purple highlight of the objects.'), () => {
         plClearHighlight();
         plRender(true);
       }));

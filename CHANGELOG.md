@@ -23,6 +23,13 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.50.4 - „Deschide un link”: cerc roșu la coordonatele linkului (pe `dev`, nepublicată)
+
+- La orice salt din „Deschide un link” (locație, deschide tot, selectare),
+  punctul exact al coordonatelor din link e marcat pe hartă cu un cerc roșu
+  (punct roșu cu halou). Rămâne ancorat la zoom, până la „Șterge
+  marcajele” (fost „Șterge evidențierea”), „↩ Înapoi” sau alt link.
+
 ## 2026-11-11 - v0.50.3 - previzualizarea rândurilor noi: „Nu mai arăta în această sesiune” (pe `dev`, nepublicată)
 
 - În fereastra de previzualizare (înlocuirea rândurilor noi în mesajele
