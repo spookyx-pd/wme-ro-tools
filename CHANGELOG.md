@@ -23,6 +23,11 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.50.1 - „Toate de pe ecran” doar pentru editorii de nivel 6 (pe `dev`, nepublicată)
+
+- În meniul pastilei de nivel 1, rândul „Toate N de pe ecran” apare doar
+  pentru editorii de nivel 6; ceilalți văd doar „Segmentul ăsta”.
+
 ## 2026-11-11 - v0.50.0 - pastila de nivel 1: meniu rapid de blocare (pe `dev`, nepublicată)
 
 - **Nou:** cu mouse-ul deasupra pastilei portocalii (segment blocat la

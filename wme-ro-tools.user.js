@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.50.0
+// @version      0.50.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.50.0';
+  const SCRIPT_VERSION = '0.50.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -127,7 +127,7 @@
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
     { v: '0.50', items: [
-      L('Pastila de nivel 1: cu mouse-ul deasupra alegi rapid nivelul de blocare pentru segment sau pentru toate segmentele de nivel 1 de pe ecran (ex. toate la nivelul 3).', 'Level 1 pill: hover it to quickly pick the lock level for the segment or for all level 1 segments on screen (e.g. all to level 3).'),
+      L('Pastila de nivel 1: cu mouse-ul deasupra alegi rapid nivelul de blocare pentru segment; editorii de nivel 6 pot bloca deodată toate segmentele de nivel 1 de pe ecran (ex. toate la nivelul 3).', 'Level 1 pill: hover it to quickly pick the lock level for the segment; level 6 editors can lock all level 1 segments on screen at once (e.g. all to level 3).'),
     ] },
     { v: '0.49', items: [
       L('Buton 🔗 lângă căutare: lipești un permalink WME (și beta), un link Google Maps / Waze sau coordonate și mergi acolo fără reîncărcarea paginii - deschizi tot sau doar locația / segmentele / locul / UR-ul; setările straturilor sunt ignorate, iar „↩ Înapoi” te duce unde lucrai.', '🔗 button next to search: paste a WME permalink (beta too), a Google Maps / Waze link or coordinates and go there without reloading the page - open everything or only the location / segments / place / UR; layer settings are ignored, and "↩ Go back" returns you to where you were working.'),
@@ -1140,7 +1140,7 @@
       'lock1Badges',
       L('Indicator segmente blocate la nivel 1', 'Level 1 locked segments indicator'),
       L('Pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1.', 'Small orange pill (lock + 1) next to every visible segment locked at level 1.'),
-      L('O pastilă portocalie discretă, cu un lacăt și cifra 1, apare lângă FIECARE segment vizibil pe hartă care are nivelul de blocare 1 (cel mai mic). Stă pe partea opusă a segmentului față de pastila de publicare, ca să nu se suprapună. Cel mult 150 de pastile simultan. Cu mouse-ul deasupra apare un meniu: nivelul dorit pentru acest segment sau pentru toate segmentele de nivel 1 de pe ecran (3 e evidențiat; la „toate” se cere încă un click de confirmare). Doar nivelurile până la al tău și doar segmentele pe care ai drept să le editezi; modificările sunt nesalvate, se anulează cu Ctrl+Z. Cât ții apăsat mouse-ul sau Shift / Ctrl, pastilele lasă click-urile să treacă spre hartă.', 'A discreet orange pill, with a lock and the number 1, appears next to EVERY segment visible on the map with lock level 1 (the lowest). It sits on the opposite side of the segment from the publish pill, so they do not overlap. At most 150 pills at once. Hovering it opens a menu: the wanted level for this segment or for all level 1 segments on screen (3 is highlighted; "all" asks for one more confirming click). Only levels up to yours and only segments you may edit; the changes are unsaved, Ctrl+Z undoes them. While the mouse button or Shift / Ctrl is held, the pills let clicks through to the map.')
+      L('O pastilă portocalie discretă, cu un lacăt și cifra 1, apare lângă FIECARE segment vizibil pe hartă care are nivelul de blocare 1 (cel mai mic). Stă pe partea opusă a segmentului față de pastila de publicare, ca să nu se suprapună. Cel mult 150 de pastile simultan. Cu mouse-ul deasupra apare un meniu: nivelul dorit pentru acest segment sau - doar pentru editorii de nivel 6 - pentru toate segmentele de nivel 1 de pe ecran (3 e evidențiat; la „toate” se cere încă un click de confirmare). Doar nivelurile până la al tău și doar segmentele pe care ai drept să le editezi; modificările sunt nesalvate, se anulează cu Ctrl+Z. Cât ții apăsat mouse-ul sau Shift / Ctrl, pastilele lasă click-urile să treacă spre hartă.', 'A discreet orange pill, with a lock and the number 1, appears next to EVERY segment visible on the map with lock level 1 (the lowest). It sits on the opposite side of the segment from the publish pill, so they do not overlap. At most 150 pills at once. Hovering it opens a menu: the wanted level for this segment or - level 6 editors only - for all level 1 segments on screen (3 is highlighted; "all" asks for one more confirming click). Only levels up to yours and only segments you may edit; the changes are unsaved, Ctrl+Z undoes them. While the mouse button or Shift / Ctrl is held, the pills let clicks through to the map.')
     );
     addToggle(
       'publishPillsFreshRecent',
@@ -3371,7 +3371,10 @@
       const r1 = row(L('Segmentul ăsta:', 'This segment:'));
       levels.forEach((lv) => r1.appendChild(lock1Chip(String(lv), L(`Blochează segmentul la nivelul ${lv}`, `Lock the segment at level ${lv}`), () => lock1Apply([segmentId], lv))));
     }
-    const ids = lock1VisibleIds();
+    // "All on screen" only for level 6 editors (v0.50.1, Paul: "să apară
+    // doar pentru editorii de nivel 6 [...] Pentru restul [...] doar
+    // segmentul respectiv").
+    const ids = max >= 6 ? lock1VisibleIds() : [];
     if (ids.length > 1) {
       const r2 = row(L(`Toate ${ids.length} de pe ecran:`, `All ${ids.length} on screen:`));
       levels.forEach((lv) => {
