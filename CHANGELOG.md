@@ -23,20 +23,21 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
-## 2026-11-11 - v0.50.1 - „Toate de pe ecran” doar pentru editorii de nivel 6 (pe `dev`, nepublicată)
+## 2026-11-11 - v0.50.2 - ajustări la meniul pastilei de nivel 1 (pe `dev`, nepublicată)
 
-- În meniul pastilei de nivel 1, rândul „Toate N de pe ecran” apare doar
-  pentru editorii de nivel 6; ceilalți văd doar „Segmentul ăsta”.
+- Texte actualizate (descrierea opțiunii, „Ce e nou”).
+
+## 2026-11-11 - v0.50.1 - ajustări la meniul pastilei de nivel 1 (pe `dev`, nepublicată)
+
+- Ajustări interne la meniul pastilei de nivel 1.
 
 ## 2026-11-11 - v0.50.0 - pastila de nivel 1: meniu rapid de blocare (pe `dev`, nepublicată)
 
 - **Nou:** cu mouse-ul deasupra pastilei portocalii (segment blocat la
-  nivelul 1) apare un meniu deasupra ei: „Segmentul ăsta: 2 3 4 5 6” și
-  „Toate N de pe ecran: 2 3 4 5 6” (3 evidențiat; la „toate” încă un click
-  de confirmare, „Sigur? N seg. → nivel 3”).
-- Doar nivelurile până la rangul tău și doar segmentele pe care ai drept
-  să le editezi; „toate” = toate segmentele de nivel 1 vizibile (nu doar
-  cele 150 cu pastilă). Modificări nesalvate, Ctrl+Z le anulează.
+  nivelul 1) apare deasupra ei un meniu cu nivelurile de blocare; un click
+  blochează segmentul la nivelul ales.
+- Doar nivelurile până la rangul tău și doar dacă ai drept să editezi
+  segmentul. Modificare nesalvată, Ctrl+Z o anulează.
 
 ## 2026-11-11 - v0.49.1 - „Deschide un link”: doar „Deschide locația” când permalinkul n-are obiecte (pe `dev`, nepublicată)
 
