@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.49.0
+// @version      0.49.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.49.0';
+  const SCRIPT_VERSION = '0.49.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -3755,6 +3755,11 @@
     }
   }
 
+  // Does the permalink select / open anything besides the location?
+  function plHasObjects(p) {
+    return !!(p && p.kind === 'wme' && (p.ur || p.mp || PL_KINDS.some((k) => p.ids[k.param])));
+  }
+
   // Coordinates from Google / Waze / text: their zoom, but not a far-out
   // one (a Google link is often at city level), 17 when missing.
   function plCoordZoom(p) {
@@ -3909,7 +3914,8 @@
         ev.preventDefault();
         plSetText(input.value).then(() => {
           const p = plState.parsed;
-          if (p && p.kind === 'wme') plRun(() => plOpenAll(p));
+          if (p && plHasObjects(p)) plRun(() => plOpenAll(p));
+          else if (p && p.kind === 'wme') plRun(async () => plJump(p, p.zoom || 17));
           else if (p && p.kind === 'coords') plRun(async () => plJump(p, plCoordZoom(p)));
         });
       }
@@ -4033,15 +4039,21 @@
       const acts = document.createElement('div');
       acts.className = 'pl-actions';
       acts.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;';
-      if (p.kind === 'wme') {
+      // Only coordinates (no objects, no UR / MP): just "Open the location".
+      const hasObj = plHasObjects(p);
+      if (hasObj) {
         acts.appendChild(plMkBtn(L('▶ Deschide tot', '▶ Open everything'), L('Ca și cum ai deschide permalinkul în browser, fără reîncărcarea paginii: locația, obiectele selectate (și evidențiate), problema deschisă.', 'As if you opened the permalink in the browser, without reloading the page: the location, the selected (and highlighted) objects, the open issue.'), () => plRun(() => plOpenAll(p)), true));
       }
       acts.appendChild(
-        plMkBtn(L('📍 Doar locația', '📍 Location only'), L('Mută harta la coordonate, fără să selecteze nimic.', 'Moves the map to the coordinates without selecting anything.'), () =>
-          plRun(async () => {
-            plJump(p, p.kind === 'wme' ? p.zoom || 17 : plCoordZoom(p));
-            plStatus(L('Harta mutată.', 'Map moved.'));
-          })
+        plMkBtn(
+          hasObj ? L('📍 Doar locația', '📍 Location only') : L('📍 Deschide locația', '📍 Open the location'),
+          hasObj ? L('Mută harta la coordonate, fără să selecteze nimic.', 'Moves the map to the coordinates without selecting anything.') : L('Mută harta la coordonate.', 'Moves the map to the coordinates.'),
+          () =>
+            plRun(async () => {
+              plJump(p, p.kind === 'wme' ? p.zoom || 17 : plCoordZoom(p));
+              plStatus(L('Harta mutată.', 'Map moved.'));
+            }),
+          !hasObj
         )
       );
       if (p.kind === 'wme') {

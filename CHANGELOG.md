@@ -23,6 +23,12 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.49.1 - „Deschide un link”: doar „Deschide locația” când permalinkul n-are obiecte (pe `dev`, nepublicată)
+
+- Permalink fără obiecte selectate, UR sau MP (doar coordonate): apare un
+  singur buton, „📍 Deschide locația”, în loc de „Deschide tot” + „Doar
+  locația”. Cu obiecte, butoanele rămân ca înainte.
+
 ## 2026-11-11 - v0.49.0 - „Deschide un link”: permalink / Google Maps / Waze fără reîncărcare (pe `dev`, nepublicată)
 
 - **Nou:** buton 🔗 lângă bara de căutare de sus → fereastră unde lipești
