@@ -23,6 +23,13 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.50.3 - previzualizarea rândurilor noi: „Nu mai arăta în această sesiune” (pe `dev`, nepublicată)
+
+- În fereastra de previzualizare (înlocuirea rândurilor noi în mesajele
+  UR / MP) e o bifă jos: „Nu mai arăta în această sesiune”. Bifată și
+  apăsat Trimite, până închizi tabul mesajele se trimit direct (cu
+  separatoare). Dacă textul e prea lung, fereastra apare totuși.
+
 ## 2026-11-11 - v0.50.2 - ajustări la meniul pastilei de nivel 1 (pe `dev`, nepublicată)
 
 - Texte actualizate (descrierea opțiunii, „Ce e nou”).

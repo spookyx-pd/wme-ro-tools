@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.50.2
+// @version      0.50.3
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.50.2';
+  const SCRIPT_VERSION = '0.50.3';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -8363,6 +8363,31 @@
 
   // Preview modal: the text as the app user sees it (no line breaks,
   // normal wrapping, app-like light card), length vs. the 2000 limit.
+  // v0.50.3: "don't show the preview again in this session" (checkbox at
+  // the bottom of the preview). Kept in sessionStorage, so it lasts until
+  // the tab is closed (a reload keeps it); a too-long text still shows the
+  // preview, as a warning.
+  const UR_NL_SKIP_KEY = 'wme-ro-tools-urnl-skip-preview';
+
+  function urNlSkipPreview() {
+    try {
+      return window.sessionStorage.getItem(UR_NL_SKIP_KEY) === '1';
+    } catch (e) {
+      return urNlSkipMem;
+    }
+  }
+
+  let urNlSkipMem = false;
+  function urNlSetSkipPreview(on) {
+    urNlSkipMem = on;
+    try {
+      if (on) window.sessionStorage.setItem(UR_NL_SKIP_KEY, '1');
+      else window.sessionStorage.removeItem(UR_NL_SKIP_KEY);
+    } catch (e) {
+      // memory only
+    }
+  }
+
   function urNlOpenPreview(formEl, transformed) {
     urNlCloseModal();
     const t = currentTheme();
@@ -8407,7 +8432,17 @@
     count.style.cssText = `font-size:12px; margin-top:8px; text-align:right; ${tooLong ? 'color:#e5484d; font-weight:600;' : 'opacity:0.75;'}`;
 
     const actions = document.createElement('div');
-    actions.style.cssText = 'display:flex; justify-content:flex-end; gap:8px; margin-top:12px;';
+    actions.style.cssText = 'display:flex; justify-content:flex-end; align-items:center; gap:8px; margin-top:12px;';
+    const skipLabel = document.createElement('label');
+    skipLabel.style.cssText = 'margin-right:auto; display:flex; align-items:center; gap:6px; font-size:12px; cursor:pointer; user-select:none;';
+    skipLabel.title = L('Până închizi tabul, mesajele cu rânduri noi se trimit direct (cu separatoare), fără această fereastră. Dacă textul e prea lung, fereastra apare totuși.', 'Until you close the tab, messages with line breaks are sent directly (with separators), without this window. If the text is too long, the window still shows.');
+    const skipBox = document.createElement('input');
+    skipBox.type = 'checkbox';
+    skipBox.style.cssText = 'margin:0;';
+    const skipText = document.createElement('span');
+    skipText.textContent = L('Nu mai arăta în această sesiune', "Don't show again this session");
+    skipLabel.append(skipBox, skipText);
+    actions.appendChild(skipLabel);
     const back = document.createElement('wz-button');
     back.setAttribute('color', 'secondary');
     back.setAttribute('size', 'sm');
@@ -8419,6 +8454,7 @@
     if (tooLong) send.setAttribute('disabled', '');
     send.addEventListener('click', () => {
       if (tooLong) return;
+      if (skipBox.checked) urNlSetSkipPreview(true);
       urNlCloseModal();
       urNlSendTransformed(formEl, transformed);
     });
@@ -8462,7 +8498,12 @@
     if (!/\n/.test(text.trim())) return; // nothing to replace - send as is
     ev.preventDefault();
     ev.stopImmediatePropagation();
-    urNlOpenPreview(formEl, urNlTransform(text));
+    const transformed = urNlTransform(text);
+    if (urNlSkipPreview() && transformed.length <= UR_COMMENT_MAX_CHARS) {
+      urNlSendTransformed(formEl, transformed);
+      return;
+    }
+    urNlOpenPreview(formEl, transformed);
   }
 
   // Checkbox left of the native Send button, once per (re-rendered) form.
