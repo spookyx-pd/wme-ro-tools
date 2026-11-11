@@ -24,6 +24,28 @@ Orice funcție se poate porni sau opri din tab-ul scriptului din panoul **Script
 ### Lungimi și unghiuri
 - **Nod selectat.** Când selectezi un nod cu două sau mai multe segmente, fiecare segment conectat își arată lungimea. Cât timp tragi nodul, unghiurile dintre segmente se văd în timp real.
 - **Segment(e) selectat(e).** La un singur segment selectat, lungimea totală apare lângă el și se actualizează în timp real când tragi nodurile sau punctele de geometrie. La mai multe segmente, fiecare își arată lungimea.
+- **Desenarea unui segment nou.** Cât desenezi un drum nou, o pastilă lângă cursor arată lungimea de până atunci, în timp real.
+
+### Deschide un link (🔗 lângă căutare)
+Lipești (sau iei din clipboard cu **📋 Lipește**) un permalink WME (www sau beta, orice limbă), un link Google Maps (și linkuri scurte `maps.app.goo.gl`), un link din aplicația Waze / Live Map sau coordonate GPS și mergi acolo **fără reîncărcarea paginii**.
+- Fereastra arată ce conține linkul și cât de departe e de vizualizarea ta.
+- Pentru un permalink: **▶ Deschide tot** (ca și cum l-ai deschide în browser: locația, obiectele selectate, UR-ul / problema deschisă), **Doar locația**, **Selectează segmentele / nodurile / locul / JB-ul…** (cu zoom cât să se vadă toate) și **Deschide UR-ul / problema**. Obiectele selectate sunt evidențiate cu mov, ca să le vezi și după ce UR-ul deschis le deselectează. Un permalink doar cu coordonate are un singur buton, **📍 Deschide locația**.
+- Punctul exact al coordonatelor e marcat pe hartă cu un cerc roșu, care rămâne pe loc când faci zoom.
+- Setările straturilor din permalink (`s=…`) și orice alt parametru sunt ignorate.
+- Locul de unde ai plecat e memorat pe durata sesiunii: **↩ Înapoi** te duce înapoi acolo.
+
+### Drumuri închise
+Cu mouse-ul pe simbolul roșu al unei închideri vezi detaliile ei: starea (activă / programată / încheiată), descrierea, intervalul și durata, sensul (A → B, B → A sau ambele), nodul de început și dacă e închis, detectarea traficului, cine a creat-o și ultima actualizare. Butoane: **✏️ Editează** (selectează segmentul și deschide direct formularul închiderii), **⧉ Duplicat**, **↻ Ziua următoare** și **🗑 Șterge** (două click-uri; se aplică la Salvează).
+
+### Indicator segmente blocate la nivelul 1
+O pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1. Cu mouse-ul pe ea blochezi segmentul la un nivel mai mare dintr-un click (doar nivelurile până la al tău).
+
+### Avertizare rute nepermise în Junction Box
+Când selectezi, creezi sau modifici un Junction Box, o avertizare arată rutele **nepermise** (dinspre ce segment, spre ce segment, de ce), cu ruta desenată pe hartă. După salvare, avertizarea rămâne dacă JB-ul salvat mai are astfel de rute.
+
+### Hartă mai aerisită
+- **Iconițe mai mici:** problemele de hartă la jumătate, pericolele permanente puțin mai mici, pinii mari în stil vechi ai camerelor și trecerilor CF la mărimea celorlalte pericole.
+- **Semafoarele în fundal:** se desenează sub segmente și nu mai prind clicul, așa că poți selecta segmentul, nodul sau problema de lângă ele. Ține apăsat **Alt** ca să le aduci deasupra și să selectezi unul.
 
 ### Bara de butoane rapide
 Lângă lungimea segmentului selectat apare un rând de iconițe, pe care îl poți muta de mânerul „⋮”. Comută dintr-un click cele mai folosite proprietăți ale segmentului:
@@ -78,7 +100,7 @@ Butoanele apar în fereastra nativă **Instrucțiuni viraje**. Nimic nu ajunge p
 - **Coordonate GPS clicabile.** Utilizatorii răspund des cu coordonate. Atât forma zecimală (`44.223232, 23.0909034`), cât și grade-minute-secunde (`45°03'19.8"N 26°25'37.8"E`) devin linkuri. Click-ul centrează harta pe punct și afișează un marcaj care pulsează, iar fereastra problemei rămâne deschisă. Pentru România se detectează și coordonatele scrise invers (longitudine întâi).
 - **Mesaj lung.** Împarte un răspuns de peste 2.000 de caractere în mai multe bucăți, pe care le trimiți una după alta. Are previzualizare live.
 - **Ciorna răspunsului.** Păstrează răspunsul netrimis pentru fiecare UR/MP, chiar dacă se reîncarcă fereastra sau pagina.
-- **Rânduri noi vizibile.** Aplicația Waze afișează comentariile fără rânduri noi. La trimitere, scriptul poate înlocui paragrafele și rândurile noi cu separatoare vizibile, cu o previzualizare a ce vede utilizatorul în aplicație.
+- **Rânduri noi vizibile.** Aplicația Waze afișează comentariile fără rânduri noi. La trimitere, scriptul poate înlocui paragrafele și rândurile noi cu separatoare vizibile, cu o previzualizare a ce vede utilizatorul în aplicație. Previzualizarea are bifa „Nu mai arăta în această sesiune”.
 - **Casetă de răspuns mai mare:** 12 rânduri.
 - **Previzualizare poze din linkuri.** Un buton 🖼 după linkurile din conversație deschide poza într-o fereastră în editor (zoom cu rotița, mutare prin tragere, rotire). Merge cu linkuri directe la poze și cu pagini ca imgbb / ibb.co, imgur, postimg. Punctul pus după link e ignorat.
 
@@ -130,7 +152,7 @@ Câmpul gol păstrează textul implicit. Cu **Copiază JSON / Importă JSON** po
 ---
 
 ## Note
-- Folosește `GM_xmlhttpRequest` doar ca să verifice pe Greasy Fork dacă există o versiune nouă (politica de securitate a WME blochează cererile directe). Cealaltă cerere externă e către fișierul public de stare a build-urilor Waze (Google Cloud Storage), pentru starea pe Livemap.
+- Folosește `GM_xmlhttpRequest` (politica de securitate a WME blochează cererile directe) ca să verifice pe Greasy Fork dacă există o versiune nouă, ca să încarce pozele pentru previzualizarea din linkuri și ca să transforme linkurile scurte Google Maps (`maps.app.goo.gl`) în coordonate. Cealaltă cerere externă e către fișierul public de stare a build-urilor Waze (Google Cloud Storage), pentru starea pe Livemap.
 - Setările și ciornele stau în `localStorage` al browserului tău.
-- Toate modificările trec prin SDK-ul oficial WME și rămân **nesalvate** până apeși Salvează, la fel ca editările manuale.
+- Toate modificările trec prin SDK-ul oficial WME și rămân **nesalvate** până apeși Salvează, la fel ca editările manuale. (Excepție: închiderile create sau modificate în formularul WME de închidere se salvează imediat de WME - scriptul doar deschide formularul.)
 - Licență: MIT.

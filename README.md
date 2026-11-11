@@ -22,6 +22,28 @@ The interface is available in **Romanian and English**: it follows the WME langu
 ### Lengths and angles
 - **Selected node.** When you select a node with two or more segments, each connected segment shows a length label. While you drag the node, the angles between the segments are shown live.
 - **Selected segment(s).** Selecting one segment shows its total length next to it, updated live while you drag the end nodes or geometry points. Selecting several segments shows one length label per segment.
+- **Drawing a new segment.** While you draw a new road, a pill next to the cursor shows its length so far, live.
+
+### Open a link (🔗 next to the search box)
+Paste (or take from the clipboard with **📋 Paste**) a WME permalink (www or beta, any language), a Google Maps link (short `maps.app.goo.gl` links too), a Waze app / Live Map link or plain GPS coordinates, and go there **without reloading the page**.
+- The window shows what the link contains and how far it is from your current view.
+- For a permalink: **▶ Open everything** (as if you opened it in the browser: location, selected objects, open UR / map problem), **Location only**, **Select the segments / nodes / place / JB…** (zoomed to show them all) and **Open the UR / map problem**. Selected objects are also highlighted in purple, so you still see them after the opened UR deselects them. A permalink with only coordinates gets a single **📍 Open the location** button.
+- The exact point of the coordinates is marked on the map with a red circle, which stays put when you zoom.
+- Layer settings in the permalink (`s=…`) and any other parameter are ignored.
+- The place you left from is remembered for the session: **↩ Go back** takes you back there.
+
+### Road closures
+Hover the red symbol of a closure on the map to see its details: status (active / scheduled / finished), description, period and duration, direction (A → B, B → A or both), the start node and whether it is closed, traffic detection, who created and last updated it. Buttons: **✏️ Edit** (selects the segment and opens the closure's form directly), **⧉ Duplicate**, **↻ Next day** and **🗑 Delete** (two clicks; applied when you press Save).
+
+### Lock level 1 indicator
+A small orange pill (lock + 1) next to every visible segment locked at level 1. Hover it to lock that segment at a higher level with one click (only levels up to yours).
+
+### Junction Box route warnings
+When you select, create or edit a Junction Box, a warning lists its routes that are **not allowed** (from which segment, to which segment, why), with the route drawn on the map. After saving, the warning stays if the saved JB still has such routes.
+
+### Less crowded map
+- **Smaller map icons:** map problems at half size, permanent hazards a little smaller, the big old-style camera and railroad-crossing pins at the size of the other hazards.
+- **Traffic lights in the background:** they are drawn under the segments and no longer catch your click, so you can select the segment, node or map problem next to them. Hold **Alt** to bring them back on top and select one.
 
 ### Quick-action toolbar
 A row of icons sits next to the length label of the selected segment. You can drag it by its "⋮" handle. It toggles the most common segment properties in one click:
@@ -76,7 +98,7 @@ These extra controls appear in the native **Turn instructions** dialog. Nothing 
 - **Clickable GPS coordinates.** Users often reply with coordinates. Both decimal (`44.223232, 23.0909034`) and degrees-minutes-seconds (`45°03'19.8"N 26°25'37.8"E`) become links. A click centers the map on the point and shows a pulsing marker, and the problem window stays open. Coordinates typed in the wrong order (longitude first) are detected for Romania.
 - **Long message sender.** Splits a reply longer than 2,000 characters into several parts, which you then send one after another. It shows a live preview.
 - **Draft saver.** Keeps your unsent reply for each UR/MP, even if the window or the page reloads.
-- **Visible line breaks.** The Waze app shows comments without line breaks. When you send, the script can replace paragraph and line breaks with visible separators, with a preview of what the user will see in the app.
+- **Visible line breaks.** The Waze app shows comments without line breaks. When you send, the script can replace paragraph and line breaks with visible separators, with a preview of what the user will see in the app. The preview has a "Don't show again this session" checkbox.
 - **Bigger reply box**: 12 lines.
 - **Image link preview.** A 🖼 button after links in the conversation opens the picture in a window inside the editor (zoom with the wheel, drag to pan, rotate). Works with direct picture links and hosting pages like imgbb / ibb.co, imgur, postimg. A dot typed after the link is ignored.
 
@@ -128,7 +150,7 @@ An empty field keeps the default text. **Copy JSON / Import JSON** lets you shar
 ---
 
 ## Notes
-- Uses `GM_xmlhttpRequest` only to check Greasy Fork for a newer version (WME's security policy blocks direct requests). The other external request is to Waze's public tile-build status file on Google Cloud Storage, used for the Livemap status.
+- Uses `GM_xmlhttpRequest` (WME's security policy blocks direct requests) to check Greasy Fork for a newer version, to load pictures for the image link preview, and to resolve short Google Maps links (`maps.app.goo.gl`) to coordinates. The other external request is to Waze's public tile-build status file on Google Cloud Storage, used for the Livemap status.
 - Settings and drafts are stored in your browser's `localStorage`.
-- All edits go through the official WME SDK and stay **unsaved** until you press Save, just like manual edits.
+- All edits go through the official WME SDK and stay **unsaved** until you press Save, just like manual edits. (Exception: WME saves closures created or edited in its own closure form right away - the script only opens that form.)
 - License: MIT.
