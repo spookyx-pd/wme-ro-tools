@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.49.1
+// @version      0.50.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.49.1';
+  const SCRIPT_VERSION = '0.50.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.50', items: [
+      L('Pastila de nivel 1: cu mouse-ul deasupra alegi rapid nivelul de blocare pentru segment sau pentru toate segmentele de nivel 1 de pe ecran (ex. toate la nivelul 3).', 'Level 1 pill: hover it to quickly pick the lock level for the segment or for all level 1 segments on screen (e.g. all to level 3).'),
+    ] },
     { v: '0.49', items: [
       L('Buton 🔗 lângă căutare: lipești un permalink WME (și beta), un link Google Maps / Waze sau coordonate și mergi acolo fără reîncărcarea paginii - deschizi tot sau doar locația / segmentele / locul / UR-ul; setările straturilor sunt ignorate, iar „↩ Înapoi” te duce unde lucrai.', '🔗 button next to search: paste a WME permalink (beta too), a Google Maps / Waze link or coordinates and go there without reloading the page - open everything or only the location / segments / place / UR; layer settings are ignored, and "↩ Go back" returns you to where you were working.'),
     ] },
@@ -1137,7 +1140,7 @@
       'lock1Badges',
       L('Indicator segmente blocate la nivel 1', 'Level 1 locked segments indicator'),
       L('Pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1.', 'Small orange pill (lock + 1) next to every visible segment locked at level 1.'),
-      L('O pastilă portocalie discretă, cu un lacăt și cifra 1, apare lângă FIECARE segment vizibil pe hartă care are nivelul de blocare 1 (cel mai mic). Stă pe partea opusă a segmentului față de pastila de publicare, ca să nu se suprapună. Cel mult 150 de pastile simultan. Cât ții apăsat mouse-ul sau Shift / Ctrl, pastilele lasă click-urile să treacă spre hartă.', 'A discreet orange pill, with a lock and the number 1, appears next to EVERY segment visible on the map with lock level 1 (the lowest). It sits on the opposite side of the segment from the publish pill, so they do not overlap. At most 150 pills at once. While the mouse button or Shift / Ctrl is held, the pills let clicks through to the map.')
+      L('O pastilă portocalie discretă, cu un lacăt și cifra 1, apare lângă FIECARE segment vizibil pe hartă care are nivelul de blocare 1 (cel mai mic). Stă pe partea opusă a segmentului față de pastila de publicare, ca să nu se suprapună. Cel mult 150 de pastile simultan. Cu mouse-ul deasupra apare un meniu: nivelul dorit pentru acest segment sau pentru toate segmentele de nivel 1 de pe ecran (3 e evidențiat; la „toate” se cere încă un click de confirmare). Doar nivelurile până la al tău și doar segmentele pe care ai drept să le editezi; modificările sunt nesalvate, se anulează cu Ctrl+Z. Cât ții apăsat mouse-ul sau Shift / Ctrl, pastilele lasă click-urile să treacă spre hartă.', 'A discreet orange pill, with a lock and the number 1, appears next to EVERY segment visible on the map with lock level 1 (the lowest). It sits on the opposite side of the segment from the publish pill, so they do not overlap. At most 150 pills at once. Hovering it opens a menu: the wanted level for this segment or for all level 1 segments on screen (3 is highlighted; "all" asks for one more confirming click). Only levels up to yours and only segments you may edit; the changes are unsaved, Ctrl+Z undoes them. While the mouse button or Shift / Ctrl is held, the pills let clicks through to the map.')
     );
     addToggle(
       'publishPillsFreshRecent',
@@ -2844,7 +2847,10 @@
       'mousedown',
       (ev) => {
         // Clicks on a pill itself (e.g. the profile link) stay normal.
-        if (ev.target && ev.target.closest && ev.target.closest('.wme-nal-unpublished-warn-pill')) return;
+        // Same for the lock-1 quick menu (v0.49.2) - otherwise the
+        // passthrough kicks in between mousedown and mouseup and the click
+        // on a level button never happens.
+        if (ev.target && ev.target.closest && ev.target.closest('.wme-nal-unpublished-warn-pill, .wme-ro-tools-lock1-menu')) return;
         unpublishedWarnModKeys = ev.shiftKey || ev.ctrlKey || ev.metaKey;
         unpublishedWarnMouseDown = true;
         unpublishedWarnApplyPassthrough();
@@ -3132,12 +3138,15 @@
   const LOCK1_MAX_BADGES = 150;
   const LOCK1_SVG =
     '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="3"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
-  const lock1State = { active: false, badges: new Map(), rafId: null, intervalId: null, styled: false };
+  const lock1State = { active: false, badges: new Map(), rafId: null, intervalId: null, styled: false, menu: null, menuSeg: null, hideT: null, confirm: null };
 
   function lock1Style() {
     if (lock1State.styled) return;
     lock1State.styled = true;
     const st = document.createElement('style');
+    // Only the pill lets clicks through while the mouse is held - the
+    // quick lock menu must keep its clicks (see the mousedown exception in
+    // `initUnpublishedWarnPassthrough`).
     st.textContent = `.${UNPUBLISHED_WARN_PASSTHROUGH_CLASS} .${LOCK1_PILL_CLASS} { pointer-events: none !important; }`;
     document.head.appendChild(st);
   }
@@ -3145,7 +3154,7 @@
   // Same look as the publish-status pill (v0.47.2, Paul: "fă-l să arate
   // similar cu ceva margine neagră și tooltip"): round dark badge with the
   // theme's border, orange lock + 1; on hover it widens and says what it is.
-  function lock1CreatePill() {
+  function lock1CreatePill(segmentId) {
     const el = document.createElement('div');
     el.className = LOCK1_PILL_CLASS;
     el.style.cssText = `position:fixed; left:0; top:0; transform:translate(-50%,-50%); height:22px; max-width:30px; padding:0 4px; border-radius:11px; border-width:2px; border-style:solid; display:flex; align-items:center; justify-content:center; overflow:hidden; white-space:nowrap; font:600 11px/1 Arial, sans-serif; cursor:default; z-index:${OWN_UI_Z_INDEX}; box-shadow:0 1px 4px rgba(0,0,0,0.35); pointer-events:auto; transition:max-width 180ms ease, padding 180ms ease;`;
@@ -3165,8 +3174,10 @@
       el.style.zIndex = String(OWN_UI_MENU_Z_INDEX);
       text.style.maxWidth = '220px';
       text.style.marginLeft = '6px';
+      lock1ShowMenu(el, segmentId);
     });
     el.addEventListener('mouseleave', () => {
+      lock1ScheduleHideMenu();
       el.style.maxWidth = '30px';
       el.style.padding = '0 4px';
       el.style.justifyContent = 'center';
@@ -3209,7 +3220,7 @@
       const c = seg.geometry && seg.geometry.coordinates;
       if (!c || c.length < 2 || !isSegmentPathInViewport(c, vw, vh, vx0, vy0)) continue;
       wanted.add(seg.id);
-      if (!lock1State.badges.has(seg.id)) lock1State.badges.set(seg.id, lock1CreatePill());
+      if (!lock1State.badges.has(seg.id)) lock1State.badges.set(seg.id, lock1CreatePill(seg.id));
     }
     lock1State.badges.forEach((el, id) => {
       if (!wanted.has(id)) {
@@ -3217,6 +3228,187 @@
         lock1State.badges.delete(id);
       }
     });
+    if (lock1State.menu && !lock1State.badges.has(lock1State.menuSeg)) lock1HideMenu();
+  }
+
+  // --- Quick lock menu on hover (v0.50.0) -----------------------------
+  // Paul: "când mă duc cu mouse-ul deasupra [...] să-mi apară [...] niște
+  // butoane deasupra lui cu nivelul de blocare dorit. Și [...] un buton
+  // fix all on screen [...] doar segmentele care sunt blocate la nivel 1
+  // [...] to level 3". One shared menu above the hovered pill: levels for
+  // this segment, and the same levels for ALL level-1 segments visible on
+  // screen (3 highlighted; 2-step confirm). Only levels up to the user's
+  // own rank and only segments the user may edit. Plain edits - they go
+  // into the normal undo / save flow.
+  const LOCK1_MENU_CLASS = 'wme-ro-tools-lock1-menu';
+  const LOCK1_FIX_ALL_DEFAULT = 3;
+
+  function lock1MaxLevel() {
+    try {
+      const r = sdk.State.getUserInfo().rank;
+      if (Number.isFinite(r)) return Math.min(6, r + 1);
+    } catch (e) {
+      // fall through
+    }
+    return 6;
+  }
+
+  function lock1CanEdit(id) {
+    try {
+      return sdk.DataModel.Segments.hasPermissions({ segmentId: id }) !== false;
+    } catch (e) {
+      return true;
+    }
+  }
+
+  // All level-1 segments visible on screen that the user may edit (not
+  // limited to the 150 pills).
+  function lock1VisibleIds() {
+    const { vw, vh, vx0, vy0 } = getMapViewportBounds();
+    let segments;
+    try {
+      segments = sdk.DataModel.Segments.getAll();
+    } catch (e) {
+      segments = [];
+    }
+    return segments
+      .filter((seg) => {
+        if (seg.lockRank !== 0) return false;
+        const c = seg.geometry && seg.geometry.coordinates;
+        return c && c.length >= 2 && isSegmentPathInViewport(c, vw, vh, vx0, vy0) && lock1CanEdit(seg.id);
+      })
+      .map((seg) => seg.id);
+  }
+
+  function lock1Apply(ids, level) {
+    let ok = 0;
+    ids.forEach((id) => {
+      try {
+        sdk.DataModel.Segments.updateSegment({ segmentId: id, lockRank: levelToRank(level) });
+        ok++;
+      } catch (e) {
+        console.warn(`${SCRIPT_NAME}: nu am putut schimba nivelul de blocare pentru segmentul ${id}.`, e);
+      }
+    });
+    lock1HideMenu();
+    lock1Rescan();
+    const fail = ids.length - ok;
+    phShowToast(
+      L(
+        `${ok === 1 ? 'Un segment blocat' : `${ok} segmente blocate`} la nivelul ${level}${fail ? ` (${fail} nereușite)` : ''}. Nesalvat - Ctrl+Z anulează.`,
+        `${ok === 1 ? 'One segment' : `${ok} segments`} locked at level ${level}${fail ? ` (${fail} failed)` : ''}. Not saved - Ctrl+Z undoes.`
+      ),
+      fail > 0
+    );
+  }
+
+  function lock1HideMenu() {
+    clearTimeout(lock1State.hideT);
+    lock1State.hideT = null;
+    if (lock1State.menu) lock1State.menu.remove();
+    lock1State.menu = null;
+    lock1State.menuSeg = null;
+    lock1State.confirm = null;
+  }
+
+  function lock1ScheduleHideMenu() {
+    clearTimeout(lock1State.hideT);
+    lock1State.hideT = setTimeout(lock1HideMenu, 300);
+  }
+
+  function lock1Chip(label, title, onClick, strong) {
+    const t = currentTheme();
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.title = title;
+    b.style.cssText = `min-width:24px; height:22px; padding:0 6px; border-radius:11px; border:1px solid ${strong ? '#F18200' : t.menuBorder}; background:${strong ? 'rgba(241,130,0,0.22)' : 'transparent'}; color:${t.menuText}; font:600 11px/1 Arial, sans-serif; cursor:pointer;`;
+    b.addEventListener('mouseenter', () => {
+      b.style.background = strong ? 'rgba(241,130,0,0.4)' : t.menuHoverBg;
+    });
+    b.addEventListener('mouseleave', () => {
+      b.style.background = strong ? 'rgba(241,130,0,0.22)' : 'transparent';
+    });
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      onClick(b);
+    });
+    return b;
+  }
+
+  function lock1ShowMenu(pill, segmentId) {
+    if (lock1State.menu && lock1State.menuSeg === segmentId) {
+      clearTimeout(lock1State.hideT);
+      return;
+    }
+    lock1HideMenu();
+    const t = currentTheme();
+    const max = lock1MaxLevel();
+    const levels = [];
+    for (let lv = 2; lv <= max; lv++) levels.push(lv);
+    const menu = document.createElement('div');
+    menu.className = LOCK1_MENU_CLASS;
+    menu.style.cssText = `position:fixed; left:0; top:0; z-index:${OWN_UI_MENU_Z_INDEX}; padding:6px 8px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 2px 8px rgba(0,0,0,0.4); font:11px/1.3 Arial, sans-serif; display:flex; flex-direction:column; gap:5px; pointer-events:auto;`;
+    menu.addEventListener('mouseenter', () => clearTimeout(lock1State.hideT));
+    menu.addEventListener('mouseleave', lock1ScheduleHideMenu);
+    // Keep map clicks / WME handlers away from the menu.
+    ['mousedown', 'mouseup', 'click', 'dblclick'].forEach((n) => menu.addEventListener(n, (ev) => ev.stopPropagation()));
+
+    const row = (label) => {
+      const r = document.createElement('div');
+      r.style.cssText = 'display:flex; align-items:center; gap:4px; white-space:nowrap;';
+      const s1 = document.createElement('span');
+      s1.style.cssText = 'opacity:0.85; margin-right:2px;';
+      s1.textContent = label;
+      r.appendChild(s1);
+      menu.appendChild(r);
+      return r;
+    };
+
+    if (!lock1CanEdit(segmentId)) {
+      row(L('Nu ai drept de editare pe acest segment.', 'You may not edit this segment.'));
+    } else {
+      const r1 = row(L('Segmentul ăsta:', 'This segment:'));
+      levels.forEach((lv) => r1.appendChild(lock1Chip(String(lv), L(`Blochează segmentul la nivelul ${lv}`, `Lock the segment at level ${lv}`), () => lock1Apply([segmentId], lv))));
+    }
+    const ids = lock1VisibleIds();
+    if (ids.length > 1) {
+      const r2 = row(L(`Toate ${ids.length} de pe ecran:`, `All ${ids.length} on screen:`));
+      levels.forEach((lv) => {
+        const tip = L(`Toate segmentele de nivel 1 vizibile (${ids.length}) la nivelul ${lv} - click de 2 ori`, `All visible level 1 segments (${ids.length}) to level ${lv} - click twice`);
+        r2.appendChild(
+          lock1Chip(
+            String(lv),
+            tip,
+            (b) => {
+              if (lock1State.confirm === b) {
+                lock1Apply(lock1VisibleIds(), lv);
+                return;
+              }
+              // First click: ask for confirmation on the same chip.
+              if (lock1State.confirm) lock1State.confirm.textContent = lock1State.confirm.dataset.lv;
+              lock1State.confirm = b;
+              b.dataset.lv = String(lv);
+              b.textContent = L(`Sigur? ${ids.length} seg. → nivel ${lv}`, `Sure? ${ids.length} seg. → level ${lv}`);
+            },
+            lv === LOCK1_FIX_ALL_DEFAULT
+          )
+        );
+      });
+    }
+    getMapOverlayContainer().appendChild(menu);
+    // Above the pill, centred; below it if there's no room at the top.
+    const pr = pill.getBoundingClientRect();
+    const mr = menu.getBoundingClientRect();
+    const { vw, vx0, vy0 } = getMapViewportBounds();
+    let left = pr.left + pr.width / 2 - mr.width / 2;
+    left = Math.max(vx0 + 4, Math.min(vx0 + vw - mr.width - 4, left));
+    let top = pr.top - mr.height - 4;
+    if (top < vy0 + 4) top = pr.bottom + 4;
+    menu.style.left = `${Math.round(left)}px`;
+    menu.style.top = `${Math.round(top)}px`;
+    lock1State.menu = menu;
+    lock1State.menuSeg = segmentId;
   }
 
   function lock1Raf() {
@@ -3262,6 +3454,7 @@
     lock1State.rafId = null;
     lock1State.badges.forEach((el) => el.remove());
     lock1State.badges.clear();
+    lock1HideMenu();
   }
 
   // ---------------------------------------------------------------------

@@ -23,6 +23,16 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-11 - v0.50.0 - pastila de nivel 1: meniu rapid de blocare (pe `dev`, nepublicată)
+
+- **Nou:** cu mouse-ul deasupra pastilei portocalii (segment blocat la
+  nivelul 1) apare un meniu deasupra ei: „Segmentul ăsta: 2 3 4 5 6” și
+  „Toate N de pe ecran: 2 3 4 5 6” (3 evidențiat; la „toate” încă un click
+  de confirmare, „Sigur? N seg. → nivel 3”).
+- Doar nivelurile până la rangul tău și doar segmentele pe care ai drept
+  să le editezi; „toate” = toate segmentele de nivel 1 vizibile (nu doar
+  cele 150 cu pastilă). Modificări nesalvate, Ctrl+Z le anulează.
+
 ## 2026-11-11 - v0.49.1 - „Deschide un link”: doar „Deschide locația” când permalinkul n-are obiecte (pe `dev`, nepublicată)
 
 - Permalink fără obiecte selectate, UR sau MP (doar coordonate): apare un
