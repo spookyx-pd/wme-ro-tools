@@ -23,6 +23,13 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-12 - v0.51.3 - drumuri închise: starea „Încheiată mai devreme” (pe `dev`, nepublicată)
+
+- Fereastra de la hover arată starea ca în WME: „Încheiată mai devreme”
+  (închidere ștearsă înainte de sfârșit), „Încheiată”, „Activă”,
+  „Neîncepută”; la cele încheiate mai devreme apare și rândul „Încheiată
+  la” cu data și ora.
+
 ## 2026-11-11 - v0.51.2 - drumuri închise: fereastră cu detalii, Duplicat, Ziua următoare (pe `dev`, nepublicată)
 
 - Fereastra de la hover pe o închidere arată acum: starea (activă /

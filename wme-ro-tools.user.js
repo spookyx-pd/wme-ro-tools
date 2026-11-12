@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.51.2
+// @version      0.51.3
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.51.2';
+  const SCRIPT_VERSION = '0.51.3';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -4528,6 +4528,13 @@
             endDate: a.endDate,
             description: a.reason || '',
             status: a.closureStatus || '',
+            // v0.51.3: when the current status started (last entry of the
+            // status history), e.g. the moment it was ended early.
+            statusSince: (() => {
+              const h = Array.isArray(a.closureStatusHistory) ? a.closureStatusHistory : [];
+              const last = h.length ? h[h.length - 1] : null;
+              return last && last.changeDate ? last.changeDate : '';
+            })(),
             permanent: !!a.permanent,
             fromNodeClosed: !!a.fromNodeClosed,
             createdBy: a.createdBy,
@@ -4773,7 +4780,10 @@
     const pill = document.createElement('span');
     const pc = finished ? '#8a8f98' : active ? '#e5484d' : '#f0a020';
     pill.style.cssText = `padding:1px 8px; border-radius:9px; font-weight:700; font-size:10px; color:#fff; background:${pc};`;
-    pill.textContent = finished ? L('Încheiată', 'Finished') : active ? L('Activă', 'Active') : L('Programată', 'Scheduled');
+    // v0.51.3: same wording as the WME closure card (FINISHED_EARLY_* =
+    // "Încheiate mai devreme", e.g. deleted before its end).
+    const early = /FINISH\w*EARLY|EARLY\w*FINISH/.test(st);
+    pill.textContent = early ? L('Încheiată mai devreme', 'Finished early') : finished ? L('Încheiată', 'Finished') : active ? L('Activă', 'Active') : /NOT_STARTED|SCHEDULED/.test(st) ? L('Neîncepută', 'Not started') : st ? st.toLowerCase().replace(/_/g, ' ') : L('Programată', 'Scheduled');
     head.append(title, pill);
     box.appendChild(head);
 
@@ -4792,6 +4802,7 @@
     line(L('Descriere', 'Description'), c.description || L('fără descriere', 'no description'), !c.description);
     const dur = rcDuration(c);
     line(L('Interval', 'Period'), `${rcFmtDate(c.startDate)} → ${c.endDate ? rcFmtDate(c.endDate) : L('fără sfârșit', 'no end')}${dur ? ` (${dur})` : ''}`);
+    if (early && c.statusSince) line(L('Încheiată la', 'Ended on'), rcFmtDate(c.statusSince));
     const both = closures.some((x) => x.isForward) && closures.some((x) => !x.isForward);
     line(L('Sens', 'Direction'), both ? L('ambele sensuri (A ⇆ B)', 'both directions (A ⇆ B)') : c.isForward ? 'A → B' : 'B → A');
     // Closed nodes: the start node of each closure of the card.
