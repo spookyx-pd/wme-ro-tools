@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.51.4
+// @version      0.51.5
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.51.4';
+  const SCRIPT_VERSION = '0.51.5';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -8199,6 +8199,30 @@
   // Applied on road type change. newRoadType = the new id (after click),
   // read via SDK.
   function applyRoadTypeAutomation(segmentId, newRoadType) {
+    // v0.51.5 (Paul: "dacă în continuare bifa de neasfaltat/pietruit este
+    // bifată, nu schimbăm limita de viteză și dacă nu e 20 o forțăm la 20"):
+    // a segment that stays unpaved keeps the unpaved speed - the road
+    // type's own speed is skipped and 20/20 is forced if it isn't already.
+    // Not for 4x4, which clears the unpaved flag itself.
+    let before = null;
+    try {
+      before = sdk.DataModel.Segments.getById({ segmentId });
+    } catch (e) {
+      before = null;
+    }
+    const keepUnpaved = !!(before && before.flagAttributes && before.flagAttributes.unpaved) && newRoadType !== RT.OFF_ROAD;
+    if (keepUnpaved && (before.fwdSpeedLimit !== 20 || before.revSpeedLimit !== 20)) {
+      updateSegmentSafe(segmentId, { fwdSpeedLimit: 20, revSpeedLimit: 20 });
+    }
+    const upd = (id, fields) => {
+      if (keepUnpaved) {
+        const { fwdSpeedLimit, revSpeedLimit, ...rest } = fields;
+        if (Object.keys(rest).length) updateSegmentSafe(id, rest);
+        return;
+      }
+      updateSegmentSafe(id, fields);
+    };
+
     // Primary Street, Minor/Major Highway, Freeway, Ramp.
     const isMajorRoad =
       newRoadType === RT.PRIMARY_STREET ||
@@ -8239,19 +8263,19 @@
     // above.
     switch (newRoadType) {
       case RT.STREET: // St
-        updateSegmentSafe(segmentId, { fwdSpeedLimit: 30, revSpeedLimit: 30 });
+        upd(segmentId, { fwdSpeedLimit: 30, revSpeedLimit: 30 });
         break;
       case RT.ALLEY: // NS - Narrow Street
-        updateSegmentSafe(segmentId, { lockRank: levelToRank(3), fwdSpeedLimit: 30, revSpeedLimit: 30 });
+        upd(segmentId, { lockRank: levelToRank(3), fwdSpeedLimit: 30, revSpeedLimit: 30 });
         break;
       case RT.PARKING_LOT_ROAD: // PLR
-        updateSegmentSafe(segmentId, { lockRank: levelToRank(3), fwdSpeedLimit: 30, revSpeedLimit: 30 });
+        upd(segmentId, { lockRank: levelToRank(3), fwdSpeedLimit: 30, revSpeedLimit: 30 });
         break;
       case RT.PRIVATE_ROAD: // PR
-        updateSegmentSafe(segmentId, { lockRank: levelToRank(3), fwdSpeedLimit: 10, revSpeedLimit: 10 });
+        upd(segmentId, { lockRank: levelToRank(3), fwdSpeedLimit: 10, revSpeedLimit: 10 });
         break;
       case RT.OFF_ROAD: // 4x4
-        updateSegmentSafe(segmentId, {
+        upd(segmentId, {
           lockRank: levelToRank(3),
           fwdSpeedLimit: 15,
           revSpeedLimit: 15,
@@ -8259,13 +8283,13 @@
         });
         break;
       case RT.FERRY: // Bac
-        updateSegmentSafe(segmentId, { lockRank: levelToRank(5), fwdSpeedLimit: 5, revSpeedLimit: 5 });
+        upd(segmentId, { lockRank: levelToRank(5), fwdSpeedLimit: 5, revSpeedLimit: 5 });
         break;
       case RT.RAILROAD: // CF
-        updateSegmentSafe(segmentId, { lockRank: levelToRank(3) });
+        upd(segmentId, { lockRank: levelToRank(3) });
         break;
       case RT.RUNWAY_TAXIWAY: // PA
-        updateSegmentSafe(segmentId, { lockRank: levelToRank(5) });
+        upd(segmentId, { lockRank: levelToRank(5) });
         break;
       default:
         break;

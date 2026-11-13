@@ -23,6 +23,14 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-13 - v0.51.5 - schimbarea tipului de drum păstrează viteza de neasfaltat (pe `dev`, nepublicată)
+
+- Când schimbi tipul de drum (ex. Drum îngust → Stradă, Stradă principală
+  → Stradă) și segmentul rămâne bifat Neasfaltat, automatizarea nu mai
+  pune viteza tipului de drum (30 etc.); dacă viteza nu e 20/20, o
+  forțează la 20. Restul (nivel de blocare, faruri) se aplică la fel. La
+  4x4 rămâne ca înainte (scoate bifa de neasfaltat, 15 km/h).
+
 ## 2026-11-13 - v0.51.4 - tastele lângă opțiuni apar din nou (pe `dev`, nepublicată)
 
 - **Reparat:** tastele alocate nu mai apăreau lângă straturile din
