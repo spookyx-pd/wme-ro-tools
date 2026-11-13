@@ -23,6 +23,16 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-13 - v0.51.4 - tastele lângă opțiuni apar din nou (pe `dev`, nepublicată)
+
+- **Reparat:** tastele alocate nu mai apăreau lângă straturile din
+  „Straturi hartă” (doar la grupuri) și deloc în meniul **+**, după o
+  actualizare WME care a schimbat structura acestor meniuri. Acum apar din
+  nou: Drum (I), Traseu de mers pe jos (P), Giratoriu (O), Boxă de
+  Intersecție (J), Note (N), Zonă restricționată (B), pericolele și camera
+  de viteză, semaforul, locul rezidențial, plus straturile (Drumuri
+  Shift+R, Drumuri închise Shift+C, Numere imobile Shift+H…).
+
 ## 2026-11-12 - v0.51.3 - drumuri închise: starea „Încheiată mai devreme” (pe `dev`, nepublicată)
 
 - Fereastra de la hover arată starea ca în WME: „Încheiată mai devreme”

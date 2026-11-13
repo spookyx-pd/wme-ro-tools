@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.51.3
+// @version      0.51.4
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.51.3';
+  const SCRIPT_VERSION = '0.51.4';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -11168,20 +11168,52 @@
     });
   }
 
+  // v0.51.4: WME no longer passes `keyboardAction` to the "+" menu items
+  // (checked 2026-11-13 - the hints had disappeared). The action is now
+  // derived from what the item creates: permanent hazard type / camera
+  // sub-type and venue category (React props of the item), else from the
+  // label (RO / EN) for the items without such props.
+  const KB_HAZARD_ACTIONS = { 1: 'drawSpeedBump', 14: 'drawLaneEnding', 15: 'drawRaisedCrosswalk', 16: 'drawHighwayCrosswalk', 17: 'drawShoulderEnding', 18: 'drawNarrowBridge' };
+  const KB_LABEL_ACTIONS = [
+    [/^(drum|road)$/i, 'drawSegment'],
+    [/mers pe jos|walking/i, 'drawWalkingTrail'],
+    [/giratoriu|roundabout/i, 'drawRoundabout'],
+    [/box[aă] de intersec|junction box/i, 'drawBigJunction'],
+    [/semafor|traffic light/i, 'drawTrafficLight'],
+    [/^(note|map notes?|map comments?|comentariu)/i, 'drawMapCommentPoint'],
+    [/zon[aă] restric|restricted (driving )?area/i, 'drawRestrictedArea'],
+  ];
+
+  function kbMenuItemAction(el) {
+    const fk = Object.keys(el).find((k) => k.startsWith('__reactFiber'));
+    let f = fk && el[fk];
+    for (let i = 0; i < 8 && f; i++) {
+      const p = f.memoizedProps;
+      if (p && typeof p === 'object') {
+        if (typeof p.keyboardAction === 'string') return p.keyboardAction;
+        if (p.permanentHazardType != null) {
+          const t = Number(p.permanentHazardType);
+          if (t === 10) return p.cameraSubType === 'SPEED' ? 'drawCameraSpeed' : null;
+          return KB_HAZARD_ACTIONS[t] || null;
+        }
+        if (typeof p.venueCategory === 'string') return p.venueCategory === 'RESIDENCE_HOME' ? 'drawResidentialPlace' : null;
+      }
+      f = f.return;
+    }
+    const lab = el.querySelector('[class*="itemLabel"]');
+    const text = String((lab || el).textContent || '').trim();
+    const hit = KB_LABEL_ACTIONS.find(([re]) => re.test(text));
+    return hit ? hit[1] : null;
+  }
+
   function kbScanMenuItems() {
     const found = [];
     const visit = (root) => {
       root.querySelectorAll('wz-menu-item').forEach((el) => {
-        const fk = Object.keys(el).find((k) => k.startsWith('__reactFiber'));
-        let f = fk && el[fk];
-        for (let i = 0; i < 8 && f; i++) {
-          const p = f.memoizedProps;
-          if (p && typeof p.keyboardAction === 'string') {
-            found.push({ el, actionId: p.keyboardAction });
-            break;
-          }
-          f = f.return;
-        }
+        // Only the "+" (drawing) menu.
+        if (!el.closest('wz-navigation-drawer')) return;
+        const actionId = kbMenuItemAction(el);
+        if (actionId) found.push({ el, actionId });
       });
       root.querySelectorAll('*').forEach((el) => {
         if (el.shadowRoot) visit(el.shadowRoot);
@@ -11198,9 +11230,15 @@
     const acts = kbActions();
     for (const [actionId, toggler] of Object.entries(KB_LAYER_ACTIONS)) {
       const id = `layer-switcher-${toggler}`;
-      const host = toggler.startsWith('group_')
-        ? document.querySelector(`label[for="${id}"]`)
-        : document.querySelector(`#${id} .layer-selector-container`);
+      // v0.51.4: the single-layer rows are now `wz-checkbox#<id>` with the
+      // label in a `.container--<hash>` child (no more
+      // `.layer-selector-container`).
+      let host = null;
+      if (toggler.startsWith('group_')) host = document.querySelector(`label[for="${id}"]`);
+      else {
+        const el = document.getElementById(id);
+        host = el ? el.querySelector('.layer-selector-container, [class*="container--"]') || (el.tagName === 'WZ-CHECKBOX' ? el : null) : null;
+      }
       const a = acts[actionId];
       kbSetHint(host, a ? kbKeyLabel(a.shortcut) : '');
     }
