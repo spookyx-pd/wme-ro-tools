@@ -23,6 +23,14 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.55.3 - pastilele nu mai forțează layout când muți harta (pe `dev`, nepublicată)
+
+- La mutarea hărții, calculul pozițiilor pastilelor forța browserul să
+  recalculeze layout-ul paginii la fiecare cadru (~1 s de lucru în 8 s de
+  mutare, măsurat). Acum pozițiile se calculează direct din starea hărții,
+  fără nicio citire din pagină, iar dimensiunile hărții se recitesc cel mult
+  de două ori pe secundă.
+
 ## 2026-11-15 - v0.55.2 - butoanele de straturi nu mai generează modificări inutile în pagină (pe `dev`, nepublicată)
 
 - Butoanele de straturi de pe hartă își rescriau starea (apăsat / nu) la

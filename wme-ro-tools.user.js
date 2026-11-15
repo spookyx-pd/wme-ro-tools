@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.55.2
+// @version      0.55.3
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.55.2';
+  const SCRIPT_VERSION = '0.55.3';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -2699,13 +2699,22 @@
   // (some sidebar panels, e.g. a problem/UR conversation, can visually
   // cover part of the map without the viewport element's own layout
   // rect shrinking to match - own badges/pills must still avoid them).
-  // Perf (v0.54.1): called from several rAF loops per frame - cached for
-  // one frame (8 ms) so the 2 getBoundingClientRect reads happen once.
+  // Perf: called from several rAF loops per frame. v0.55.3: cached for
+  // 500 ms (was one frame) - each getBoundingClientRect forces a layout when
+  // WME / other scripts just changed the DOM, which during a map pan is
+  // every frame (measured ~6 ms per forced layout in Paul's session). The
+  // map viewport only moves when the sidebar opens / closes / resizes, so a
+  // <=0.5 s lag there is invisible; window resizes drop the cache.
+  const VIEWPORT_BOUNDS_TTL_MS = 500;
   let viewportBoundsCache = null;
   let viewportBoundsCacheT = -1;
+  window.addEventListener('resize', () => {
+    viewportBoundsCache = null;
+    olViewportRect = null;
+  });
   function getMapViewportBounds() {
     const now = performance.now();
-    if (viewportBoundsCache && now - viewportBoundsCacheT < 8) return viewportBoundsCache;
+    if (viewportBoundsCache && now - viewportBoundsCacheT < VIEWPORT_BOUNDS_TTL_MS) return viewportBoundsCache;
     viewportBoundsCache = getMapViewportBoundsNow();
     viewportBoundsCacheT = now;
     return viewportBoundsCache;
@@ -2742,9 +2751,47 @@
       pxCal = null;
     }
   }
+  // v0.55.3: the calibration itself (2 SDK calls) forced a layout on every
+  // frame during a pan (66 calls = 419 ms + 414 ms in 8 s, measured). Now
+  // the projection comes straight from the OpenLayers map state - center
+  // (mercator meters), resolution and size are plain fields, no layout -
+  // plus the viewport element's rect (cached 500 ms). Checked against the
+  // SDK on 200 segments: max diff 0.5 px. SDK calibration = fallback.
+  let olViewportRect = null;
+  let olViewportRectT = -1;
+  function pxFromOl(now) {
+    try {
+      const Wm = window.W && window.W.map;
+      const om = Wm && (Wm.getOLMap ? Wm.getOLMap() : Wm.olMap);
+      if (!om) return null;
+      const c = om.getCenter();
+      const res = om.getResolution();
+      const size = om.getSize();
+      if (!c || !res || !size) return null;
+      if (!olViewportRect || now - olViewportRectT > VIEWPORT_BOUNDS_TTL_MS) {
+        const vp = sdk.Map.getMapViewportElement ? sdk.Map.getMapViewportElement() : null;
+        if (!vp) return null;
+        const r = vp.getBoundingClientRect();
+        olViewportRect = { left: r.left, top: r.top };
+        olViewportRectT = now;
+      }
+      return {
+        t: now,
+        ax: 1 / res,
+        bx: olViewportRect.left + size.w / 2 - c.lon / res,
+        ay: -1 / res,
+        by: olViewportRect.top + size.h / 2 + c.lat / res,
+      };
+    } catch (e) {
+      return null;
+    }
+  }
   function fastPx(lon, lat) {
     const now = performance.now();
-    if (!pxCal || now - pxCal.t > 8) pxCalibrate(now);
+    if (!pxCal || now - pxCal.t > 8) {
+      pxCal = pxFromOl(now);
+      if (!pxCal) pxCalibrate(now);
+    }
     if (!pxCal) return sdk.Map.getPixelFromLonLat({ lonLat: { lon, lat } });
     return { x: pxCal.ax * mercX(lon) + pxCal.bx, y: pxCal.ay * mercY(lat) + pxCal.by };
   }
