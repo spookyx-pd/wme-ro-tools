@@ -23,6 +23,20 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.55.0 - monitor de resurse; pastilele nu mai consumă procesor cu harta pe loc (pe `dev`, nepublicată)
+
+- **Nou:** linkul „📊 Monitor resurse” din setări deschide o fereastră cu:
+  timpul de procesor al fiecărei funcții periodice a scriptului (apeluri/s,
+  ms/s, maxim), datele paginii (fir principal ocupat - estimare, memorie
+  JS, elemente DOM, straturi, obiecte încărcate), cadrele lungi pe script
+  și butonul „🔬 Analiză 5 s - toate scripturile”, care arată ce script
+  face cele mai multe apeluri la WME SDK / măsurători de layout / căutări
+  în pagină.
+- **Performanță:** pastilele de publicare și cele de nivel 1 nu se mai
+  recalculează la fiecare cadru când harta stă pe loc; conversia
+  coordonate → pixeli e calculată local (de ~45 de ori mai rapidă), iar
+  dimensiunile hărții se citesc o singură dată pe cadru.
+
 ## 2026-11-15 - v0.54.0 - insigna de drum din numele străzii (pe `dev`, nepublicată)
 
 - **Nou:** la un segment selectat a cărui stradă nu are insignă, dar numele

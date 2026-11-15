@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.54.0
+// @version      0.55.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.54.0';
+  const SCRIPT_VERSION = '0.55.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.55', items: [
+      L('Monitor de resurse (link „📊 Monitor resurse” în setări): cât procesor consumă fiecare funcție a scriptului, memoria și încărcarea paginii, cadrele lungi pe script și o analiză de 5 s a tuturor scripturilor. Plus: pastilele de pe hartă nu mai consumă procesor când harta stă pe loc.', 'Resource monitor ("📊 Resource monitor" link in the settings): how much CPU each function of the script uses, page memory and load, long frames per script and a 5 s analysis of all scripts. Also: the map pills no longer use CPU while the map is idle.'),
+    ] },
     { v: '0.54', items: [
       L('Insigna de drum din numele străzii: la un segment cu strada fără insignă (DC300, DJ105B, DN1, A1, E60, DEX…), butonul „🛡 Setează insigna” din panou o setează automat (ex. DC300 → Drum Comunal „300”).', 'Road shield from the street name: for a segment whose street has no shield (DC300, DJ105B, DN1, A1, E60, DEX…), the "🛡 Set the shield" button in the panel sets it automatically (e.g. DC300 → Communal road "300").'),
     ] },
@@ -253,6 +256,417 @@
   // ---------------------------------------------------------------------
   // Config
   // ---------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------
+  // Resource monitor (v0.54.1). Paul: the editor felt laggy, the tab at
+  // 50-60% CPU in Chrome's Task Manager - "nu știu dacă scriptul acesta
+  // începe să consume multe resurse [...] un buton care deschide o
+  // fereastră care să monitorizeze resursele consumate de acest script".
+  // Every periodic function of the script (setInterval polls, rAF loops,
+  // the closure hover) runs through `perfFn` / `perfRaf`, which add up
+  // calls and time per name (2 performance.now() per call). The window
+  // shows them per second, plus page figures (JS heap, DOM, layers,
+  // loaded objects, main-thread estimate), long frames per script
+  // (long-animation-frame entries) and, on demand, a 5 s analysis of all
+  // scripts: WME SDK / layout / DOM-query calls timed and attributed by
+  // call stack (userscript name / extension file / WME). Chrome gives no
+  // per-script memory, only the page's.
+  // ---------------------------------------------------------------------
+  const perfStats = new Map(); // name -> { n, ms, max }
+
+  function perfRun(name, fn, args) {
+    const t = performance.now();
+    try {
+      return fn(...args);
+    } finally {
+      const d = performance.now() - t;
+      let e = perfStats.get(name);
+      if (!e) {
+        e = { n: 0, ms: 0, max: 0 };
+        perfStats.set(name, e);
+      }
+      e.n++;
+      e.ms += d;
+      if (d > e.max) e.max = d;
+    }
+  }
+
+  function perfFn(name, fn) {
+    return (...args) => perfRun(name, fn, args);
+  }
+
+  function perfRaf(name, fn) {
+    return requestAnimationFrame((ts) => perfRun(name, fn, [ts]));
+  }
+
+  const PERF_PANEL_ID = 'wme-ro-tools-perf';
+  const PERF_WINDOW_S = 5;
+  const PERF_LABELS = {
+    unpublishedWarnRafLoop: L('Pastile publicare - poziționare', 'Publish pills - positioning'),
+    unpublishedWarnRescan: L('Pastile publicare - căutare', 'Publish pills - scan'),
+    lock1Raf: L('Pastile nivel 1 - poziționare', 'Level 1 pills - positioning'),
+    lock1Rescan: L('Pastile nivel 1 - căutare', 'Level 1 pills - scan'),
+    segmentRafLoop: L('Segment selectat - insignă lungime', 'Selected segment - length badge'),
+    multiSegmentRafLoop: L('Segmente selectate - lungimi', 'Selected segments - lengths'),
+    rafLoop: L('Nod selectat - unghiuri / lungimi', 'Selected node - angles / lengths'),
+    moveNodesLengthBadgesRafLoop: L('Mutare noduri - lungimi', 'Moving nodes - lengths'),
+    drawLenFrame: L('Desenare segment - lungime', 'Drawing a segment - length'),
+    drawLenWatch: L('Desenare segment - detectare', 'Drawing a segment - detection'),
+    checkSelection: L('Selecție - verificare', 'Selection check'),
+    publishSidebarRefresh: L('Stare publicare în panou', 'Publish status in the panel'),
+    enforceSidebarOpen: L('Panou lateral mereu deschis', 'Sidebar always open'),
+    urBulkPoll: L('UR - formular / acțiuni', 'UR - form / actions'),
+    coordPoll: L('Coordonate', 'Coordinates'),
+    imgPoll: L('Imagini locuri', 'Place images'),
+    jbPoll: L('Intersecții (JB)', 'Junction boxes'),
+    mapIconsApply: L('Iconițe hartă compacte', 'Compact map icons'),
+    plPoll: L('Buton „Deschide un link”', '"Open a link" button'),
+    rsPoll: L('Buton insignă de drum', 'Road shield button'),
+    srPoll: L('Căutare locație', 'Location search'),
+    esPoll: L('Editare rapidă / sugestii', 'Quick edit / suggestions'),
+    itMapAllPoll: L('Issue Tracker - toate pe hartă', 'Issue Tracker - all on map'),
+    savedWarnPoll: L('Avertismente salvare', 'Save warnings'),
+    kbLayerPoll: L('Scurtături / butoane straturi', 'Shortcuts / layer buttons'),
+    tiPoll: L('Instrucțiuni viraj', 'Turn instructions'),
+    rcHover: L('Drumuri închise - hover', 'Road closures - hover'),
+    quickBarRefresh: L('Bara rapidă segment', 'Segment quick bar'),
+  };
+
+  const perfState = { timer: null, hist: [], loaf: [], loafObs: null, idle: { sum: 0, t0: 0, on: false } };
+
+  // Script / file name from one stack line.
+  function perfWho(line) {
+    let m = /userscript\.html\?name=([^&:)]+)/.exec(line);
+    if (m) {
+      let n = m[1];
+      // Tampermonkey encodes the name twice ("URO%252B" -> "URO+").
+      for (let i = 0; i < 2; i++) {
+        try {
+          n = decodeURIComponent(n);
+        } catch (e) {
+          break;
+        }
+      }
+      return n.replace(/\.user\.js$/, '');
+    }
+    m = /chrome-extension:\/\/[^/]+\/(?:[^:)]*\/)?([^/:)?]+)/.exec(line);
+    if (m) return `${m[1]} (ext.)`;
+    if (/waze\.com/.test(line)) return 'WME';
+    return null;
+  }
+
+  function perfWhoFromStack(stack) {
+    let wme = false;
+    for (const line of String(stack || '').split('\n').slice(1)) {
+      if (/roPerfProbe/.test(line)) continue;
+      const w = perfWho(line);
+      if (!w) continue;
+      if (w === 'WME') {
+        wme = true;
+        continue;
+      }
+      return w;
+    }
+    return wme ? 'WME' : L('altul', 'other');
+  }
+
+  function perfLoafStart() {
+    if (perfState.loafObs || typeof window.PerformanceObserver === 'undefined') return;
+    try {
+      perfState.loafObs = new window.PerformanceObserver((list) => {
+        const now = performance.now();
+        for (const e of list.getEntries()) {
+          const by = {};
+          for (const sc of e.scripts || []) {
+            const w = perfWho(sc.sourceURL || '') || (sc.sourceURL ? L('altul', 'other') : L('necunoscut (cod din pagină)', 'unknown (inline code)'));
+            by[w] = (by[w] || 0) + sc.duration;
+          }
+          perfState.loaf.push({ t: now, d: e.duration, by });
+        }
+        perfState.loaf = perfState.loaf.filter((x) => now - x.t < 30000);
+      });
+      perfState.loafObs.observe({ type: 'long-animation-frame', buffered: false });
+    } catch (e) {
+      perfState.loafObs = null;
+    }
+  }
+
+  // Main-thread estimate: idle time reported by requestIdleCallback.
+  function perfIdleStart() {
+    const idle = perfState.idle;
+    if (idle.on || typeof window.requestIdleCallback !== 'function') return;
+    idle.on = true;
+    idle.sum = 0;
+    idle.t0 = performance.now();
+    const tick = (dl) => {
+      if (!idle.on) return;
+      idle.sum += dl.timeRemaining();
+      window.requestIdleCallback(tick);
+    };
+    window.requestIdleCallback(tick);
+  }
+
+  function perfSnapshot() {
+    const snap = {};
+    perfStats.forEach((v, k) => {
+      snap[k] = { n: v.n, ms: v.ms };
+    });
+    return { t: performance.now(), snap };
+  }
+
+  function perfCell(tr, text, right) {
+    const td = document.createElement('td');
+    td.textContent = text;
+    td.style.cssText = `padding:1px 6px; ${right ? 'text-align:right; font-variant-numeric:tabular-nums;' : ''}`;
+    tr.appendChild(td);
+    return td;
+  }
+
+  function perfTable(head, rows) {
+    const tb = document.createElement('table');
+    tb.style.cssText = 'width:100%; border-collapse:collapse; font-size:11.5px; margin:2px 0 8px;';
+    const th = document.createElement('tr');
+    head.forEach((h, i) => {
+      const c = perfCell(th, h, i > 0);
+      c.style.fontWeight = '600';
+      c.style.opacity = '0.75';
+    });
+    tb.appendChild(th);
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      r.forEach((v, i) => perfCell(tr, v, i > 0));
+      tb.appendChild(tr);
+    }
+    return tb;
+  }
+
+  function perfSection(parent, title) {
+    const h = document.createElement('div');
+    h.textContent = title;
+    h.style.cssText = 'font-weight:600; margin:6px 0 2px;';
+    parent.appendChild(h);
+  }
+
+  function perfRender(box) {
+    const body = box.querySelector('.ro-perf-body');
+    if (!body) return;
+    const now = perfSnapshot();
+    perfState.hist.push(now);
+    while (perfState.hist.length > PERF_WINDOW_S + 1) perfState.hist.shift();
+    const base = perfState.hist[0];
+    const secs = Math.max(0.001, (now.t - base.t) / 1000);
+    const rows = [];
+    let total = 0;
+    for (const [k, v] of Object.entries(now.snap)) {
+      const b = base.snap[k] || { n: 0, ms: 0 };
+      const ms = (v.ms - b.ms) / secs;
+      const n = (v.n - b.n) / secs;
+      total += ms;
+      if (n > 0) rows.push({ k, ms, n, max: (perfStats.get(k) || {}).max || 0 });
+    }
+    rows.sort((a, b) => b.ms - a.ms);
+    body.textContent = '';
+
+    perfSection(body, L(`${SCRIPT_NAME} - funcții periodice (ultimele ${Math.round(secs)} s)`, `${SCRIPT_NAME} - periodic functions (last ${Math.round(secs)} s)`));
+    const tot = document.createElement('div');
+    tot.style.cssText = 'font-size:12px; margin-bottom:2px;';
+    tot.textContent = L(`Total: ${total.toFixed(1)} ms/s ≈ ${(total / 10).toFixed(1)}% dintr-un nucleu`, `Total: ${total.toFixed(1)} ms/s ≈ ${(total / 10).toFixed(1)}% of one core`);
+    body.appendChild(tot);
+    body.appendChild(
+      perfTable(
+        [L('Funcție', 'Function'), L('apeluri/s', 'calls/s'), 'ms/s', L('max ms', 'max ms')],
+        rows.slice(0, 14).map((r) => [PERF_LABELS[r.k] || r.k, r.n.toFixed(1), r.ms.toFixed(2), r.max.toFixed(1)])
+      )
+    );
+
+    perfSection(body, L('Pagina (tot editorul, toate scripturile)', 'Page (whole editor, all scripts)'));
+    const page = [];
+    const idle = perfState.idle;
+    if (idle.on) {
+      const el = performance.now() - idle.t0;
+      if (el > 1500) {
+        page.push([L('Fir principal ocupat (estimare)', 'Main thread busy (estimate)'), `${Math.max(0, Math.min(100, 100 - (idle.sum / el) * 100)).toFixed(0)}%`]);
+        idle.sum = 0;
+        idle.t0 = performance.now();
+        perfState.lastBusy = page[0][1];
+      } else if (perfState.lastBusy) page.push([L('Fir principal ocupat (estimare)', 'Main thread busy (estimate)'), perfState.lastBusy]);
+    }
+    const mem = performance.memory;
+    if (mem) page.push([L('Memorie JS (heap)', 'JS memory (heap)'), `${Math.round(mem.usedJSHeapSize / 1048576)} / ${Math.round(mem.jsHeapSizeLimit / 1048576)} MB`]);
+    page.push([L('Elemente DOM', 'DOM elements'), String(document.getElementsByTagName('*').length)]);
+    try {
+      const Wm = window.W;
+      if (Wm && Wm.map && Wm.map.getLayers) page.push([L('Straturi hartă', 'Map layers'), String(Wm.map.getLayers().length)]);
+      if (Wm && Wm.model) {
+        page.push([
+          L('Obiecte încărcate', 'Loaded objects'),
+          L(
+            `${Wm.model.segments.getObjectArray().length} segm. · ${Wm.model.nodes.getObjectArray().length} noduri · ${Wm.model.venues.getObjectArray().length} locuri`,
+            `${Wm.model.segments.getObjectArray().length} segm. · ${Wm.model.nodes.getObjectArray().length} nodes · ${Wm.model.venues.getObjectArray().length} places`
+          ),
+        ]);
+      }
+    } catch (e) {
+      // WME internals changed - skip
+    }
+    body.appendChild(perfTable([L('Indicator', 'Metric'), L('Valoare', 'Value')], page));
+
+    perfSection(body, L('Cadre lungi (peste 50 ms) în ultimele 30 s, pe script', 'Long frames (over 50 ms) in the last 30 s, per script'));
+    const cut = performance.now() - 30000;
+    const by = {};
+    let frames = 0;
+    for (const f of perfState.loaf) {
+      if (f.t < cut) continue;
+      frames++;
+      for (const [w, d] of Object.entries(f.by)) by[w] = (by[w] || 0) + d;
+    }
+    const lrows = Object.entries(by)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([w, d]) => [w, `${Math.round(d)} ms`]);
+    if (!perfState.loafObs) lrows.push([L('indisponibil în acest browser', 'not available in this browser'), '']);
+    else if (!lrows.length) lrows.push([L('niciunul', 'none'), '']);
+    body.appendChild(perfTable([L(`Script (${frames} cadre)`, `Script (${frames} frames)`), L('timp', 'time')], lrows));
+
+    if (perfState.analysis) {
+      perfSection(body, perfState.analysis.title);
+      body.appendChild(perfTable([L('Script', 'Script'), L('apeluri', 'calls'), 'ms'], perfState.analysis.rows));
+      const note = document.createElement('div');
+      note.style.cssText = 'font-size:11px; opacity:0.7; margin-top:-4px;';
+      note.textContent = L(
+        'Doar apelurile la WME SDK (hartă / date), măsurătorile de layout și căutările în pagină, cronometrate și atribuite după cine le-a făcut - un indiciu, nu tot timpul fiecărui script.',
+        'Only calls to the WME SDK (map / data), layout reads and page queries, timed and attributed to whoever made them - an indication, not each script\'s full time.'
+      );
+      body.appendChild(note);
+    }
+  }
+
+  // 5 s analysis of all scripts: wraps a few hot page APIs (shared
+  // prototypes, so other scripts' calls go through them too), times each
+  // call and attributes it by stack. Everything is restored afterwards.
+  function perfAnalyze(box, btn) {
+    if (perfState.analyzing) return;
+    perfState.analyzing = true;
+    btn.disabled = true;
+    btn.textContent = L('Se analizează… (5 s - lucrează normal în editor)', 'Analysing… (5 s - keep working in the editor)');
+    const agg = {};
+    const restore = [];
+    const wrapProto = (proto, name) => {
+      if (!proto || typeof proto[name] !== 'function') return;
+      const orig = proto[name];
+      proto[name] = function roPerfProbe(...a) {
+        const t = performance.now();
+        try {
+          return orig.apply(this, a);
+        } finally {
+          const d = performance.now() - t;
+          const w = perfWhoFromStack(new Error().stack);
+          const e = agg[w] || (agg[w] = { n: 0, ms: 0 });
+          e.n++;
+          e.ms += d;
+        }
+      };
+      restore.push(() => {
+        proto[name] = orig;
+      });
+    };
+    const oldLimit = Error.stackTraceLimit;
+    Error.stackTraceLimit = 25;
+    try {
+      const P = (o) => (o ? Object.getPrototypeOf(o) : null);
+      for (const m of ['getPixelFromLonLat', 'getLonLatFromPixel', 'getZoomLevel', 'getMapCenter', 'getMapExtent']) wrapProto(P(sdk.Map), m);
+      for (const dm of ['Segments', 'Nodes', 'Venues', 'Streets', 'Cities']) {
+        for (const m of ['getById', 'getAll']) wrapProto(P(sdk.DataModel[dm]), m);
+      }
+      wrapProto(P(sdk.Editing), 'getSelection');
+      wrapProto(window.Element.prototype, 'getBoundingClientRect');
+      for (const m of ['querySelector', 'querySelectorAll']) {
+        wrapProto(window.Element.prototype, m);
+        wrapProto(window.Document.prototype, m);
+      }
+    } catch (e) {
+      // partial wrap is fine
+    }
+    setTimeout(() => {
+      restore.forEach((f) => f());
+      Error.stackTraceLimit = oldLimit;
+      perfState.analyzing = false;
+      btn.disabled = false;
+      btn.textContent = L('🔬 Analiză 5 s - toate scripturile', '🔬 5 s analysis - all scripts');
+      perfState.analysis = {
+        title: L(`Analiză 5 s - toate scripturile (${new Date().toLocaleTimeString()})`, `5 s analysis - all scripts (${new Date().toLocaleTimeString()})`),
+        rows: Object.entries(agg)
+          .sort((a, b) => b[1].ms - a[1].ms)
+          .slice(0, 12)
+          .map(([w, v]) => [w, String(v.n), v.ms.toFixed(0)]),
+      };
+      if (!perfState.analysis.rows.length) perfState.analysis.rows.push([L('niciun apel', 'no calls'), '', '']);
+      perfRender(box);
+    }, 5000);
+  }
+
+  function perfClose() {
+    const box = document.getElementById(PERF_PANEL_ID);
+    if (box) box.remove();
+    clearInterval(perfState.timer);
+    perfState.timer = null;
+    perfState.idle.on = false;
+    if (perfState.loafObs) {
+      try {
+        perfState.loafObs.disconnect();
+      } catch (e) {
+        // ignore
+      }
+      perfState.loafObs = null;
+    }
+    perfState.loaf = [];
+    perfState.hist = [];
+  }
+
+  function perfOpen() {
+    if (document.getElementById(PERF_PANEL_ID)) return;
+    const t = currentTheme();
+    const box = document.createElement('div');
+    box.id = PERF_PANEL_ID;
+    box.style.cssText = `position:fixed; top:64px; right:16px; z-index:100003; width:460px; max-width:calc(100vw - 32px); max-height:calc(100vh - 90px); overflow:auto; background:${t.menuBg}; color:${t.menuText}; border:1px solid ${t.menuBorder}; border-radius:8px; box-shadow:0 8px 28px rgba(0,0,0,0.45); padding:10px 12px; box-sizing:border-box; font:12px/1.4 Rubik, Arial, sans-serif;`;
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex; align-items:center; gap:8px; margin-bottom:4px;';
+    const title = document.createElement('div');
+    title.textContent = L('📊 Monitor resurse', '📊 Resource monitor');
+    title.style.cssText = 'font-weight:600; font-size:14px; flex:1;';
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '✕';
+    x.title = L('Închide', 'Close');
+    x.style.cssText = 'border:none; background:transparent; color:inherit; font-size:15px; cursor:pointer;';
+    x.addEventListener('click', perfClose);
+    head.append(title, x);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = L('🔬 Analiză 5 s - toate scripturile', '🔬 5 s analysis - all scripts');
+    btn.title = L(
+      'Timp de 5 s cronometrează apelurile la WME SDK, măsurătorile de layout și căutările în pagină și arată ce script le face. Mută harta în timpul analizei ca să vezi ce încetinește la mișcare.',
+      'For 5 s, times calls to the WME SDK, layout reads and page queries and shows which script makes them. Move the map during the analysis to see what slows panning.'
+    );
+    btn.style.cssText = 'margin:2px 0 6px; padding:3px 10px; font-size:12px; border:1px solid rgba(128,128,128,.6); border-radius:14px; background:transparent; color:inherit; cursor:pointer;';
+    btn.addEventListener('click', () => perfAnalyze(box, btn));
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'ro-perf-body';
+    const foot = document.createElement('div');
+    foot.style.cssText = 'font-size:11px; opacity:0.7; margin-top:4px;';
+    foot.textContent = L(
+      'Chrome nu oferă memoria consumată de fiecare script, doar pe a paginii. Timpul funcțiilor periodice ale scriptului e măsurat exact; fereastra însăși consumă foarte puțin și se oprește când o închizi.',
+      'Chrome gives no per-script memory, only the page\'s. The time of the script\'s periodic functions is measured exactly; the window itself costs very little and stops when closed.'
+    );
+    box.append(head, btn, bodyEl, foot);
+    document.body.appendChild(box);
+    perfState.hist = [perfSnapshot()];
+    perfState.lastBusy = null;
+    perfLoafStart();
+    perfIdleStart();
+    perfRender(box);
+    perfState.timer = setInterval(() => perfRender(box), 1000);
+  }
 
   // Selection-change poll interval - no confirmed SDK event for this.
   const SELECTION_POLL_MS = 350;
@@ -682,7 +1096,7 @@
   function startForceSidebarOpenWatchdog() {
     if (forceSidebarOpenIntervalId) return;
     enforceSidebarOpen();
-    forceSidebarOpenIntervalId = setInterval(enforceSidebarOpen, FORCE_SIDEBAR_OPEN_POLL_MS);
+    forceSidebarOpenIntervalId = setInterval(perfFn('enforceSidebarOpen', enforceSidebarOpen), FORCE_SIDEBAR_OPEN_POLL_MS);
   }
 
   function stopForceSidebarOpenWatchdog() {
@@ -757,6 +1171,16 @@
       });
     });
     version.appendChild(updLink);
+    version.append(' · ');
+    const perfLink = document.createElement('a');
+    perfLink.href = '#';
+    perfLink.textContent = L('📊 Monitor resurse', '📊 Resource monitor');
+    perfLink.title = L('Cât procesor consumă funcțiile scriptului, plus memoria și încărcarea paginii', 'How much CPU the script functions use, plus the page memory and load');
+    perfLink.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      perfOpen();
+    });
+    version.appendChild(perfLink);
     wrap.appendChild(version);
 
     // Language selector (v0.41). Applied on page reload - LANG is fixed at load.
@@ -2062,7 +2486,7 @@
     }
     state.wasDragging = isDragging;
 
-    state.rafId = requestAnimationFrame(rafLoop);
+    state.rafId = perfRaf('rafLoop', rafLoop);
   }
 
   function hideAngleBadges() {
@@ -2114,7 +2538,7 @@
   //   a small margin) so the badge stays visible, as close to center as
   //   possible.
   function computeSegmentBadgePosition(coords) {
-    const pix = coords.map((c) => sdk.Map.getPixelFromLonLat({ lonLat: { lon: c[0], lat: c[1] } }));
+    const pix = coords.map((c) => fastPx(c[0], c[1]));
     if (pix.length === 0) return null;
     if (pix.length === 1) return { x: pix[0].x, y: pix[0].y };
 
@@ -2275,7 +2699,77 @@
   // (some sidebar panels, e.g. a problem/UR conversation, can visually
   // cover part of the map without the viewport element's own layout
   // rect shrinking to match - own badges/pills must still avoid them).
+  // Perf (v0.54.1): called from several rAF loops per frame - cached for
+  // one frame (8 ms) so the 2 getBoundingClientRect reads happen once.
+  let viewportBoundsCache = null;
+  let viewportBoundsCacheT = -1;
   function getMapViewportBounds() {
+    const now = performance.now();
+    if (viewportBoundsCache && now - viewportBoundsCacheT < 8) return viewportBoundsCache;
+    viewportBoundsCache = getMapViewportBoundsNow();
+    viewportBoundsCacheT = now;
+    return viewportBoundsCache;
+  }
+
+  // Fast lon/lat -> window pixel (v0.54.1). Measured in Paul's session:
+  // `sdk.Map.getPixelFromLonLat` costs ~20 µs and reads the layout each
+  // call; the pills / lock badges / rescans made ~700 calls/s with the map
+  // idle. WME's map is Web Mercator with no rotation, so pixel = affine
+  // function of the mercator meters: calibrated from 2 SDK calls (cached
+  // one frame), then pure math (~45x faster, max diff 1.2 px = the SDK's
+  // own rounding). Falls back to the SDK if the calibration fails.
+  const MERC_R = 6378137;
+  let pxCal = null;
+  function mercX(lon) {
+    return (lon * Math.PI * MERC_R) / 180;
+  }
+  function mercY(lat) {
+    return MERC_R * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+  }
+  function pxCalibrate(now) {
+    pxCal = null;
+    try {
+      const c = sdk.Map.getMapCenter();
+      const a = { lon: c.lon, lat: c.lat };
+      const b = { lon: c.lon + 0.01, lat: c.lat + 0.01 };
+      const pa = sdk.Map.getPixelFromLonLat({ lonLat: a });
+      const pb = sdk.Map.getPixelFromLonLat({ lonLat: b });
+      const ax = (pb.x - pa.x) / (mercX(b.lon) - mercX(a.lon));
+      const ay = (pb.y - pa.y) / (mercY(b.lat) - mercY(a.lat));
+      if (!Number.isFinite(ax) || !Number.isFinite(ay) || !ax || !ay) return;
+      pxCal = { t: now, ax, ay, bx: pa.x - ax * mercX(a.lon), by: pa.y - ay * mercY(a.lat) };
+    } catch (e) {
+      pxCal = null;
+    }
+  }
+  function fastPx(lon, lat) {
+    const now = performance.now();
+    if (!pxCal || now - pxCal.t > 8) pxCalibrate(now);
+    if (!pxCal) return sdk.Map.getPixelFromLonLat({ lonLat: { lon, lat } });
+    return { x: pxCal.ax * mercX(lon) + pxCal.bx, y: pxCal.ay * mercY(lat) + pxCal.by };
+  }
+  // Signature of the current map view (projection + viewport): unchanged
+  // signature = the overlays don't need to move.
+  function mapViewSig() {
+    fastPx(0, 0);
+    const b = getMapViewportBounds();
+    const c = pxCal || {};
+    return `${c.ax}|${c.bx}|${c.ay}|${c.by}|${b.vw}|${b.vh}|${b.vx0}|${b.vy0}`;
+  }
+  // Writes position / visibility only when they change (no style
+  // invalidation -> no layout work on idle frames).
+  function setOverlayPos(el, x, y) {
+    const l = `${x}px`;
+    const t = `${y}px`;
+    if (el.style.display !== 'flex') el.style.display = 'flex';
+    if (el.style.left !== l) el.style.left = l;
+    if (el.style.top !== t) el.style.top = t;
+  }
+  function hideOverlay(el) {
+    if (el.style.display !== 'none') el.style.display = 'none';
+  }
+
+  function getMapViewportBoundsNow() {
     const viewportEl = sdk.Map.getMapViewportElement ? sdk.Map.getMapViewportElement() : null;
     const vpRect = viewportEl ? viewportEl.getBoundingClientRect() : null;
     let vw = (viewportEl && viewportEl.clientWidth) || window.innerWidth;
@@ -2361,7 +2855,7 @@
     let minY = Infinity;
     let maxY = -Infinity;
     for (const c of coords) {
-      const p = sdk.Map.getPixelFromLonLat({ lonLat: { lon: c[0], lat: c[1] } });
+      const p = fastPx(c[0], c[1]);
       if (p.x < minX) minX = p.x;
       if (p.x > maxX) maxX = p.x;
       if (p.y < minY) minY = p.y;
@@ -2518,7 +3012,7 @@
       }
     }
 
-    segmentState.rafId = requestAnimationFrame(segmentRafLoop);
+    segmentState.rafId = perfRaf('segmentRafLoop', segmentRafLoop);
   }
 
   function deactivateSegment() {
@@ -2606,7 +3100,7 @@
     // after a change) - covers a segment already drawn in a problematic
     // configuration, with no click needed.
     checkAndAlertUturn(segmentId);
-    segmentState.rafId = requestAnimationFrame(segmentRafLoop);
+    segmentState.rafId = perfRaf('segmentRafLoop', segmentRafLoop);
   }
 
   // ---------------------------------------------------------------------
@@ -2641,7 +3135,7 @@
     segmentIds.forEach((segmentId) => {
       multiSegmentState.badges.set(segmentId, createSegmentLengthBadge());
     });
-    multiSegmentState.rafId = requestAnimationFrame(multiSegmentRafLoop);
+    multiSegmentState.rafId = perfRaf('multiSegmentRafLoop', multiSegmentRafLoop);
   }
 
   function multiSegmentRafLoop() {
@@ -2697,7 +3191,7 @@
       return;
     }
 
-    multiSegmentState.rafId = requestAnimationFrame(multiSegmentRafLoop);
+    multiSegmentState.rafId = perfRaf('multiSegmentRafLoop', multiSegmentRafLoop);
   }
 
   // ---------------------------------------------------------------------
@@ -3353,6 +3847,8 @@
   // segments no longer unpublished/visible/loaded (or now excluded).
   function unpublishedWarnRescan() {
     if (!unpublishedWarnState.active) return;
+    // Geometry / pills may have changed - reposition on the next frame.
+    unpublishedWarnState.dirty = true;
 
     ensureTileBuildStatusFresh();
 
@@ -3409,6 +3905,15 @@
       unpublishedWarnState.rafId = null;
       return;
     }
+    // Perf (v0.54.1): only when the view moved or after a rescan (dirty) -
+    // with the map idle nothing is recomputed or written.
+    const sig = unpublishedWarnState.badges.size ? mapViewSig() : '';
+    if (sig === unpublishedWarnState.lastSig && !unpublishedWarnState.dirty) {
+      unpublishedWarnState.rafId = perfRaf('unpublishedWarnRafLoop', unpublishedWarnRafLoop);
+      return;
+    }
+    unpublishedWarnState.lastSig = sig;
+    unpublishedWarnState.dirty = false;
     // Cheap check - re-attaches the container if WME re-rendered the map.
     if (unpublishedWarnState.badges.size) getMapOverlayContainer();
     unpublishedWarnState.badges.forEach((badge, segmentId) => {
@@ -3420,19 +3925,17 @@
       }
       const coords = segment && segment.geometry && segment.geometry.coordinates;
       if (!coords || coords.length < 2) {
-        badge.style.display = 'none';
+        hideOverlay(badge);
         return;
       }
       const pos = computeUnpublishedWarnPosition(coords);
       if (!pos) {
-        badge.style.display = 'none';
+        hideOverlay(badge);
         return;
       }
-      badge.style.display = 'flex';
-      badge.style.left = `${pos.x}px`;
-      badge.style.top = `${pos.y}px`;
+      setOverlayPos(badge, pos.x, pos.y);
     });
-    unpublishedWarnState.rafId = requestAnimationFrame(unpublishedWarnRafLoop);
+    unpublishedWarnState.rafId = perfRaf('unpublishedWarnRafLoop', unpublishedWarnRafLoop);
   }
 
   function startUnpublishedWarnWatchdog() {
@@ -3440,9 +3943,9 @@
     unpublishedWarnState.active = true;
     ensureTileBuildStatusFresh();
     unpublishedWarnRescan();
-    if (!unpublishedWarnState.rafId) unpublishedWarnState.rafId = requestAnimationFrame(unpublishedWarnRafLoop);
+    if (!unpublishedWarnState.rafId) unpublishedWarnState.rafId = perfRaf('unpublishedWarnRafLoop', unpublishedWarnRafLoop);
     if (!unpublishedWarnState.rescanIntervalId) {
-      unpublishedWarnState.rescanIntervalId = setInterval(unpublishedWarnRescan, UNPUBLISHED_WARN_RESCAN_MS);
+      unpublishedWarnState.rescanIntervalId = setInterval(perfFn('unpublishedWarnRescan', unpublishedWarnRescan), UNPUBLISHED_WARN_RESCAN_MS);
     }
   }
 
@@ -3539,6 +4042,7 @@
 
   function lock1Rescan() {
     if (!lock1State.active) return;
+    lock1State.dirty = true;
     const { vw, vh, vx0, vy0 } = getMapViewportBounds();
     let segments;
     try {
@@ -3752,6 +4256,14 @@
       lock1State.rafId = null;
       return;
     }
+    // Perf (v0.54.1): same idle skip as the publish pills.
+    const sig = lock1State.badges.size ? mapViewSig() : '';
+    if (sig === lock1State.lastSig && !lock1State.dirty) {
+      lock1State.rafId = perfRaf('lock1Raf', lock1Raf);
+      return;
+    }
+    lock1State.lastSig = sig;
+    lock1State.dirty = false;
     if (lock1State.badges.size) getMapOverlayContainer();
     lock1State.badges.forEach((el, id) => {
       let seg = null;
@@ -3763,14 +4275,12 @@
       const c = seg && seg.geometry && seg.geometry.coordinates;
       const pos = c && c.length >= 2 ? lock1Position(c) : null;
       if (!pos) {
-        el.style.display = 'none';
+        hideOverlay(el);
         return;
       }
-      el.style.display = 'flex';
-      el.style.left = `${pos.x}px`;
-      el.style.top = `${pos.y}px`;
+      setOverlayPos(el, pos.x, pos.y);
     });
-    lock1State.rafId = requestAnimationFrame(lock1Raf);
+    lock1State.rafId = perfRaf('lock1Raf', lock1Raf);
   }
 
   function startLock1Badges() {
@@ -3778,8 +4288,8 @@
     lock1Style();
     lock1State.active = true;
     lock1Rescan();
-    if (!lock1State.rafId) lock1State.rafId = requestAnimationFrame(lock1Raf);
-    if (!lock1State.intervalId) lock1State.intervalId = setInterval(lock1Rescan, LOCK1_RESCAN_MS);
+    if (!lock1State.rafId) lock1State.rafId = perfRaf('lock1Raf', lock1Raf);
+    if (!lock1State.intervalId) lock1State.intervalId = setInterval(perfFn('lock1Rescan', lock1Rescan), LOCK1_RESCAN_MS);
   }
 
   function stopLock1Badges() {
@@ -6044,7 +6554,7 @@
         if (!settings.closureQuickActions) return;
         pending = ev;
         if (rcState.raf) return;
-        rcState.raf = requestAnimationFrame(() => {
+        rcState.raf = requestAnimationFrame(perfFn('rcHover', () => {
           rcState.raf = null;
           const e = pending;
           if (!e) return;
@@ -6096,7 +6606,7 @@
             }
             if (rcState.popup && !rcState.hideT) rcScheduleHide();
           }
-        });
+        }));
       },
       { passive: true, capture: true }
     );
@@ -6260,7 +6770,7 @@
         drawLenHide();
         return;
       }
-      drawLenState.rafId = requestAnimationFrame(drawLenFrame);
+      drawLenState.rafId = perfRaf('drawLenFrame', drawLenFrame);
       return;
     }
     let m = 0;
@@ -6279,7 +6789,7 @@
     b.title = L('Lungimea segmentului desenat', 'Length of the segment being drawn');
     b.style.left = `${Math.round(vp.left + px.x + 34)}px`;
     b.style.top = `${Math.round(vp.top + px.y - 22)}px`;
-    drawLenState.rafId = requestAnimationFrame(drawLenFrame);
+    drawLenState.rafId = perfRaf('drawLenFrame', drawLenFrame);
   }
 
   function drawLenWatch() {
@@ -6288,7 +6798,7 @@
       return;
     }
     if (drawLenState.rafId) return; // loop already running
-    if (drawLenHandler()) drawLenState.rafId = requestAnimationFrame(drawLenFrame);
+    if (drawLenHandler()) drawLenState.rafId = perfRaf('drawLenFrame', drawLenFrame);
   }
 
   // ---------------------------------------------------------------------
@@ -7200,7 +7710,7 @@
     };
 
     refreshQuickActionBar(segmentId);
-    segmentState.quickBarRefreshId = setInterval(() => refreshQuickActionBar(segmentState.segmentId), 400);
+    segmentState.quickBarRefreshId = setInterval(perfFn('quickBarRefresh', () => refreshQuickActionBar(segmentState.segmentId)), 400);
 
     return bar;
   }
@@ -7358,7 +7868,7 @@
     });
 
     if (moveNodesState.lengthBadges.length) {
-      moveNodesState.lengthBadgesRafId = requestAnimationFrame(moveNodesLengthBadgesRafLoop);
+      moveNodesState.lengthBadgesRafId = perfRaf('moveNodesLengthBadgesRafLoop', moveNodesLengthBadgesRafLoop);
     }
   }
 
@@ -7401,7 +7911,7 @@
       info.badge.style.top = `${nodePix.y + (dy / dist) * LENGTH_BADGE_OFFSET_PX}px`;
       info.badge.textContent = formatLength(pathLengthMeters(seg2.geometry.coordinates));
     });
-    moveNodesState.lengthBadgesRafId = requestAnimationFrame(moveNodesLengthBadgesRafLoop);
+    moveNodesState.lengthBadgesRafId = perfRaf('moveNodesLengthBadgesRafLoop', moveNodesLengthBadgesRafLoop);
   }
 
   function quickBarToggleMoveNodesPanel(ev, segmentId, anchorEl) {
@@ -8766,7 +9276,7 @@
       if (!seg.coords || seg.coords.length < 2) continue;
       let pixPoints;
       try {
-        pixPoints = seg.coords.map((c) => sdk.Map.getPixelFromLonLat({ lonLat: { lon: c[0], lat: c[1] } }));
+        pixPoints = seg.coords.map((c) => fastPx(c[0], c[1]));
       } catch (e) {
         continue;
       }
@@ -9003,7 +9513,7 @@
       if (cutIsDeletedLocally(segment.id)) continue;
       let pixPoints;
       try {
-        pixPoints = coords.map((c) => sdk.Map.getPixelFromLonLat({ lonLat: { lon: c[0], lat: c[1] } }));
+        pixPoints = coords.map((c) => fastPx(c[0], c[1]));
       } catch (e) {
         continue;
       }
@@ -9863,7 +10373,7 @@
     state.segments = segments;
     state.wasDragging = false;
 
-    state.rafId = requestAnimationFrame(rafLoop);
+    state.rafId = perfRaf('rafLoop', rafLoop);
   }
 
   // ---------------------------------------------------------------------
@@ -11290,7 +11800,7 @@
     itMapAllRegisterLayerCheckbox();
     if (settings.issueTrackerMapAll) itMapAllHook();
     itMapAllPoll();
-    setInterval(itMapAllPoll, IT_MAP_ALL_POLL_MS);
+    setInterval(perfFn('itMapAllPoll', itMapAllPoll), IT_MAP_ALL_POLL_MS);
   }
 
   // ---------------------------------------------------------------------
@@ -11874,11 +12384,11 @@
   function initSavedWarnings() {
     // W.controller may not exist yet on very early init - retry in poll.
     savedWarnHookSave();
-    setInterval(() => {
+    setInterval(perfFn('savedWarnPoll', () => {
       savedWarnHookSave();
       // WME may re-render the toolbar (drops our button) - re-attach.
       if (savedWarnCount() && (!savedWarnState.btn || !document.body.contains(savedWarnState.btn))) savedWarnRender();
-    }, SAVED_WARN_POLL_MS);
+    }), SAVED_WARN_POLL_MS);
     window.addEventListener('resize', savedWarnPositionPanel);
   }
 
@@ -12545,7 +13055,7 @@
 
   function initShortcutsAndLayerButtons() {
     kbHookRegister();
-    setInterval(() => {
+    setInterval(perfFn('kbLayerPoll', () => {
       try {
         kbHookRegister();
         kbPollDialog();
@@ -12554,7 +13064,7 @@
       } catch (e) {
         // ignore - WME DOM changed
       }
-    }, KB_POLL_MS);
+    }), KB_POLL_MS);
   }
 
   // ---------------------------------------------------------------------
@@ -13872,7 +14382,7 @@
   }
 
   function initTurnInstructionsHelper() {
-    setInterval(() => {
+    setInterval(perfFn('tiPoll', () => {
       if (!settings.turnInstructionsHelper) return;
       try {
         tiInject();
@@ -13882,7 +14392,7 @@
       } catch (e) {
         // ignore - WME DOM changed
       }
-    }, TI_POLL_MS);
+    }), TI_POLL_MS);
   }
 
   function tiRemoveAll() {
@@ -16858,32 +17368,32 @@
     initShortcutsAndLayerButtons();
     initTurnInstructionsHelper();
 
-    setInterval(checkSelection, SELECTION_POLL_MS);
-    setInterval(() => {
+    setInterval(perfFn('checkSelection', checkSelection), SELECTION_POLL_MS);
+    setInterval(perfFn('publishSidebarRefresh', () => {
       try {
         publishSidebarRefresh();
       } catch (e) {
         // sidebar not ready - next tick
       }
-    }, 700);
-    setInterval(urBulkPoll, UR_FORM_POLL_MS);
-    setInterval(coordPoll, COORD_POLL_MS);
-    setInterval(imgPoll, IMG_POLL_MS);
-    setInterval(jbPoll, JB_POLL_MS);
-    setInterval(drawLenWatch, DRAW_LEN_WATCH_MS);
+    }), 700);
+    setInterval(perfFn('urBulkPoll', urBulkPoll), UR_FORM_POLL_MS);
+    setInterval(perfFn('coordPoll', coordPoll), COORD_POLL_MS);
+    setInterval(perfFn('imgPoll', imgPoll), IMG_POLL_MS);
+    setInterval(perfFn('jbPoll', jbPoll), JB_POLL_MS);
+    setInterval(perfFn('drawLenWatch', drawLenWatch), DRAW_LEN_WATCH_MS);
     mapIconsApply(true);
-    setInterval(() => mapIconsApply(false), MAP_ICONS_POLL_MS);
+    setInterval(perfFn('mapIconsApply', () => mapIconsApply(false)), MAP_ICONS_POLL_MS);
     plPoll();
-    setInterval(plPoll, PL_POLL_MS);
+    setInterval(perfFn('plPoll', plPoll), PL_POLL_MS);
     rcInit();
     gTrafficInit();
-    setInterval(rsPoll, RS_POLL_MS);
+    setInterval(perfFn('rsPoll', rsPoll), RS_POLL_MS);
     srPoll();
-    setInterval(srPoll, 2000);
+    setInterval(perfFn('srPoll', srPoll), 2000);
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);
-    setInterval(esPoll, ES_POLL_MS);
+    setInterval(perfFn('esPoll', esPoll), ES_POLL_MS);
 
     console.log(`${SCRIPT_NAME} v${SCRIPT_VERSION}: pornit.`);
   }
