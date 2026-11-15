@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.52.1
+// @version      0.53.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.52.1';
+  const SCRIPT_VERSION = '0.53.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.53', items: [
+      L('Căutare locație îmbunătățită: click-ul în afară nu mai sare la un rezultat, caseta se golește după alegere, rezultatele au sursa și distanța, apar și străzile / locurile de pe hartă, poți căuta după ID de segment sau de loc și ai istoricul ultimelor căutări.', 'Better location search: clicking outside no longer jumps to a result, the box is emptied after a pick, results show source and distance, streets / places on the map appear too, you can search by segment or place ID and you get the history of recent searches.'),
+    ] },
     { v: '0.52', items: [
       L('Pastilele de publicare (portocaliu / verde / albastru): textul se încadrează pe mai multe rânduri și au linkul „📜 Istoric recent” - modificările recente ale segmentului (ce s-a schimbat, cine, când, starea pe Livemap), încărcate doar la cerere.', 'Publish pills (orange / green / blue): the text wraps and they have a "📜 Recent history" link - the recent edits of the segment (what changed, who, when, Livemap status), loaded only on demand.'),
     ] },
@@ -483,6 +486,10 @@
     // v0.49: 🔗 button next to the top search box - open a WME permalink
     // (beta too) / Google Maps / Waze link / coordinates without reloading.
     permalinkTool: true,
+    // v0.53: better location search (no jump on blur, box emptied after a
+    // pick, Waze / Google + distance, results from the map, segment / place
+    // ID, links, history).
+    searchHelper: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
@@ -858,6 +865,10 @@
           if (!checkbox.checked) rcHide();
           return;
         }
+        if (key === 'searchHelper') {
+          srPoll();
+          return;
+        }
         if (key === 'permalinkTool') {
           if (checkbox.checked) plEnsureButton();
           else plRemoveAll();
@@ -1135,6 +1146,12 @@
       L('Lungime în timp real la desenarea unui segment', 'Live length while drawing a segment'),
       L('Cât desenezi un segment nou, o pastilă lângă cursor arată lungimea lui.', 'While you draw a new segment, a pill next to the cursor shows its length.'),
       L('Când desenezi un drum nou (unealta de desenare segment), lângă cursor apare aceeași pastilă ca la mutarea unui nod, cu lungimea totală a segmentului desenat până acum, inclusiv bucata până la cursor, actualizată în timp real. Dispare când termini sau anulezi desenul.', 'When you draw a new road (segment drawing tool), the same pill as when moving a node appears next to the cursor, with the total length of the segment drawn so far, including the piece up to the cursor, updated live. It disappears when you finish or cancel the drawing.')
+    );
+    addToggle(
+      'searchHelper',
+      L('Căutare locație îmbunătățită', 'Better location search'),
+      L('Fără salturi la click în afară, rezultate de pe hartă, distanță, ID segment / loc, istoric.', 'No jumps on clicking outside, results from the map, distance, segment / place ID, history.'),
+      L('Bara de căutare de sus: (1) click-ul în afara casetei nu mai selectează un rezultat și nu mai readuce locul căutat anterior (Enter merge ca înainte); (2) după ce alegi un rezultat, caseta se golește; (3) rezultatele au sursa (Waze / Google) și distanța față de centrul hărții; (4) primele rezultate sunt cele „🗺 pe hartă”, din datele deja încărcate - o stradă (îi selectează segmentele încărcate) sau un loc (îl selectează); (5) un număr = ID de segment, n.n.n = ID de loc: îl selectează, iar dacă nu e încărcat îi găsește locația în istoricul WME; (6) un permalink, link Google / Waze sau coordonate în grade-minute-secunde → „🔗 Deschide linkul”; (7) caseta goală arată ultimele 15 căutări (păstrate în browser), cu „Șterge istoricul”.', 'Top search box: (1) clicking outside the box no longer selects a result or brings the previous place back (Enter works as before); (2) after you pick a result the box is emptied; (3) results show their source (Waze / Google) and the distance from the map center; (4) the first results are "🗺 on the map" ones, from the data already loaded - a street (selects its loaded segments) or a place (selects it); (5) a number = segment ID, n.n.n = place ID: it gets selected, and if it is not loaded its location is found in the WME history; (6) a permalink, a Google / Waze link or degrees-minutes-seconds coordinates → "🔗 Open the link"; (7) an empty box shows the last 15 searches (kept in the browser), with "Clear the history".')
     );
     addToggle(
       'permalinkTool',
@@ -4635,6 +4652,572 @@
     plClearHighlight();
     const b = document.getElementById(PL_BTN_ID);
     if (b) b.remove();
+  }
+
+  // ---------------------------------------------------------------------
+  // Better location search (v0.53). Paul: the native search box "funcționează
+  // total contraintuitiv": clicking outside jumps to a result, the last
+  // place "stays stuck" in the box, results lack street / distance, no
+  // history, no search by segment / place ID.
+  // The box is a Stencil web component `wz-autocomplete#search-autocomplete`
+  // (live-checked):
+  //  - `getItems(query)` (a property set by WME's React code) returns
+  //    [{ id, text, secondaryText, imagePath }]; the full places are kept in
+  //    a React ref Map (id -> { poiId 'waze.street-…' / 'googleAddress.…',
+  //    source 1 Waze / 2 Google, geometry.coordinate[0] {x, y}, address
+  //    { street, houseNumber, city, state, country } }) - found by walking
+  //    the component's React fiber hooks (`srPlaceMap`);
+  //  - selecting emits `itemSelected` (detail = the item); WME moves the map;
+  //  - `onBlur` (bound) -> `setValueAccordingToCurrentQuery()` selects the
+  //    item whose text matches the query, else `reset()` = re-selects the
+  //    previous value: THE "click outside jumps / old text comes back".
+  // What we do (all reversible, re-applied if WME re-renders the box):
+  //  - blur no longer selects or restores anything (Enter still does);
+  //  - the box is emptied after a selection;
+  //  - results get "· Waze / Google · 12 km" (distance from the map center)
+  //    and, first, "On the map" matches from the loaded data (streets ->
+  //    their loaded segments get selected, places -> selected);
+  //  - a segment ID (digits) or a place ID (n.n.n) gives a result that
+  //    selects it - if it is not loaded, its location comes from the WME
+  //    history (ElementHistory, last geometry);
+  //  - a permalink / Google / Waze link or DMS coordinates gives "Open the
+  //    link" (the 🔗 "Open a link" logic);
+  //  - empty box = the last 15 searches (localStorage), with "Clear".
+  // Our own result ids start with `ro-sr:`; their `itemSelected` is stopped
+  // (capture) before WME sees it and handled here.
+  // ---------------------------------------------------------------------
+  const SR_PREFIX = 'ro-sr:';
+  const SR_HISTORY_KEY = 'wme-ro-tools-search-history';
+  const SR_HISTORY_MAX = 15;
+  const SR_LOCAL_MAX = 6;
+  const srState = { el: null, origGetItems: null, custom: new Map(), placeMap: null, enter: false, bound: false };
+
+  function srFold(s) {
+    return String(s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function srHistoryLoad() {
+    try {
+      const h = JSON.parse(window.localStorage.getItem(SR_HISTORY_KEY) || '[]');
+      return Array.isArray(h) ? h : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function srHistorySave(list) {
+    try {
+      window.localStorage.setItem(SR_HISTORY_KEY, JSON.stringify(list.slice(0, SR_HISTORY_MAX)));
+    } catch (e) {
+      // no storage
+    }
+  }
+
+  function srHistoryAdd(entry) {
+    if (!entry || !entry.label) return;
+    const key = `${entry.kind}|${entry.label}|${entry.sub || ''}`;
+    const list = srHistoryLoad().filter((h) => `${h.kind}|${h.label}|${h.sub || ''}` !== key);
+    list.unshift({ ...entry, at: Date.now() });
+    srHistorySave(list);
+  }
+
+  // The React ref Map with the full places of the last search.
+  function srPlaceMap() {
+    if (srState.placeMap && srState.placeMap.size >= 0 && srState.placeMapEl === srState.el) return srState.placeMap;
+    const el = srState.el;
+    if (!el) return null;
+    const fk = Object.keys(el).find((k) => k.startsWith('__reactFiber'));
+    let f = fk && el[fk];
+    for (let i = 0; i < 15 && f; i++) {
+      let h = f.memoizedState;
+      for (let n = 0; n < 60 && h; n++) {
+        const ms = h.memoizedState;
+        for (const c of [ms, ms && ms.current]) {
+          if (c instanceof Map && (!c.size || [...c.values()].some((v) => v && typeof v === 'object' && 'displayName' in v))) {
+            // An empty Map can't be told apart - keep looking for a filled
+            // one first, remember the empty one as a fallback.
+            if (c.size) {
+              srState.placeMap = c;
+              srState.placeMapEl = el;
+              return c;
+            }
+          }
+        }
+        h = h.next;
+      }
+      f = f.return;
+    }
+    return null;
+  }
+
+  function srCenter() {
+    try {
+      const c = sdk.Map.getMapCenter();
+      return { lat: c.lat, lon: c.lon };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function srAddItem(payload, text, secondaryText) {
+    const id = `${SR_PREFIX}${srState.custom.size}-${Math.random().toString(36).slice(2, 7)}`;
+    srState.custom.set(id, payload);
+    return { id, text, secondaryText };
+  }
+
+  // GeoJSON -> { lon, lat } (bbox center) or null.
+  function srGeomCenter(g) {
+    const b = g ? plBbox([g]) : null;
+    return b ? { lon: (b[0] + b[2]) / 2, lat: (b[1] + b[3]) / 2 } : null;
+  }
+
+  // "On the map": streets (grouped name + city, their loaded segments) and
+  // places from the data already loaded.
+  function srLocalItems(q) {
+    const fq = srFold(q);
+    if (fq.length < 3) return [];
+    const center = srCenter();
+    const out = [];
+    const streets = new Map(); // "name|city" -> { name, city, ids, best }
+    let segs = [];
+    try {
+      segs = sdk.DataModel.Segments.getAll() || [];
+    } catch (e) {
+      segs = [];
+    }
+    const stCache = new Map();
+    for (const s of segs) {
+      if (!s.primaryStreetId) continue;
+      let st = stCache.get(s.primaryStreetId);
+      if (st === undefined) {
+        try {
+          st = sdk.DataModel.Streets.getById({ streetId: s.primaryStreetId }) || null;
+        } catch (e) {
+          st = null;
+        }
+        stCache.set(s.primaryStreetId, st);
+      }
+      if (!st || !st.name || !srFold(st.name).includes(fq)) continue;
+      let city = '';
+      if (st.cityId) {
+        try {
+          const c = sdk.DataModel.Cities.getById({ cityId: st.cityId });
+          city = (c && c.name) || '';
+        } catch (e) {
+          city = '';
+        }
+      }
+      const key = `${st.name}|${city}`;
+      let g = streets.get(key);
+      if (!g) {
+        g = { name: st.name, city, ids: [], geoms: [], best: Infinity };
+        streets.set(key, g);
+      }
+      g.ids.push(s.id);
+      g.geoms.push(s.geometry);
+      const c0 = center && srGeomCenter(s.geometry);
+      if (c0) g.best = Math.min(g.best, plDistM(center, c0));
+    }
+    [...streets.values()]
+      .sort((a, b) => a.best - b.best)
+      .slice(0, 4)
+      .forEach((g) => {
+        const dist = Number.isFinite(g.best) ? ` · ${plFmtDist(g.best)}` : '';
+        out.push(
+          srAddItem(
+            { kind: 'street', ids: g.ids, geoms: g.geoms, label: g.name, sub: g.city },
+            `🗺 ${g.name}`,
+            `${g.city ? `${g.city} · ` : ''}${L('pe hartă', 'on the map')} · ${g.ids.length} ${g.ids.length === 1 ? L('segment', 'segment') : L('segmente', 'segments')}${dist}`
+          )
+        );
+      });
+    let venues = [];
+    try {
+      venues = sdk.DataModel.Venues.getAll() || [];
+    } catch (e) {
+      venues = [];
+    }
+    venues
+      .filter((v) => v.name && srFold(v.name).includes(fq))
+      .map((v) => {
+        const c0 = srGeomCenter(v.geometry);
+        return { v, c0, d: center && c0 ? plDistM(center, c0) : Infinity };
+      })
+      .sort((a, b) => a.d - b.d)
+      .slice(0, SR_LOCAL_MAX - Math.min(out.length, 4))
+      .forEach(({ v, c0, d }) => {
+        out.push(
+          srAddItem(
+            { kind: 'venue', id: String(v.id), lon: c0 && c0.lon, lat: c0 && c0.lat, label: v.name, sub: L('loc pe hartă', 'place on the map') },
+            `📍 ${v.name}`,
+            `${L('loc pe hartă', 'place on the map')}${Number.isFinite(d) ? ` · ${plFmtDist(d)}` : ''}`
+          )
+        );
+      });
+    return out;
+  }
+
+  // Segment / place IDs and links.
+  function srSpecialItems(q) {
+    const out = [];
+    const t = q.trim();
+    const center = srCenter();
+    if (/^\d{4,12}$/.test(t)) {
+      const id = Number(t);
+      let seg = null;
+      try {
+        seg = sdk.DataModel.Segments.getById({ segmentId: id });
+      } catch (e) {
+        seg = null;
+      }
+      const c0 = seg && srGeomCenter(seg.geometry);
+      out.push(
+        srAddItem(
+          { kind: 'segmentId', id, label: L(`Segment ${id}`, `Segment ${id}`) },
+          L(`🔎 Segment ${id}`, `🔎 Segment ${id}`),
+          seg ? `${L('încărcat', 'loaded')}${center && c0 ? ` · ${plFmtDist(plDistM(center, c0))}` : ''}` : L('caută locația în istoricul WME și îl selectează', 'finds its location in the WME history and selects it')
+        )
+      );
+    }
+    if (/^-?\d+\.\d+\.\d+$/.test(t) || /^\d+\.\d+\.\d+$/.test(t)) {
+      let v = null;
+      try {
+        v = sdk.DataModel.Venues.getById({ venueId: t });
+      } catch (e) {
+        v = null;
+      }
+      out.push(
+        srAddItem(
+          { kind: 'venueId', id: t, label: L(`Loc ${t}`, `Place ${t}`) },
+          L(`🔎 Loc ${t}${v && v.name ? ` - ${v.name}` : ''}`, `🔎 Place ${t}${v && v.name ? ` - ${v.name}` : ''}`),
+          v ? L('încărcat', 'loaded') : L('caută locația în istoricul WME și îl selectează', 'finds its location in the WME history and selects it')
+        )
+      );
+    }
+    // Links and coordinates the native box doesn't understand (it only
+    // takes "lat, lon" decimals).
+    const nativeCoords = /^\s*-?\d+(?:\.\d+)?\s*[,\s]\s*-?\d+(?:\.\d+)?\s*$/.test(t);
+    if (!nativeCoords && t.length > 6) {
+      let p = null;
+      try {
+        p = plParse(t);
+      } catch (e) {
+        p = null;
+      }
+      if (p && (p.kind === 'wme' || p.kind === 'coords' || p.kind === 'short')) {
+        const what = p.kind === 'wme' ? L('permalink WME', 'WME permalink') : p.kind === 'short' ? L('link scurt Google', 'short Google link') : p.source || '';
+        out.push(srAddItem({ kind: 'link', text: t, label: t.length > 60 ? `${t.slice(0, 57)}…` : t }, L('🔗 Deschide linkul', '🔗 Open the link'), `${what}${p.lat != null && center ? ` · ${plFmtDist(plDistM(center, p))}` : ''}`));
+      }
+    }
+    return out;
+  }
+
+  function srHistoryItems() {
+    const list = srHistoryLoad();
+    if (!list.length) return [];
+    const items = list.map((h) => srAddItem({ ...h, kind: 'history', entry: h }, `🕘 ${h.label}`, `${h.sub ? `${h.sub} · ` : ''}${L('acum', '')} ${formatAgoRo(h.at)}${LANG === 'en' ? ' ago' : ''}`.replace(/\s+/g, ' ').trim()));
+    items.push(srAddItem({ kind: 'clearHistory' }, L('🗑 Șterge istoricul căutărilor', '🗑 Clear the search history'), ''));
+    return items;
+  }
+
+  // Wrapper around WME's getItems.
+  function srMakeGetItems(orig) {
+    const fn = async function srGetItems(query) {
+      const q = String(query || '');
+      srState.custom.clear();
+      if (!q.trim()) {
+        try {
+          await orig.call(this, query); // lets WME clear its own cache
+        } catch (e) {
+          // ignore
+        }
+        return srHistoryItems();
+      }
+      const special = srSpecialItems(q);
+      let local = [];
+      try {
+        local = srLocalItems(q);
+      } catch (e) {
+        local = [];
+      }
+      let items = [];
+      try {
+        items = (await orig.call(this, query)) || [];
+      } catch (e) {
+        items = [];
+      }
+      const map = srPlaceMap();
+      const center = srCenter();
+      items = items.map((it) => {
+        const pl = map && map.get(it.id);
+        if (!pl) return it;
+        const c = pl.geometry && pl.geometry.coordinate && pl.geometry.coordinate[0];
+        const parts = [];
+        const src = pl.source === 1 || /^waze\./.test(pl.poiId || '') ? 'Waze' : pl.source === 2 || /^google/i.test(pl.poiId || '') ? 'Google' : '';
+        if (src) parts.push(src);
+        if (c && center) parts.push(plFmtDist(plDistM(center, { lat: c.y, lon: c.x })));
+        const a = pl.address || {};
+        // Street + house number when the line doesn't already start with it.
+        let sec = it.secondaryText || '';
+        const street = [a.street, a.houseNumber].filter(Boolean).join(' ');
+        if (street && pl.displayName && !srFold(sec).startsWith(srFold(street))) sec = `${street}, ${sec}`;
+        return { ...it, secondaryText: `${sec}${parts.length ? ` · ${parts.join(' · ')}` : ''}` };
+      });
+      return [...special, ...local, ...items];
+    };
+    fn.__roSr = true;
+    return fn;
+  }
+
+  async function srSelectSegmentById(id, fallback) {
+    const kind = PL_KINDS.find((k) => k.type === 'segment');
+    let seg = null;
+    try {
+      seg = sdk.DataModel.Segments.getById({ segmentId: id });
+    } catch (e) {
+      seg = null;
+    }
+    if (!seg) {
+      const g = fallback || (await srHistoryGeometry('segment', id));
+      if (!g) {
+        phShowToast(L(`Segmentul ${id} nu a fost găsit (nici în istoricul WME).`, `Segment ${id} was not found (not in the WME history either).`), true);
+        return null;
+      }
+      plCenterOn(g.lat, g.lon, Math.max(sdk.Map.getZoomLevel(), 17));
+    }
+    const found = await plWaitObjects(kind, [id]);
+    if (!found.length) {
+      phShowToast(L(`Segmentul ${id} nu s-a încărcat (șters sau pe alt server?).`, `Segment ${id} did not load (deleted or on another server?).`), true);
+      return null;
+    }
+    sdk.Editing.setSelection({ selection: { objectType: 'segment', ids: [id] } });
+    plFit(found, 17);
+    const c0 = srGeomCenter(found[0].geometry);
+    return c0;
+  }
+
+  async function srSelectVenueById(id, fallback) {
+    const kind = PL_KINDS.find((k) => k.type === 'venue');
+    let v = null;
+    try {
+      v = sdk.DataModel.Venues.getById({ venueId: id });
+    } catch (e) {
+      v = null;
+    }
+    if (!v) {
+      const g = fallback || (await srHistoryGeometry('venue', id));
+      if (!g) {
+        phShowToast(L(`Locul ${id} nu a fost găsit (nici în istoricul WME).`, `Place ${id} was not found (not in the WME history either).`), true);
+        return null;
+      }
+      plCenterOn(g.lat, g.lon, Math.max(sdk.Map.getZoomLevel(), 17));
+    }
+    const found = await plWaitObjects(kind, [id]);
+    if (!found.length) {
+      phShowToast(L(`Locul ${id} nu s-a încărcat.`, `Place ${id} did not load.`), true);
+      return null;
+    }
+    sdk.Editing.setSelection({ selection: { objectType: 'venue', ids: [id] } });
+    plFit(found, 17);
+    return srGeomCenter(found[0].geometry);
+  }
+
+  // Last known location of an object from WME's ElementHistory (newest
+  // transaction carrying a geometry for it) -> { lon, lat } or null.
+  async function srHistoryGeometry(objectType, id) {
+    try {
+      const r = await window.fetch(`${histBase()}/app/ElementHistory?objectID=${encodeURIComponent(id)}&objectType=${objectType}`, { credentials: 'include' });
+      if (!r.ok) return null;
+      const data = await r.json();
+      const trs = ((data.transactions && data.transactions.objects) || []).slice().sort((a, b) => b.date - a.date);
+      for (const tr of trs) {
+        for (const o of tr.objects || []) {
+          if (String(o.objectID) !== String(id)) continue;
+          const g = (o.newValue && o.newValue.geometry) || (o.oldValue && o.oldValue.geometry);
+          const c = g && srGeomCenter(g);
+          if (c) return c;
+        }
+      }
+    } catch (e) {
+      // no history
+    }
+    return null;
+  }
+
+  function srClearBox() {
+    const el = srState.el;
+    if (!el) return;
+    setTimeout(() => {
+      try {
+        if (el.query) el.setQuery('');
+        if (el.value && el.value.id) el.value = null;
+        el.hideMenu();
+      } catch (e) {
+        // ignore
+      }
+    }, 400);
+  }
+
+  async function srHandleCustom(payload) {
+    const p = payload;
+    if (p.kind === 'clearHistory') {
+      srHistorySave([]);
+      phShowToast(L('Istoricul căutărilor a fost șters.', 'The search history was cleared.'));
+      return;
+    }
+    if (p.kind === 'history') {
+      const h = p.entry;
+      if (h.kind === 'segmentId') await srSelectSegmentById(h.ref, h.lat != null ? { lat: h.lat, lon: h.lon } : null);
+      else if (h.kind === 'venueId' || h.kind === 'venue') await srSelectVenueById(h.ref, h.lat != null ? { lat: h.lat, lon: h.lon } : null);
+      else if (h.kind === 'link') {
+        await srOpenLink(h.ref);
+      } else if (h.lat != null) {
+        plCenterOn(h.lat, h.lon, Math.max(sdk.Map.getZoomLevel(), h.kind === 'street' ? 16 : 17));
+        if (h.kind === 'street' && Array.isArray(h.ids)) {
+          const kind = PL_KINDS.find((k) => k.type === 'segment');
+          const found = await plWaitObjects(kind, h.ids.slice(0, 200));
+          if (found.length) sdk.Editing.setSelection({ selection: { objectType: 'segment', ids: found.map((f) => f.id) } });
+        }
+      }
+      srHistoryAdd(h);
+      return;
+    }
+    if (p.kind === 'street') {
+      const ids = p.ids.slice(0, 200);
+      const found = ids.map((id, i) => ({ id, geometry: p.geoms[i] }));
+      sdk.Editing.setSelection({ selection: { objectType: 'segment', ids } });
+      plFit(found, 16);
+      const c = srGeomCenter(found[0].geometry);
+      srHistoryAdd({ kind: 'street', label: p.label, sub: p.sub, ids, lat: c && c.lat, lon: c && c.lon });
+      return;
+    }
+    if (p.kind === 'venue') {
+      const c = await srSelectVenueById(p.id, null);
+      srHistoryAdd({ kind: 'venue', ref: p.id, label: p.label, sub: p.sub, lat: c ? c.lat : p.lat, lon: c ? c.lon : p.lon });
+      return;
+    }
+    if (p.kind === 'segmentId') {
+      const c = await srSelectSegmentById(p.id, null);
+      if (c) srHistoryAdd({ kind: 'segmentId', ref: p.id, label: p.label, sub: '', lat: c.lat, lon: c.lon });
+      return;
+    }
+    if (p.kind === 'venueId') {
+      const c = await srSelectVenueById(p.id, null);
+      if (c) srHistoryAdd({ kind: 'venueId', ref: p.id, label: p.label, sub: '', lat: c.lat, lon: c.lon });
+      return;
+    }
+    if (p.kind === 'link') {
+      await srOpenLink(p.text);
+      srHistoryAdd({ kind: 'link', ref: p.text, label: p.label, sub: L('link', 'link') });
+    }
+  }
+
+  // Same as the 🔗 window: permalink with objects -> "open everything",
+  // otherwise the location.
+  async function srOpenLink(text) {
+    await plSetText(text);
+    const p = plState.parsed;
+    if (!p || p.kind === 'error') {
+      phShowToast((p && p.msg) || L('Link nerecunoscut.', 'Link not recognised.'), true);
+      return;
+    }
+    if (plHasObjects(p)) await plRun(() => plOpenAll(p));
+    else if (p.kind === 'wme') await plRun(async () => plJump(p, p.zoom || 17));
+    else await plRun(async () => plJump(p, plCoordZoom(p)));
+  }
+
+  // Native selection: remember it in the history, then empty the box.
+  function srOnNativeSelected(item) {
+    if (!item || !item.id) return;
+    const map = srPlaceMap();
+    const pl = map && map.get(item.id);
+    let lat = null;
+    let lon = null;
+    if (pl && pl.geometry && pl.geometry.coordinate && pl.geometry.coordinate[0]) {
+      lat = pl.geometry.coordinate[0].y;
+      lon = pl.geometry.coordinate[0].x;
+    } else {
+      const m = /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/.exec(String(item.id));
+      if (m) {
+        lon = Number(m[1]);
+        lat = Number(m[2]);
+      }
+    }
+    const label = item.text || (item.secondaryText || '').split(' · ')[0] || '';
+    const sub = item.text ? (item.secondaryText || '').split(' · ')[0] : '';
+    if (label && lat != null) srHistoryAdd({ kind: 'place', label, sub, lat, lon });
+    srClearBox();
+  }
+
+  function srBind() {
+    if (srState.bound) return;
+    srState.bound = true;
+    // Capture on the document runs before WME's listener on the element.
+    document.addEventListener(
+      'itemSelected',
+      (ev) => {
+        if (!settings.searchHelper || !srState.el) return;
+        const path = ev.composedPath ? ev.composedPath() : [];
+        if (!path.includes(srState.el)) return;
+        const item = ev.detail;
+        if (item && typeof item.id === 'string' && item.id.startsWith(SR_PREFIX)) {
+          ev.stopImmediatePropagation();
+          ev.stopPropagation();
+          const payload = srState.custom.get(item.id);
+          srClearBox();
+          if (payload) srHandleCustom(payload).catch((e) => console.warn(`${SCRIPT_NAME}: căutare - acțiune eșuată.`, e));
+          return;
+        }
+        srOnNativeSelected(item);
+      },
+      true
+    );
+  }
+
+  function srInstall(el) {
+    srState.el = el;
+    srState.placeMap = null;
+    if (!el.__roSrPatched) {
+      el.__roSrPatched = true;
+      // Blur: neither select a result nor bring the previous one back.
+      // Enter keeps WME's behaviour.
+      const origSet = el.setValueAccordingToCurrentQuery;
+      const origEnter = el.handleEnterKey;
+      el.__roSrOrig = { origSet, origEnter };
+      el.setValueAccordingToCurrentQuery = function srSetValue() {
+        if (!settings.searchHelper || srState.enter) return origSet.apply(this, arguments);
+        return undefined;
+      };
+      el.handleEnterKey = function srEnter() {
+        srState.enter = true;
+        try {
+          return origEnter.apply(this, arguments);
+        } finally {
+          srState.enter = false;
+        }
+      };
+    }
+    srBind();
+  }
+
+  function srPoll() {
+    const el = document.getElementById('search-autocomplete');
+    if (!el) return;
+    if (!settings.searchHelper) {
+      if (el.getItems && el.getItems.__roSr && srState.origGetItems) el.getItems = srState.origGetItems;
+      return;
+    }
+    if (el !== srState.el || !el.__roSrPatched) srInstall(el);
+    // WME's React code may set getItems again on a re-render.
+    if (typeof el.getItems === 'function' && !el.getItems.__roSr) {
+      srState.origGetItems = el.getItems;
+      el.getItems = srMakeGetItems(el.getItems);
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -16061,6 +16644,8 @@
     plPoll();
     setInterval(plPoll, PL_POLL_MS);
     rcInit();
+    srPoll();
+    setInterval(srPoll, 2000);
 
     setTimeout(() => showWhatsNew(false), 3000);
     setTimeout(() => updateCheck(false), 8000);

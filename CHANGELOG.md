@@ -23,6 +23,22 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.53.0 - căutare locație îmbunătățită (pe `dev`, nepublicată)
+
+- Click-ul în afara casetei de căutare nu mai sare la un rezultat și nu
+  mai readuce locul căutat anterior (Enter merge ca înainte).
+- După ce alegi un rezultat, caseta se golește.
+- Rezultatele au sursa (Waze / Google) și distanța față de centrul hărții.
+- Primele rezultate sunt cele „🗺 pe hartă”, din datele încărcate: o stradă
+  (îi selectează segmentele încărcate) sau un loc (îl selectează).
+- Căutare după ID: un număr = segment, n.n.n = loc; dacă nu e încărcat, îi
+  găsește locația în istoricul WME și îl selectează.
+- Permalink, link Google / Waze sau coordonate în grade-minute-secunde →
+  „🔗 Deschide linkul”.
+- Caseta goală arată ultimele 15 căutări (păstrate în browser), cu „Șterge
+  istoricul căutărilor”.
+- Opțiune nouă: „Căutare locație îmbunătățită” (pornită).
+
 ## 2026-11-15 - v0.52.1 - drumuri închise: fereastra cu întârziere, Duplicat de acum (pe `dev`, nepublicată)
 
 - Fereastra cu detaliile închiderii apare doar dacă ții mouse-ul ~0,45 s
