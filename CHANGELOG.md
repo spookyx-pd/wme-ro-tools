@@ -23,6 +23,12 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.55.4 - dimensiunile hărții se recitesc doar când se schimbă (pe `dev`, nepublicată)
+
+- Poziția hărții pe ecran nu se mai recitește periodic (fiecare recitire în
+  timpul mutării hărții costa ~11 ms), ci doar când se redimensionează harta,
+  panoul lateral sau fereastra.
+
 ## 2026-11-15 - v0.55.3 - pastilele nu mai forțează layout când muți harta (pe `dev`, nepublicată)
 
 - La mutarea hărții, calculul pozițiilor pastilelor forța browserul să

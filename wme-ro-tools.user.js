@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.55.3
+// @version      0.55.4
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.55.3';
+  const SCRIPT_VERSION = '0.55.4';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -2705,16 +2705,36 @@
   // every frame (measured ~6 ms per forced layout in Paul's session). The
   // map viewport only moves when the sidebar opens / closes / resizes, so a
   // <=0.5 s lag there is invisible; window resizes drop the cache.
-  const VIEWPORT_BOUNDS_TTL_MS = 500;
+  // v0.55.4: no TTL polling any more (each re-read during a pan was a
+  // forced layout of ~11 ms - 10 of them = 109 ms in an 8 s pan, measured):
+  // the caches are dropped only when the map viewport or the sidebar
+  // actually change size (ResizeObserver) or the window is resized; 5 s TTL
+  // kept only as a safety net.
+  const VIEWPORT_BOUNDS_TTL_MS = 5000;
   let viewportBoundsCache = null;
   let viewportBoundsCacheT = -1;
-  window.addEventListener('resize', () => {
+  let viewportRo = null;
+  const viewportRoTargets = new Set();
+  function viewportCachesDrop() {
     viewportBoundsCache = null;
     olViewportRect = null;
-  });
+  }
+  window.addEventListener('resize', viewportCachesDrop);
+  function viewportWatch() {
+    if (typeof window.ResizeObserver !== 'function') return;
+    if (!viewportRo) viewportRo = new window.ResizeObserver(viewportCachesDrop);
+    const els = [sdk.Map.getMapViewportElement ? sdk.Map.getMapViewportElement() : null, document.getElementById('sidebar')];
+    for (const el of els) {
+      if (el && !viewportRoTargets.has(el)) {
+        viewportRoTargets.add(el);
+        viewportRo.observe(el);
+      }
+    }
+  }
   function getMapViewportBounds() {
     const now = performance.now();
     if (viewportBoundsCache && now - viewportBoundsCacheT < VIEWPORT_BOUNDS_TTL_MS) return viewportBoundsCache;
+    viewportWatch();
     viewportBoundsCache = getMapViewportBoundsNow();
     viewportBoundsCacheT = now;
     return viewportBoundsCache;
@@ -2771,6 +2791,7 @@
       if (!olViewportRect || now - olViewportRectT > VIEWPORT_BOUNDS_TTL_MS) {
         const vp = sdk.Map.getMapViewportElement ? sdk.Map.getMapViewportElement() : null;
         if (!vp) return null;
+        viewportWatch();
         const r = vp.getBoundingClientRect();
         olViewportRect = { left: r.left, top: r.top };
         olViewportRectT = now;
