@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.56.1
+// @version      0.56.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.56.1';
+  const SCRIPT_VERSION = '0.56.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -409,6 +409,39 @@
     window.requestIdleCallback(tick);
   }
 
+  // Orphaned notification timers (v0.56.2). Found in Paul's session: every
+  // WazeWrap alert (toastr 2.1.5 with a progress bar) leaves a 10 ms
+  // setInterval running forever after the toast is gone - 262 of them took
+  // a whole core while the editor was idle. Detection: for 400 ms, count
+  // the distinct `.toast-progress` elements that getComputedStyle is called
+  // on while they are no longer in the page (that is what the leaked
+  // `updateProgress` does). Rechecked every 5 s while the monitor is open.
+  function perfOrphanToastsCheck() {
+    if (perfState.orphanBusy) return;
+    perfState.orphanBusy = true;
+    const orig = window.getComputedStyle;
+    const seen = new Set();
+    try {
+      window.getComputedStyle = function roPerfProbe(el, ...a) {
+        if (el && el.classList && el.classList.contains('toast-progress') && !el.isConnected) seen.add(el);
+        return orig.call(window, el, ...a);
+      };
+    } catch (e) {
+      perfState.orphanBusy = false;
+      return;
+    }
+    setTimeout(() => {
+      try {
+        window.getComputedStyle = orig;
+      } catch (e) {
+        // ignore
+      }
+      perfState.orphans = seen.size;
+      perfState.orphanT = performance.now();
+      perfState.orphanBusy = false;
+    }, 400);
+  }
+
   function perfSnapshot() {
     const snap = {};
     perfStats.forEach((v, k) => {
@@ -497,6 +530,13 @@
     const mem = performance.memory;
     if (mem) page.push([L('Memorie JS (heap)', 'JS memory (heap)'), `${Math.round(mem.usedJSHeapSize / 1048576)} / ${Math.round(mem.jsHeapSizeLimit / 1048576)} MB`]);
     page.push([L('Elemente DOM', 'DOM elements'), String(document.getElementsByTagName('*').length)]);
+    if (!perfState.orphanT || performance.now() - perfState.orphanT > 5000) perfOrphanToastsCheck();
+    if (perfState.orphans != null) {
+      page.push([
+        L('Notificări rămase active (bucle orfane)', 'Notifications still running (orphan loops)'),
+        perfState.orphans ? L(`⚠️ ${perfState.orphans} - reîncarcă tabul`, `⚠️ ${perfState.orphans} - reload the tab`) : '0 ✓',
+      ]);
+    }
     try {
       const Wm = window.W;
       if (Wm && Wm.map && Wm.map.getLayers) page.push([L('Straturi hartă', 'Map layers'), String(Wm.map.getLayers().length)]);

@@ -23,6 +23,14 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.56.2 - monitorul arată notificările rămase active (pe `dev`, nepublicată)
+
+- Monitorul de resurse are rândul „Notificări rămase active (bucle
+  orfane)”: notificările WazeWrap (folosite de alte scripturi) lasă în
+  urmă câte un cronometru care rulează la nesfârșit; după multe notificări
+  editorul ajunge la 100% procesor. Dacă numărul e peste 0, reîncarcă
+  tabul. WME RO Tools nu folosește WazeWrap.
+
 ## 2026-11-15 - v0.56.1 - mai puțin procesor cu multe segmente / închideri încărcate (pe `dev`, nepublicată)
 
 - Fereastra drumurilor închise la hover nu mai măsoară fiecare simbol de
