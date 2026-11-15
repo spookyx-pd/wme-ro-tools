@@ -23,6 +23,13 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.55.2 - butoanele de straturi nu mai generează modificări inutile în pagină (pe `dev`, nepublicată)
+
+- Butoanele de straturi de pe hartă își rescriau starea (apăsat / nu) la
+  fiecare verificare, chiar dacă nu se schimba nimic; alte scripturi care
+  urmăresc modificările paginii (de ex. WME Fix UI) reacționau de fiecare
+  dată. Acum starea se scrie doar când se schimbă.
+
 ## 2026-11-15 - v0.55.1 - pastilele de publicare nu mai forțează layout la fiecare cadru (pe `dev`, nepublicată)
 
 - Monitorul a arătat că poziționarea pastilelor de publicare încă rula de

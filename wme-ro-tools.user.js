@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.55.1
+// @version      0.55.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.55.1';
+  const SCRIPT_VERSION = '0.55.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -13062,7 +13062,11 @@
       el.style.display = exists ? 'flex' : 'none';
       el.style.backgroundColor = on ? 'var(--primary, #33ccff)' : 'var(--background_default, #fff)';
       el.style.color = on ? 'var(--background_default, #202124)' : 'var(--content_default, #202124)';
-      el.setAttribute('aria-pressed', on ? 'true' : 'false');
+      // Only when it changes: setAttribute with the same value still fires
+      // a DOM mutation, and other scripts' MutationObservers (e.g. WME Fix
+      // UI) re-scan the page on every mutation (v0.55.2).
+      const pressed = on ? 'true' : 'false';
+      if (el.getAttribute('aria-pressed') !== pressed) el.setAttribute('aria-pressed', pressed);
       const title = L(`${def.title}: ${on ? 'activ' : 'inactiv'} - click pentru a comuta${key ? ` (${key})` : ''}`, `${def.title}: ${on ? 'on' : 'off'} - click to toggle${key ? ` (${key})` : ''}`);
       if (el.title !== title) el.title = title;
     }
