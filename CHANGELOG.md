@@ -23,6 +23,16 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.54.0 - insigna de drum din numele străzii (pe `dev`, nepublicată)
+
+- **Nou:** la un segment selectat a cărui stradă nu are insignă, dar numele
+  conține codul drumului (DC300, DJ105B, DN1, A1, E60, DEX…), sus în panou
+  apare butonul „🛡 Setează insigna”, care o setează automat: DC / DJ / DN →
+  Drum Comunal / Județean / Național cu doar numărul (ex. „300”), A1 →
+  Autostradă, E60 → Drum European, DEX… → Drum Expres. Ca la dialogul WME,
+  insigna se aplică străzii (tuturor segmentelor care o au); e o modificare
+  nesalvată, se poate anula cu Undo. Opțiune nouă, pornită.
+
 ## 2026-11-15 - v0.53.1 - sigla Google cu trafic; „Istoric recent” se închide singur (pe `dev`, nepublicată)
 
 - **Nou:** click pe sigla Google din dreapta jos a hărții deschide Google

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.53.1
+// @version      0.54.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.53.1';
+  const SCRIPT_VERSION = '0.54.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.54', items: [
+      L('Insigna de drum din numele străzii: la un segment cu strada fără insignă (DC300, DJ105B, DN1, A1, E60, DEX…), butonul „🛡 Setează insigna” din panou o setează automat (ex. DC300 → Drum Comunal „300”).', 'Road shield from the street name: for a segment whose street has no shield (DC300, DJ105B, DN1, A1, E60, DEX…), the "🛡 Set the shield" button in the panel sets it automatically (e.g. DC300 → Communal road "300").'),
+    ] },
     { v: '0.53', items: [
       L('Căutare locație îmbunătățită: click-ul în afară nu mai sare la un rezultat, caseta se golește după alegere, rezultatele au sursa și distanța, apar și străzile / locurile de pe hartă, poți căuta după ID de segment sau de loc și ai istoricul ultimelor căutări.', 'Better location search: clicking outside no longer jumps to a result, the box is emptied after a pick, results show source and distance, streets / places on the map appear too, you can search by segment or place ID and you get the history of recent searches.'),
     ] },
@@ -492,6 +495,8 @@
     searchHelper: true,
     // v0.53.1: the Google logo opens Google Maps with the traffic layer.
     googleTrafficLink: true,
+    // v0.54: button that sets the road shield from the street name.
+    roadShieldButton: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
@@ -1160,6 +1165,12 @@
       L('Sigla Google deschide harta cu trafic', 'Google logo opens the map with traffic'),
       L('Click pe sigla Google din dreapta jos deschide Google Maps cu stratul de trafic activ.', 'Clicking the Google logo at the bottom right opens Google Maps with the traffic layer on.'),
       L('Sigla Google din colțul din dreapta jos al hărții deschide Google Maps la centrul hărții WME; cu opțiunea activă, se deschide direct cu stratul de trafic pornit și la zoom-ul din WME (punctul rămâne marcat).', 'The Google logo at the bottom right corner of the map opens Google Maps at the WME map center; with this option it opens with the traffic layer already on and at the WME zoom (the point stays marked).')
+    );
+    addToggle(
+      'roadShieldButton',
+      L('Buton „Setează insigna” din numele străzii', '"Set the shield" button from the street name'),
+      L('La un segment cu strada fără insignă (DC300, DJ105B, DN1, A1, E60, DEX…), sus în panou apare un buton care o setează automat.', 'For a segment whose street has no shield (DC300, DJ105B, DN1, A1, E60, DEX…), a button at the top of the panel sets it automatically.'),
+      L('Numele străzii (partea dinainte de „ - ”) dă tipul și textul: DC → Drum Comunal, DJ → Drum Județean, DN → Drum Național (doar numărul, ex. „300”), A1 → Autostradă „A1”, E60 → Drum European „E60”, DEX… → Drum Expres. Se iau în calcul strada principală și numele alternative ale segmentelor selectate. Ca la dialogul WME, insigna se aplică străzii, deci tuturor segmentelor care o au; e o modificare nesalvată, se poate anula cu Undo.', 'The street name (the part before " - ") gives the type and text: DC → Communal road, DJ → County road, DN → National road (number only, e.g. "300"), A1 → Motorway "A1", E60 → European road "E60", DEX… → Expressway. The primary street and the alternate names of the selected segments are checked. As with the WME dialog, the shield is applied to the street, so to every segment that has it; it is an unsaved edit and can be undone with Undo.')
     );
     addToggle(
       'permalinkTool',
@@ -5306,6 +5317,139 @@
       },
       true
     );
+  }
+
+  // ---------------------------------------------------------------------
+  // Road shield from the street name (v0.54). Paul: for a selected segment
+  // whose street has no road shield, "un buton în partea de stânga sus"
+  // that sets it automatically - "DC300" → Drum Comunal with the text only
+  // "300"; DJ / DN → number only; A1… → Autostradă; E60… → European; DEX →
+  // Drum Expres. The name code is parsed by `tiParseShieldCode` (same
+  // conventions as the existing RO data: A / E / DEx keep the prefix).
+  // The SDK's `Streets.updateStreet` only applies `direction` (checked in the
+  // WME bundle), so the edit goes through WME's own action: the native
+  // shield dialog adds `UpdateStreetRoadShield`, a plain subclass of
+  // `Waze/Action/UpdateObject` (only the log description differs). Tested in
+  // the sandbox: the street gets signType / signText, 1 unsaved change,
+  // Undo restores it. A street is shared by every segment that carries it,
+  // exactly as with the native dialog.
+  // ---------------------------------------------------------------------
+  const RS_POLL_MS = 600;
+  const RS_BTN_ID = 'wme-ro-tools-rs-btn';
+  const RS_SIGN_NAMES = {
+    1050: L('Autostradă', 'Motorway'),
+    1051: L('Drum European', 'European road'),
+    1071: L('Drum Expres', 'Expressway'),
+    1076: L('Drum Comunal', 'Communal road'),
+    1078: L('Drum Județean', 'County road'),
+    1079: L('Drum Național', 'National road'),
+  };
+
+  // "DC300", "DN1 - Calea X", "DJ 105B" → shield; anything else → null.
+  function rsShieldFromName(name) {
+    const head = String(name || '').split(/\s+[-–]\s+/)[0].trim();
+    if (!head || head.length > 8) return null;
+    return tiParseShieldCode(head);
+  }
+
+  // Streets (primary + alternate) of the selected segments that have no
+  // shield and whose name gives one.
+  function rsCandidates() {
+    let sel = null;
+    try {
+      sel = sdk.Editing.getSelection();
+    } catch (e) {
+      return [];
+    }
+    if (!sel || sel.objectType !== 'segment' || !sel.ids || !sel.ids.length || sel.ids.length > 200) return [];
+    const ids = new Set();
+    for (const id of sel.ids) {
+      let seg = null;
+      try {
+        seg = sdk.DataModel.Segments.getById({ segmentId: id });
+      } catch (e) {
+        seg = null;
+      }
+      if (!seg) continue;
+      if (seg.primaryStreetId) ids.add(seg.primaryStreetId);
+      for (const a of seg.alternateStreetIds || []) ids.add(a);
+    }
+    const out = [];
+    for (const streetId of ids) {
+      let st = null;
+      try {
+        st = sdk.DataModel.Streets.getById({ streetId });
+      } catch (e) {
+        st = null;
+      }
+      if (!st || st.isEmpty || st.signType != null) continue;
+      const sh = rsShieldFromName(st.name);
+      if (sh) out.push({ streetId, name: st.name, signType: sh.signType, signText: sh.signText });
+    }
+    return out;
+  }
+
+  function rsApply(cands) {
+    const Wm = window.W && window.W.model;
+    const req = window.require;
+    if (!Wm || typeof req !== 'function') return 0;
+    const UpdateObject = req('Waze/Action/UpdateObject');
+    let n = 0;
+    for (const c of cands) {
+      const street = Wm.streets.getObjectById(c.streetId);
+      if (!street || street.getAttribute('signType') != null) continue;
+      // Like WME's UpdateStreetRoadShield: only the change-log text differs
+      // (UpdateObject regenerates `_description` lazily, so override it).
+      const desc = L(`Insignă de drum pentru ${c.name}: ${RS_SIGN_NAMES[c.signType]} „${c.signText}”`, `Road shield for ${c.name}: ${RS_SIGN_NAMES[c.signType]} "${c.signText}"`);
+      class RsShieldAction extends UpdateObject {
+        generateDescription() {
+          this._description = desc;
+        }
+      }
+      if (Wm.actionManager.add(new RsShieldAction(street, { signType: c.signType, signText: c.signText })) !== false) n++;
+    }
+    return n;
+  }
+
+  function rsBadge(c) {
+    const b = document.createElement('span');
+    b.textContent = c.signText;
+    b.style.cssText = `${TI_SIGN_STYLE[c.signType] || ''} display:inline-block; padding:0 4px; font-size:11px; font-weight:700; line-height:15px; border-radius:3px; margin-left:4px;`;
+    return b;
+  }
+
+  function rsPoll() {
+    const old = document.getElementById(RS_BTN_ID);
+    const cands = settings.roadShieldButton ? rsCandidates() : [];
+    const host = cands.length ? document.querySelector('#edit-panel .address-edit-view') : null;
+    if (!host) {
+      if (old) old.remove();
+      return;
+    }
+    const key = cands.map((c) => `${c.streetId}:${c.signType}:${c.signText}`).join('|');
+    if (old && old.dataset.key === key && old.parentElement === host && host.firstElementChild === old) return;
+    if (old) old.remove();
+    const btn = document.createElement('button');
+    btn.id = RS_BTN_ID;
+    btn.type = 'button';
+    btn.dataset.key = key;
+    btn.style.cssText = 'display:inline-flex; align-items:center; flex-wrap:wrap; gap:2px; width:auto; margin:0 0 6px 0; padding:3px 10px; font-size:12px; font-weight:600; border:1px solid rgba(128,128,128,.6); border-radius:14px; background:transparent; color:inherit; cursor:pointer;';
+    btn.appendChild(document.createTextNode(cands.length === 1 ? L('🛡 Setează insigna', '🛡 Set the shield') : L(`🛡 Setează insignele (${cands.length})`, `🛡 Set the shields (${cands.length})`)));
+    for (const c of cands.slice(0, 4)) btn.appendChild(rsBadge(c));
+    btn.title = cands.map((c) => `${c.name} → ${RS_SIGN_NAMES[c.signType]} „${c.signText}”`).join('\n') + '\n' + L('Se aplică tuturor segmentelor cu această stradă (ca la dialogul WME). Se poate anula cu Undo.', 'Applies to every segment with this street (as with the WME dialog). Can be undone with Undo.');
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      let n = 0;
+      try {
+        n = rsApply(rsCandidates());
+      } catch (e) {
+        console.warn(`${SCRIPT_NAME}: road shield`, e);
+      }
+      if (!n) btn.textContent = L('Insigna nu a putut fi setată.', 'The shield could not be set.');
+      else btn.remove();
+    });
+    host.insertBefore(btn, host.firstChild);
   }
 
   // ---------------------------------------------------------------------
@@ -16733,6 +16877,7 @@
     setInterval(plPoll, PL_POLL_MS);
     rcInit();
     gTrafficInit();
+    setInterval(rsPoll, RS_POLL_MS);
     srPoll();
     setInterval(srPoll, 2000);
 
