@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.55.4
+// @version      0.56.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.55.4';
+  const SCRIPT_VERSION = '0.56.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.56', items: [
+      L('Monitor resurse: „⏺ Analiză continuă” - analiza tuturor scripturilor rulează cât vrei tu (lucrezi normal, poți închide monitorul; jos rămâne un indicator cu „⏹ Oprește”), cu fir ocupat în medie, modificări în pagină și cadre lungi pe script.', 'Resource monitor: "⏺ Continuous analysis" - the all-scripts analysis runs as long as you want (work normally, you can close the monitor; a small indicator with "⏹ Stop" stays at the bottom), with average main-thread load, DOM changes and long frames per script.'),
+    ] },
     { v: '0.55', items: [
       L('Monitor de resurse (link „📊 Monitor resurse” în setări): cât procesor consumă fiecare funcție a scriptului, memoria și încărcarea paginii, cadrele lungi pe script și o analiză de 5 s a tuturor scripturilor. Plus: pastilele de pe hartă nu mai consumă procesor când harta stă pe loc.', 'Resource monitor ("📊 Resource monitor" link in the settings): how much CPU each function of the script uses, page memory and load, long frames per script and a 5 s analysis of all scripts. Also: the map pills no longer use CPU while the map is idle.'),
     ] },
@@ -528,27 +531,110 @@
     else if (!lrows.length) lrows.push([L('niciunul', 'none'), '']);
     body.appendChild(perfTable([L(`Script (${frames} cadre)`, `Script (${frames} frames)`), L('timp', 'time')], lrows));
 
-    if (perfState.analysis) {
-      perfSection(body, perfState.analysis.title);
-      body.appendChild(perfTable([L('Script', 'Script'), L('apeluri', 'calls'), 'ms'], perfState.analysis.rows));
-      const note = document.createElement('div');
-      note.style.cssText = 'font-size:11px; opacity:0.7; margin-top:-4px;';
-      note.textContent = L(
-        'Doar apelurile la WME SDK (hartă / date), măsurătorile de layout și căutările în pagină, cronometrate și atribuite după cine le-a făcut - un indiciu, nu tot timpul fiecărui script.',
-        'Only calls to the WME SDK (map / data), layout reads and page queries, timed and attributed to whoever made them - an indication, not each script\'s full time.'
-      );
-      body.appendChild(note);
-    }
+    perfAnRender(body);
   }
 
-  // 5 s analysis of all scripts: wraps a few hot page APIs (shared
-  // prototypes, so other scripts' calls go through them too), times each
-  // call and attributes it by stack. Everything is restored afterwards.
-  function perfAnalyze(box, btn) {
-    if (perfState.analyzing) return;
-    perfState.analyzing = true;
-    btn.disabled = true;
-    btn.textContent = L('Se analizează… (5 s - lucrează normal în editor)', 'Analysing… (5 s - keep working in the editor)');
+  // ---------------------------------------------------------------------
+  // All-scripts analysis (v0.55: 5 s; v0.56: also open-ended, until
+  // stopped). Paul: "dă-mi un buton de stop și lasă-mă să ruleze cât vreau
+  // eu analiza [...] chiar dacă închid monitorul de resurse, să rămână doar
+  // un mic indicator undeva că analiza rulează în continuare". While it
+  // runs, a few hot page APIs (shared prototypes, so other scripts' calls go
+  // through them too) are timed and attributed by call stack; it also counts
+  // DOM changes, long frames per script and the main-thread idle time.
+  // Everything is restored on stop. Auto-stop after PERF_AN_MAX_MS.
+  // ---------------------------------------------------------------------
+  const PERF_AN_MAX_MS = 30 * 60 * 1000;
+  const PERF_AN_IND_ID = 'wme-ro-tools-perf-an';
+  const perfAn = { running: false };
+
+  function perfFmtDur(ms) {
+    const s = Math.max(0, Math.round(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
+
+  // Rows + summary from the current (running) or last (finished) analysis.
+  function perfAnResult(src) {
+    const dur = (src.end || performance.now()) - src.t0;
+    const rows = Object.entries(src.agg)
+      .sort((a, b) => b[1].ms - a[1].ms)
+      .slice(0, 15)
+      .map(([w, v]) => [w, String(v.n), v.ms.toFixed(0), `${((v.ms / Math.max(1, dur)) * 100).toFixed(1)}%`, src.loafBy[w] ? `${Math.round(src.loafBy[w])}` : '']);
+    if (!rows.length) rows.push([L('niciun apel', 'no calls'), '', '', '', '']);
+    const busy = dur > 1500 ? `${Math.max(0, Math.min(100, 100 - (src.idle / dur) * 100)).toFixed(0)}%` : '…';
+    const summary = L(
+      `Durată ${perfFmtDur(dur)} · fir principal ocupat în medie ${busy} · ${src.mutBatches} loturi / ${src.mutRecs} modificări în pagină · ${src.loafN} cadre lungi (${Math.round(src.loafMs)} ms)`,
+      `Duration ${perfFmtDur(dur)} · main thread busy on average ${busy} · ${src.mutBatches} batches / ${src.mutRecs} DOM changes · ${src.loafN} long frames (${Math.round(src.loafMs)} ms)`
+    );
+    return { dur, rows, summary };
+  }
+
+  function perfAnRender(body) {
+    let src = null;
+    let title = '';
+    if (perfAn.running) {
+      src = perfAn;
+      title = perfAn.limitMs
+        ? L(`Analiză toate scripturile - în curs (${perfFmtDur(performance.now() - perfAn.t0)} / ${perfFmtDur(perfAn.limitMs)})`, `All-scripts analysis - running (${perfFmtDur(performance.now() - perfAn.t0)} / ${perfFmtDur(perfAn.limitMs)})`)
+        : L(`Analiză toate scripturile - în curs (${perfFmtDur(performance.now() - perfAn.t0)}), o oprești tu`, `All-scripts analysis - running (${perfFmtDur(performance.now() - perfAn.t0)}), you stop it`);
+    } else if (perfState.analysis) {
+      src = perfState.analysis;
+      title = L(`Analiză toate scripturile - ${src.startedAt}, ${perfFmtDur(src.end - src.t0)}`, `All-scripts analysis - ${src.startedAt}, ${perfFmtDur(src.end - src.t0)}`);
+    }
+    if (!src) return;
+    const res = perfAnResult(src);
+    perfSection(body, title);
+    const sum = document.createElement('div');
+    sum.style.cssText = 'font-size:11.5px; margin-bottom:2px;';
+    sum.textContent = res.summary;
+    body.appendChild(sum);
+    body.appendChild(perfTable([L('Script', 'Script'), L('apeluri', 'calls'), 'ms', L('% timp', '% time'), L('cadre lungi ms', 'long frames ms')], res.rows));
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:11px; opacity:0.7; margin-top:-4px;';
+    note.textContent = L(
+      '„ms” = doar apelurile la WME SDK (hartă / date), măsurătorile de layout și căutările în pagină, cronometrate și atribuite după cine le-a făcut - un indiciu, nu tot timpul fiecărui script; la scripturile cu foarte multe apeluri ieftine e umflat de măsurarea însăși. „cadre lungi” = timpul scriptului în cadrele de peste 50 ms (blocaje simțite).',
+      '"ms" = only calls to the WME SDK (map / data), layout reads and page queries, timed and attributed to whoever made them - an indication, not each script\'s full time; for scripts with very many cheap calls it is inflated by the measuring itself. "long frames" = the script\'s time in frames over 50 ms (felt stalls).'
+    );
+    body.appendChild(note);
+  }
+
+  function perfAnIndicator() {
+    let el = document.getElementById(PERF_AN_IND_ID);
+    const show = perfAn.running && !document.getElementById(PERF_PANEL_ID);
+    if (!show) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      const t = currentTheme();
+      el = document.createElement('div');
+      el.id = PERF_AN_IND_ID;
+      el.style.cssText = `position:fixed; left:50%; bottom:34px; transform:translateX(-50%); z-index:100003; display:flex; align-items:center; gap:8px; padding:5px 8px 5px 12px; background:${t.menuBg}; color:${t.menuText}; border:1px solid #f18200; border-radius:16px; box-shadow:0 4px 14px rgba(0,0,0,0.35); font:12px/1.3 Rubik, Arial, sans-serif;`;
+      const txt = document.createElement('span');
+      txt.className = 'ro-perf-an-txt';
+      const mk = (label, title, fn) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        b.title = title;
+        b.style.cssText = 'padding:2px 9px; font-size:12px; border:1px solid rgba(128,128,128,.6); border-radius:12px; background:transparent; color:inherit; cursor:pointer;';
+        b.addEventListener('click', fn);
+        return b;
+      };
+      el.append(
+        txt,
+        mk(L('📊 Vezi', '📊 View'), L('Deschide monitorul de resurse cu rezultatele de până acum', 'Open the resource monitor with the results so far'), () => perfOpen()),
+        mk(L('⏹ Oprește', '⏹ Stop'), L('Oprește analiza și arată rezultatele', 'Stop the analysis and show the results'), () => perfAnStop(true))
+      );
+      document.body.appendChild(el);
+    }
+    const txt = el.querySelector('.ro-perf-an-txt');
+    const s = L(`🔬 Analiza scripturilor rulează · ${perfFmtDur(performance.now() - perfAn.t0)}`, `🔬 Script analysis running · ${perfFmtDur(performance.now() - perfAn.t0)}`);
+    if (txt.textContent !== s) txt.textContent = s;
+  }
+
+  function perfAnStart(limitMs) {
+    if (perfAn.running) return;
     const agg = {};
     const restore = [];
     const wrapProto = (proto, name) => {
@@ -570,7 +656,22 @@
         proto[name] = orig;
       });
     };
-    const oldLimit = Error.stackTraceLimit;
+    Object.assign(perfAn, {
+      running: true,
+      t0: performance.now(),
+      end: 0,
+      limitMs: limitMs || 0,
+      startedAt: new Date().toLocaleTimeString(),
+      agg,
+      restore,
+      oldLimit: Error.stackTraceLimit,
+      mutBatches: 0,
+      mutRecs: 0,
+      loafN: 0,
+      loafMs: 0,
+      loafBy: {},
+      idle: 0,
+    });
     Error.stackTraceLimit = 25;
     try {
       const P = (o) => (o ? Object.getPrototypeOf(o) : null);
@@ -587,22 +688,93 @@
     } catch (e) {
       // partial wrap is fine
     }
-    setTimeout(() => {
-      restore.forEach((f) => f());
-      Error.stackTraceLimit = oldLimit;
-      perfState.analyzing = false;
-      btn.disabled = false;
-      btn.textContent = L('🔬 Analiză 5 s - toate scripturile', '🔬 5 s analysis - all scripts');
-      perfState.analysis = {
-        title: L(`Analiză 5 s - toate scripturile (${new Date().toLocaleTimeString()})`, `5 s analysis - all scripts (${new Date().toLocaleTimeString()})`),
-        rows: Object.entries(agg)
-          .sort((a, b) => b[1].ms - a[1].ms)
-          .slice(0, 12)
-          .map(([w, v]) => [w, String(v.n), v.ms.toFixed(0)]),
+    try {
+      perfAn.mo = new window.MutationObserver((list) => {
+        perfAn.mutBatches++;
+        perfAn.mutRecs += list.length;
+      });
+      perfAn.mo.observe(document.body, { childList: true, subtree: true });
+    } catch (e) {
+      perfAn.mo = null;
+    }
+    try {
+      perfAn.po = new window.PerformanceObserver((list) => {
+        for (const e of list.getEntries()) {
+          perfAn.loafN++;
+          perfAn.loafMs += e.duration;
+          for (const sc of e.scripts || []) {
+            const w = perfWho(sc.sourceURL || '') || (sc.sourceURL ? L('altul', 'other') : 'WME/altul');
+            perfAn.loafBy[w] = (perfAn.loafBy[w] || 0) + sc.duration;
+          }
+        }
+      });
+      perfAn.po.observe({ type: 'long-animation-frame', buffered: false });
+    } catch (e) {
+      perfAn.po = null;
+    }
+    if (typeof window.requestIdleCallback === 'function') {
+      const tick = (dl) => {
+        if (!perfAn.running) return;
+        perfAn.idle += dl.timeRemaining();
+        window.requestIdleCallback(tick);
       };
-      if (!perfState.analysis.rows.length) perfState.analysis.rows.push([L('niciun apel', 'no calls'), '', '']);
-      perfRender(box);
-    }, 5000);
+      window.requestIdleCallback(tick);
+    }
+    perfAn.timer = setInterval(() => {
+      const el = performance.now() - perfAn.t0;
+      if ((perfAn.limitMs && el >= perfAn.limitMs) || el >= PERF_AN_MAX_MS) {
+        perfAnStop(!perfAn.limitMs);
+        return;
+      }
+      perfAnIndicator();
+    }, 1000);
+    perfAnSyncButtons();
+  }
+
+  // `openMonitor`: show the results when the monitor is closed (the stop
+  // came from the small indicator, or the open-ended run hit the cap).
+  function perfAnStop(openMonitor) {
+    if (!perfAn.running) return;
+    perfAn.restore.forEach((f) => f());
+    Error.stackTraceLimit = perfAn.oldLimit;
+    clearInterval(perfAn.timer);
+    try {
+      if (perfAn.mo) perfAn.mo.disconnect();
+      if (perfAn.po) perfAn.po.disconnect();
+    } catch (e) {
+      // ignore
+    }
+    perfAn.running = false;
+    perfAn.end = performance.now();
+    perfState.analysis = {
+      t0: perfAn.t0,
+      end: perfAn.end,
+      startedAt: perfAn.startedAt,
+      agg: perfAn.agg,
+      mutBatches: perfAn.mutBatches,
+      mutRecs: perfAn.mutRecs,
+      loafN: perfAn.loafN,
+      loafMs: perfAn.loafMs,
+      loafBy: perfAn.loafBy,
+      idle: perfAn.idle,
+    };
+    perfAnIndicator();
+    perfAnSyncButtons();
+    const box = document.getElementById(PERF_PANEL_ID);
+    if (box) perfRender(box);
+    else if (openMonitor) perfOpen();
+  }
+
+  // Monitor buttons follow the analysis state.
+  function perfAnSyncButtons() {
+    const box = document.getElementById(PERF_PANEL_ID);
+    if (!box) return;
+    const quick = box.querySelector('.ro-perf-an-quick');
+    const cont = box.querySelector('.ro-perf-an-cont');
+    if (!quick || !cont) return;
+    quick.style.display = perfAn.running ? 'none' : '';
+    cont.textContent = perfAn.running ? L('⏹ Oprește analiza', '⏹ Stop the analysis') : L('⏺ Analiză continuă (o oprești tu)', '⏺ Continuous analysis (you stop it)');
+    cont.style.borderColor = perfAn.running ? '#f18200' : 'rgba(128,128,128,.6)';
   }
 
   function perfClose() {
@@ -621,6 +793,8 @@
     }
     perfState.loaf = [];
     perfState.hist = [];
+    // A running analysis keeps going - the small indicator takes over.
+    perfAnIndicator();
   }
 
   function perfOpen() {
@@ -641,15 +815,37 @@
     x.style.cssText = 'border:none; background:transparent; color:inherit; font-size:15px; cursor:pointer;';
     x.addEventListener('click', perfClose);
     head.append(title, x);
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.textContent = L('🔬 Analiză 5 s - toate scripturile', '🔬 5 s analysis - all scripts');
-    btn.title = L(
-      'Timp de 5 s cronometrează apelurile la WME SDK, măsurătorile de layout și căutările în pagină și arată ce script le face. Mută harta în timpul analizei ca să vezi ce încetinește la mișcare.',
-      'For 5 s, times calls to the WME SDK, layout reads and page queries and shows which script makes them. Move the map during the analysis to see what slows panning.'
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin:2px 0 6px;';
+    const mkBtn = (cls, label, title, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = cls;
+      b.textContent = label;
+      b.title = title;
+      b.style.cssText = 'padding:3px 10px; font-size:12px; border:1px solid rgba(128,128,128,.6); border-radius:14px; background:transparent; color:inherit; cursor:pointer;';
+      b.addEventListener('click', fn);
+      btnRow.appendChild(b);
+      return b;
+    };
+    mkBtn(
+      'ro-perf-an-quick',
+      L('🔬 Analiză 5 s', '🔬 5 s analysis'),
+      L(
+        'Timp de 5 s cronometrează apelurile la WME SDK, măsurătorile de layout și căutările în pagină și arată ce script le face. Mută harta în timpul analizei ca să vezi ce încetinește la mișcare.',
+        'For 5 s, times calls to the WME SDK, layout reads and page queries and shows which script makes them. Move the map during the analysis to see what slows panning.'
+      ),
+      () => perfAnStart(5000)
     );
-    btn.style.cssText = 'margin:2px 0 6px; padding:3px 10px; font-size:12px; border:1px solid rgba(128,128,128,.6); border-radius:14px; background:transparent; color:inherit; cursor:pointer;';
-    btn.addEventListener('click', () => perfAnalyze(box, btn));
+    mkBtn(
+      'ro-perf-an-cont',
+      '',
+      L(
+        'Analiza rulează până o oprești (maxim 30 de minute): lucrează normal în editor, poți închide monitorul - jos rămâne un indicator cu „⏹ Oprește”. Cât rulează, editorul e puțin mai lent (fiecare apel măsurat își notează proveniența).',
+        'The analysis runs until you stop it (30 minutes at most): work normally in the editor, you can close the monitor - a small indicator with "⏹ Stop" stays at the bottom. While it runs the editor is slightly slower (every measured call records where it came from).'
+      ),
+      () => (perfAn.running ? perfAnStop(false) : perfAnStart(0))
+    );
     const bodyEl = document.createElement('div');
     bodyEl.className = 'ro-perf-body';
     const foot = document.createElement('div');
@@ -658,12 +854,14 @@
       'Chrome nu oferă memoria consumată de fiecare script, doar pe a paginii. Timpul funcțiilor periodice ale scriptului e măsurat exact; fereastra însăși consumă foarte puțin și se oprește când o închizi.',
       'Chrome gives no per-script memory, only the page\'s. The time of the script\'s periodic functions is measured exactly; the window itself costs very little and stops when closed.'
     );
-    box.append(head, btn, bodyEl, foot);
+    box.append(head, btnRow, bodyEl, foot);
     document.body.appendChild(box);
     perfState.hist = [perfSnapshot()];
     perfState.lastBusy = null;
     perfLoafStart();
     perfIdleStart();
+    perfAnSyncButtons();
+    perfAnIndicator();
     perfRender(box);
     perfState.timer = setInterval(() => perfRender(box), 1000);
   }
