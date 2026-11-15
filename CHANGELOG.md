@@ -23,6 +23,14 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.53.1 - sigla Google cu trafic; „Istoric recent” se închide singur (pe `dev`, nepublicată)
+
+- **Nou:** click pe sigla Google din dreapta jos a hărții deschide Google
+  Maps cu stratul de trafic activ (opțiune nouă, pornită).
+- Fereastra „📜 Istoric recent” se închide singură la ~0,8 s după ce muți
+  mouse-ul în afara ei (și a pastilei) sau imediat la un click în afară; ✕
+  merge în continuare.
+
 ## 2026-11-15 - v0.53.0 - căutare locație îmbunătățită (pe `dev`, nepublicată)
 
 - Click-ul în afara casetei de căutare nu mai sare la un rezultat și nu

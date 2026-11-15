@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.53.0
+// @version      0.53.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.53.0';
+  const SCRIPT_VERSION = '0.53.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -490,6 +490,8 @@
     // pick, Waze / Google + distance, results from the map, segment / place
     // ID, links, history).
     searchHelper: true,
+    // v0.53.1: the Google logo opens Google Maps with the traffic layer.
+    googleTrafficLink: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
@@ -1152,6 +1154,12 @@
       L('Căutare locație îmbunătățită', 'Better location search'),
       L('Fără salturi la click în afară, rezultate de pe hartă, distanță, ID segment / loc, istoric.', 'No jumps on clicking outside, results from the map, distance, segment / place ID, history.'),
       L('Bara de căutare de sus: (1) click-ul în afara casetei nu mai selectează un rezultat și nu mai readuce locul căutat anterior (Enter merge ca înainte); (2) după ce alegi un rezultat, caseta se golește; (3) rezultatele au sursa (Waze / Google) și distanța față de centrul hărții; (4) primele rezultate sunt cele „🗺 pe hartă”, din datele deja încărcate - o stradă (îi selectează segmentele încărcate) sau un loc (îl selectează); (5) un număr = ID de segment, n.n.n = ID de loc: îl selectează, iar dacă nu e încărcat îi găsește locația în istoricul WME; (6) un permalink, link Google / Waze sau coordonate în grade-minute-secunde → „🔗 Deschide linkul”; (7) caseta goală arată ultimele 15 căutări (păstrate în browser), cu „Șterge istoricul”.', 'Top search box: (1) clicking outside the box no longer selects a result or brings the previous place back (Enter works as before); (2) after you pick a result the box is emptied; (3) results show their source (Waze / Google) and the distance from the map center; (4) the first results are "🗺 on the map" ones, from the data already loaded - a street (selects its loaded segments) or a place (selects it); (5) a number = segment ID, n.n.n = place ID: it gets selected, and if it is not loaded its location is found in the WME history; (6) a permalink, a Google / Waze link or degrees-minutes-seconds coordinates → "🔗 Open the link"; (7) an empty box shows the last 15 searches (kept in the browser), with "Clear the history".')
+    );
+    addToggle(
+      'googleTrafficLink',
+      L('Sigla Google deschide harta cu trafic', 'Google logo opens the map with traffic'),
+      L('Click pe sigla Google din dreapta jos deschide Google Maps cu stratul de trafic activ.', 'Clicking the Google logo at the bottom right opens Google Maps with the traffic layer on.'),
+      L('Sigla Google din colțul din dreapta jos al hărții deschide Google Maps la centrul hărții WME; cu opțiunea activă, se deschide direct cu stratul de trafic pornit și la zoom-ul din WME (punctul rămâne marcat).', 'The Google logo at the bottom right corner of the map opens Google Maps at the WME map center; with this option it opens with the traffic layer already on and at the WME zoom (the point stays marked).')
     );
     addToggle(
       'permalinkTool',
@@ -2982,9 +2990,46 @@
     });
   }
 
+  // v0.53.1 (Paul: "să dispară la scurt timp după ce mut mouse-ul în afară
+  // sau dau click undeva pe hartă"): the window closes ~0.8 s after the
+  // pointer leaves it (and the pill it was opened from), or at once on a
+  // click outside it. The ✕ still works.
+  const HIST_AUTO_CLOSE_MS = 800;
+  const histAuto = { t: null, anchor: null, bound: false };
+
   function histClose() {
     const p = document.getElementById(HIST_PANEL_ID);
     if (p) p.remove();
+    clearTimeout(histAuto.t);
+    histAuto.t = null;
+  }
+
+  function histAutoBind() {
+    if (histAuto.bound) return;
+    histAuto.bound = true;
+    const inside = (x, y, r, pad) => r && x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+    document.addEventListener(
+      'mousemove',
+      (ev) => {
+        const box = document.getElementById(HIST_PANEL_ID);
+        if (!box) return;
+        if (inside(ev.clientX, ev.clientY, box.getBoundingClientRect(), 6) || inside(ev.clientX, ev.clientY, histAuto.anchor, 10)) {
+          clearTimeout(histAuto.t);
+          histAuto.t = null;
+          return;
+        }
+        if (!histAuto.t) histAuto.t = setTimeout(histClose, HIST_AUTO_CLOSE_MS);
+      },
+      { passive: true, capture: true }
+    );
+    document.addEventListener(
+      'mousedown',
+      (ev) => {
+        const box = document.getElementById(HIST_PANEL_ID);
+        if (box && !box.contains(ev.target)) histClose();
+      },
+      true
+    );
   }
 
   async function histOpen(segmentId, anchorRect) {
@@ -3011,6 +3056,8 @@
     body.textContent = L('Se încarcă istoricul…', 'Loading the history…');
     box.appendChild(body);
     getMapOverlayContainer().appendChild(box);
+    histAuto.anchor = anchorRect;
+    histAutoBind();
     // Next to the pill, inside the map.
     const { vw, vh, vx0, vy0 } = getMapViewportBounds();
     const place = () => {
@@ -5218,6 +5265,47 @@
       srState.origGetItems = el.getItems;
       el.getItems = srMakeGetItems(el.getItems);
     }
+  }
+
+  // ---------------------------------------------------------------------
+  // Google Maps with traffic (v0.53.1). Paul: the Google logo at the bottom
+  // right of the map should open Google Maps "cu stratul de trafic activ".
+  // The logo is `.wz-map-ol-control-google-map-permalink a`, href
+  // `https://maps.google.com/?q=<lat>,<lon>` (kept up to date by WME).
+  // `&layer=t` turns the traffic layer on (checked: Google keeps the pin and
+  // opens with traffic, URL ends in `!5m1!1e1`); `&z=` keeps the WME zoom.
+  // ---------------------------------------------------------------------
+  let gTrafficBound = false;
+
+  function gTrafficInit() {
+    if (gTrafficBound) return;
+    gTrafficBound = true;
+    document.addEventListener(
+      'click',
+      (ev) => {
+        if (!settings.googleTrafficLink || ev.button !== 0) return;
+        const a = ev.target && ev.target.closest ? ev.target.closest('.wz-map-ol-control-google-map-permalink a, a[class*="google-map-permalink"]') : null;
+        if (!a || !a.href) return;
+        let url;
+        try {
+          url = new URL(a.href);
+        } catch (e) {
+          return;
+        }
+        if (!/google\./.test(url.hostname)) return;
+        url.searchParams.set('layer', 't');
+        try {
+          const z = Math.round(sdk.Map.getZoomLevel());
+          if (Number.isFinite(z)) url.searchParams.set('z', String(Math.min(21, Math.max(3, z))));
+        } catch (e) {
+          // keep Google's default zoom
+        }
+        ev.preventDefault();
+        ev.stopPropagation();
+        window.open(url.toString(), '_blank', 'noopener');
+      },
+      true
+    );
   }
 
   // ---------------------------------------------------------------------
@@ -16644,6 +16732,7 @@
     plPoll();
     setInterval(plPoll, PL_POLL_MS);
     rcInit();
+    gTrafficInit();
     srPoll();
     setInterval(srPoll, 2000);
 
