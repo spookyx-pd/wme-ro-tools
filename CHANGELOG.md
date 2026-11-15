@@ -23,6 +23,13 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.55.1 - pastilele de publicare nu mai forțează layout la fiecare cadru (pe `dev`, nepublicată)
+
+- Monitorul a arătat că poziționarea pastilelor de publicare încă rula de
+  60 de ori/s (15 ms/s): verificarea „s-a mișcat harta?” citea dimensiunile
+  paginii, ceea ce forța browserul să recalculeze layout-ul la fiecare
+  cadru. Acum verificarea folosește doar centrul și zoom-ul hărții.
+
 ## 2026-11-15 - v0.55.0 - monitor de resurse; pastilele nu mai consumă procesor cu harta pe loc (pe `dev`, nepublicată)
 
 - **Nou:** linkul „📊 Monitor resurse” din setări deschide o fereastră cu:

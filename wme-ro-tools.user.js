@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.55.0
+// @version      0.55.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.55.0';
+  const SCRIPT_VERSION = '0.55.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -2748,13 +2748,28 @@
     if (!pxCal) return sdk.Map.getPixelFromLonLat({ lonLat: { lon, lat } });
     return { x: pxCal.ax * mercX(lon) + pxCal.bx, y: pxCal.ay * mercY(lat) + pxCal.by };
   }
-  // Signature of the current map view (projection + viewport): unchanged
-  // signature = the overlays don't need to move.
+  // Signature of the current map view: unchanged signature = the overlays
+  // don't need to move. v0.55.1: built ONLY from values that don't read
+  // the layout - measured in Paul's session with the DOM dirty:
+  // getMapCenter 0.01 ms, getZoomLevel 0.005 ms, but getPixelFromLonLat /
+  // getBoundingClientRect 0.6 ms+ each (forced layout). The first version
+  // (projection + viewport rect) made the publish-pill loop pay a forced
+  // layout on every frame (60 calls/s, 15 ms/s in the resource monitor).
+  // A sidebar resize without a map move is picked up by the 1 s rescans
+  // (they set `dirty`).
+  let viewSigCache = { t: -1, v: '' };
   function mapViewSig() {
-    fastPx(0, 0);
-    const b = getMapViewportBounds();
-    const c = pxCal || {};
-    return `${c.ax}|${c.bx}|${c.ay}|${c.by}|${b.vw}|${b.vh}|${b.vx0}|${b.vy0}`;
+    const now = performance.now();
+    if (now - viewSigCache.t < 8) return viewSigCache.v;
+    let v;
+    try {
+      const c = sdk.Map.getMapCenter();
+      v = `${c.lon}|${c.lat}|${sdk.Map.getZoomLevel()}|${window.innerWidth}x${window.innerHeight}`;
+    } catch (e) {
+      v = String(now);
+    }
+    viewSigCache = { t: now, v };
+    return v;
   }
   // Writes position / visibility only when they change (no style
   // invalidation -> no layout work on idle frames).
