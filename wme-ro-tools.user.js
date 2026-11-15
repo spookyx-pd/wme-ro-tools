@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.52.0
+// @version      0.52.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.52.0';
+  const SCRIPT_VERSION = '0.52.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -4656,7 +4656,10 @@
   // unsaved and undoable.
   // ---------------------------------------------------------------------
   const RC_POPUP_CLASS = 'wme-ro-tools-rc-popup';
-  const rcState = { popup: null, el: null, hideT: null, bound: false, confirm: false, raf: null };
+  const rcState = { popup: null, el: null, hideT: null, bound: false, confirm: false, raf: null, dwellEl: null, dwellT: null };
+  // v0.52.1: how long the pointer must rest on a closure symbol before the
+  // popup opens.
+  const RC_HOVER_DELAY_MS = 450;
 
   function rcLayer() {
     try {
@@ -4955,6 +4958,79 @@
       return;
     }
     item.click();
+    if (kind === 'duplicate') await rcDuplicateDates(closures[0]);
+  }
+
+  // v0.52.1 - Duplicate starting NOW (Paul: start = the moment of the
+  // click; end = the same end time, the same number of days after the
+  // start day as in the original - "until 23:59 today", "until 16:00
+  // tomorrow" -, never in the past). WME's own Duplicate copies the old
+  // dates; the form's date fields are jQuery `daterangepicker`s on the
+  // `wz-text-input`s (#closure_startDate / #closure_endDate, DD.MM.YYYY)
+  // and the times are bootstrap `timepicker`s (the next
+  // `wz-text-input.timePickerInput--*`). They are set like a user would:
+  // `setStartDate` + `apply.daterangepicker`, `timepicker.setTime`
+  // (fires `changeTime`). If the end would already be past, it moves by
+  // whole days until it is in the future. Nothing is saved - the form stays
+  // open for review (WME saves it on its own Save).
+  function rcParseDate(str) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/.exec(String(str || ''));
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null;
+  }
+
+  function rcDuplicateTimes(c, now) {
+    const s0 = rcParseDate(c.startDate);
+    const e0 = rcParseDate(c.endDate);
+    if (!s0 || !e0) return null;
+    const dayOf = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayDiff = Math.round((dayOf(e0) - dayOf(s0)) / 86400000);
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayDiff, e0.getHours(), e0.getMinutes());
+    while (end.getTime() <= start.getTime()) end.setDate(end.getDate() + 1);
+    return { start, end };
+  }
+
+  async function rcDuplicateDates(c) {
+    const $ = window.jQuery;
+    const times = rcDuplicateTimes(c, new Date());
+    if (!$ || !times) return;
+    let form = null;
+    for (let i = 0; i < 20 && !form; i++) {
+      await rcSleep(150);
+      const sd = document.querySelector('#edit-panel #closure_startDate');
+      const ed = document.querySelector('#edit-panel #closure_endDate');
+      // A new (duplicate) form: no "Created" info / ids yet.
+      if (sd && ed && $(sd).data('daterangepicker') && $(ed).data('daterangepicker')) form = { sd, ed };
+    }
+    if (!form) return;
+    const p2 = (n) => String(n).padStart(2, '0');
+    const dStr = (d) => `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${d.getFullYear()}`;
+    const tStr = (d) => `${p2(d.getHours())}:${p2(d.getMinutes())}`;
+    // The time input that belongs to a date input (next timePicker after it).
+    const timeFor = (dateEl) => {
+      const all = [...document.querySelectorAll('#edit-panel wz-text-input[class*="timePickerInput"]')];
+      return all.find((t) => dateEl.compareDocumentPosition(t) & 4 /* FOLLOWING */) || null;
+    };
+    const setDate = (el, d) => {
+      const drp = $(el).data('daterangepicker');
+      drp.setStartDate(dStr(d));
+      drp.setEndDate(dStr(d));
+      $(el).trigger('apply.daterangepicker', [drp]);
+    };
+    const setTime = (el, d) => {
+      const tp = el && $(el).data('timepicker');
+      if (tp) tp.setTime(tStr(d));
+    };
+    try {
+      setDate(form.sd, times.start);
+      setTime(timeFor(form.sd), times.start);
+      setDate(form.ed, times.end);
+      setTime(timeFor(form.ed), times.end);
+      phShowToast(L(`Duplicat: ${dStr(times.start)} ${tStr(times.start)} → ${dStr(times.end)} ${tStr(times.end)}. Verifică și apasă Salvează în formular.`, `Duplicate: ${dStr(times.start)} ${tStr(times.start)} → ${dStr(times.end)} ${tStr(times.end)}. Check it and press Save in the form.`));
+    } catch (e) {
+      console.warn(`${SCRIPT_NAME}: datele duplicatului nu au putut fi setate.`, e);
+      phShowToast(L('Nu am putut seta datele duplicatului - setează-le manual.', 'Could not set the duplicate dates - set them by hand.'), true);
+    }
   }
 
   function rcDelete(closures) {
@@ -5089,7 +5165,7 @@
       return b;
     };
     row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => rcCardAction(closures, 'edit')));
-    row.appendChild(mk(L('⧉ Duplicat', '⧉ Duplicate'), L('„Duplicat” din meniul închiderii (WME deschide formularul cu o copie).', '"Duplicate" from the closure menu (WME opens the form with a copy).'), () => rcCardAction(closures, 'duplicate')));
+    row.appendChild(mk(L('⧉ Duplicat', '⧉ Duplicate'), L('Copie a închiderii începând de acum: același sfârșit (ora și câte zile după început), niciodată în trecut. Formularul rămâne deschis - verifici și apeși Salvează.', 'Copy of the closure starting now: the same end (time and how many days after the start), never in the past. The form stays open - check it and press Save.'), () => rcCardAction(closures, 'duplicate')));
     if (!finished) {
       row.appendChild(mk(L('↻ Ziua următoare', '↻ Next day'), L('„Repetă ziua următoare” din meniul închiderii (acțiunea WME).', '"Repeat next day" from the closure menu (the WME action).'), () => rcCardAction(closures, 'repeat')));
       // A finished closure can't be deleted any more (WME keeps it as
@@ -5173,13 +5249,37 @@
             el = null;
           }
           if (el) {
-            try {
-              rcShow(el);
-            } catch (err) {
-              // ignore
+            // v0.52.1 (Paul: passing over the symbol must not open the
+            // popup): open only after the pointer has rested on the same
+            // marker for RC_HOVER_DELAY_MS. The popup of this marker, once
+            // open, just stays.
+            if (rcState.popup && rcState.el === el) {
+              clearTimeout(rcState.hideT);
+              rcState.hideT = null;
+              return;
             }
-          } else if (rcState.popup && !rcState.hideT) {
-            rcScheduleHide();
+            if (rcState.dwellEl !== el) {
+              clearTimeout(rcState.dwellT);
+              rcState.dwellEl = el;
+              rcState.dwellT = setTimeout(() => {
+                rcState.dwellT = null;
+                const target = rcState.dwellEl;
+                rcState.dwellEl = null;
+                if (!target || !target.isConnected || !settings.closureQuickActions) return;
+                try {
+                  rcShow(target);
+                } catch (err) {
+                  // ignore
+                }
+              }, RC_HOVER_DELAY_MS);
+            }
+          } else {
+            if (rcState.dwellEl) {
+              clearTimeout(rcState.dwellT);
+              rcState.dwellT = null;
+              rcState.dwellEl = null;
+            }
+            if (rcState.popup && !rcState.hideT) rcScheduleHide();
           }
         });
       },

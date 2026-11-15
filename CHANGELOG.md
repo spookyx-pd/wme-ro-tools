@@ -23,6 +23,16 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.52.1 - drumuri închise: fereastra cu întârziere, Duplicat de acum (pe `dev`, nepublicată)
+
+- Fereastra cu detaliile închiderii apare doar dacă ții mouse-ul ~0,45 s
+  pe simbol; dacă doar treci peste el, nu mai apare.
+- „⧉ Duplicat” pune începutul acum, iar sfârșitul la aceeași oră și la
+  același număr de zile după început ca în original (ex. până azi la
+  23:59, până mâine la 16:00). Dacă ora de sfârșit a trecut deja azi,
+  sfârșitul se mută pe a doua zi. Formularul rămâne deschis - verifici și
+  apeși Salvează.
+
 ## 2026-11-15 - v0.52.0 - pastilele de publicare: text pe mai multe rânduri și „Istoric recent” (pe `dev`, nepublicată)
 
 - Pastilele de pe hartă (portocaliu / verde / albastru): la hover textul se
