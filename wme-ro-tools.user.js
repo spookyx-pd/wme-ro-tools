@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.56.0
+// @version      0.56.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.56.0';
+  const SCRIPT_VERSION = '0.56.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -3131,17 +3131,25 @@
   // visible.
   function isSegmentPathInViewport(coords, vw, vh, x0 = 0, y0 = 0) {
     if (!coords.length) return false;
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
+    // v0.56.1: bounding box in lon/lat, then only its 2 corners projected -
+    // the projection is monotonic on each axis (x grows with lon, y falls
+    // with lat), so the pixel box is the same as projecting every point.
+    let minLon = Infinity;
+    let maxLon = -Infinity;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
     for (const c of coords) {
-      const p = fastPx(c[0], c[1]);
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.y > maxY) maxY = p.y;
+      if (c[0] < minLon) minLon = c[0];
+      if (c[0] > maxLon) maxLon = c[0];
+      if (c[1] < minLat) minLat = c[1];
+      if (c[1] > maxLat) maxLat = c[1];
     }
+    const a = fastPx(minLon, maxLat);
+    const b = fastPx(maxLon, minLat);
+    const minX = Math.min(a.x, b.x);
+    const maxX = Math.max(a.x, b.x);
+    const minY = Math.min(a.y, b.y);
+    const maxY = Math.max(a.y, b.y);
     // `x0`/`y0` = the map's real top-left corner - see
     // `computeSegmentBadgePosition`.
     return maxX >= x0 && minX <= x0 + vw && maxY >= y0 && minY <= y0 + vh;
@@ -4126,6 +4134,20 @@
   // Periodically (not every frame) recomputes the visible unpublished
   // segments: creates pills for newly found ones, removes pills for
   // segments no longer unpublished/visible/loaded (or now excluded).
+  // v0.56.1: `Segments.getAll()` serializes every loaded segment (10.5 ms
+  // for 5424 segments, measured) - the 2 rescans (publish pills, level-1
+  // pills) run every second, so they share one copy for 900 ms.
+  let segAllCache = null;
+  let segAllCacheT = -1;
+  function segAllShared() {
+    const now = performance.now();
+    if (!segAllCache || now - segAllCacheT > 900) {
+      segAllCache = sdk.DataModel.Segments.getAll();
+      segAllCacheT = now;
+    }
+    return segAllCache;
+  }
+
   function unpublishedWarnRescan() {
     if (!unpublishedWarnState.active) return;
     // Geometry / pills may have changed - reposition on the next frame.
@@ -4137,7 +4159,7 @@
 
     let segments;
     try {
-      segments = sdk.DataModel.Segments.getAll();
+      segments = segAllShared();
     } catch (e) {
       segments = [];
     }
@@ -4327,7 +4349,7 @@
     const { vw, vh, vx0, vy0 } = getMapViewportBounds();
     let segments;
     try {
-      segments = sdk.DataModel.Segments.getAll();
+      segments = segAllShared();
     } catch (e) {
       segments = [];
     }
@@ -6812,12 +6834,25 @@
   // itself), so they never get mouse events: one throttled `mousemove`
   // checks whether the pointer is over a closure marker's box (+4px).
   // The markers are re-created by WME on every pan / zoom - read live.
+  // v0.56.1: Paul's monitor showed the closure hover at 32 ms/s with many
+  // closures loaded - one getBoundingClientRect per marker on every mouse
+  // move (the first one forcing a layout). Now each marker's position is
+  // projected from its lonlat (map projection meters, no layout) and only
+  // the markers within RC_NEAR_PX of the pointer get measured.
+  const RC_NEAR_PX = 48;
   function rcMarkerAt(x, y) {
     const layer = rcLayer();
     if (!layer || !layer.div || layer.div.style.display === 'none' || !layer.getVisibility || !layer.getVisibility()) return null;
+    fastPx(0, 0); // refresh the projection coefficients (pxCal)
+    const cal = pxCal;
     for (const mk of layer.markers) {
       const el = mk.element;
       if (!el || !el.isConnected) continue;
+      if (cal && mk.lonlat && Number.isFinite(mk.lonlat.lon)) {
+        const px = cal.ax * mk.lonlat.lon + cal.bx;
+        const py = cal.ay * mk.lonlat.lat + cal.by;
+        if (Math.abs(px - x) > RC_NEAR_PX || Math.abs(py - y) > RC_NEAR_PX) continue;
+      }
       const r = el.getBoundingClientRect();
       if (!r.width) continue;
       if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 4 && y <= r.bottom + 4) return el;

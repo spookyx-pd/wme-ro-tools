@@ -23,6 +23,27 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.56.1 - mai puțin procesor cu multe segmente / închideri încărcate (pe `dev`, nepublicată)
+
+- Fereastra drumurilor închise la hover nu mai măsoară fiecare simbol de
+  închidere la fiecare mișcare a mouse-ului (cu 227 de închideri pe ecran
+  erau 227 de măsurători); acum le verifică doar pe cele de lângă cursor.
+- Pastilele de publicare și cele de nivel 1 folosesc o singură listă de
+  segmente pe secundă (în loc de două) și verifică mai rapid dacă un
+  segment e pe ecran.
+
+## 2026-11-15 - v0.56.0 - analiză continuă în monitorul de resurse (pe `dev`, nepublicată)
+
+- **Nou:** în monitorul de resurse, lângă „🔬 Analiză 5 s”, butonul
+  „⏺ Analiză continuă (o oprești tu)”: analiza tuturor scripturilor rulează
+  cât lucrezi (maxim 30 de minute) și o oprești cu „⏹ Oprește analiza”.
+  Poți închide monitorul - jos pe hartă rămâne un indicator mic cu timpul
+  scurs, „📊 Vezi” și „⏹ Oprește” (la oprire monitorul se redeschide cu
+  rezultatele).
+- Rezultatele arată acum și durata, firul principal ocupat în medie,
+  modificările din pagină, cadrele lungi și, pe fiecare script, procentul
+  din timp și timpul în cadrele lungi; se actualizează live cât rulează.
+
 ## 2026-11-15 - v0.55.4 - dimensiunile hărții se recitesc doar când se schimbă (pe `dev`, nepublicată)
 
 - Poziția hărții pe ecran nu se mai recitește periodic (fiecare recitire în
