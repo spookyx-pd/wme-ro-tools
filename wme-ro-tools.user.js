@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.51.5
+// @version      0.52.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.51.5';
+  const SCRIPT_VERSION = '0.52.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.52', items: [
+      L('Pastilele de publicare (portocaliu / verde / albastru): textul se încadrează pe mai multe rânduri și au linkul „📜 Istoric recent” - modificările recente ale segmentului (ce s-a schimbat, cine, când, starea pe Livemap), încărcate doar la cerere.', 'Publish pills (orange / green / blue): the text wraps and they have a "📜 Recent history" link - the recent edits of the segment (what changed, who, when, Livemap status), loaded only on demand.'),
+    ] },
     { v: '0.51', items: [
       L('Drumuri închise: cu mouse-ul pe simbolul unei închideri vezi detaliile ei (descriere, interval, sens, noduri, detectarea traficului, cine a creat-o / actualizat-o) și ai butoanele „Editează” (deschide direct formularul), „Duplicat”, „Ziua următoare” și „Șterge”.', 'Road closures: hovering a closure symbol shows its details (description, period, direction, nodes, traffic detection, who created / updated it) with "Edit" (opens the form directly), "Duplicate", "Next day" and "Delete" buttons.'),
     ] },
@@ -2776,15 +2779,24 @@
   // Content stays in the DOM once loaded, so re-hovering the same pill
   // doesn't refetch or flash "Loading...".
   function unpublishedWarnExpand(el, textEl, segmentId) {
-    el.style.maxWidth = '420px';
-    el.style.padding = '3px 8px 3px 6px';
+    // v0.52: the text wraps (Paul: "nu face wrap la text") - the pill grows
+    // in height instead of being cut at ~420px.
+    el.style.maxWidth = '340px';
+    el.style.height = 'auto';
+    el.style.minHeight = '22px';
+    el.style.borderRadius = '10px';
+    el.style.alignItems = 'flex-start';
+    el.style.whiteSpace = 'normal';
+    el.style.padding = '4px 8px 4px 6px';
     el.style.justifyContent = 'flex-start';
     el.style.zIndex = String(OWN_UI_MENU_Z_INDEX);
     // The text has its own width/margin animation, separate from the
     // container's, so collapsing doesn't leave it visually off-center
     // (see `unpublishedWarnCollapse`).
-    textEl.style.maxWidth = '380px';
+    textEl.style.maxWidth = '300px';
     textEl.style.marginLeft = '6px';
+    textEl.style.whiteSpace = 'normal';
+    textEl.style.lineHeight = '1.35';
     if (textEl.childNodes.length) return; // already loaded from a previous hover
 
     let segment;
@@ -2823,7 +2835,232 @@
       link.addEventListener('click', (ev) => ev.stopPropagation());
       textEl.appendChild(link);
       if (liveText) textEl.append(` · ${liveText}`);
+      // v0.52: recent history on demand (one request, only when clicked).
+      textEl.append(' ');
+      const hb = document.createElement('a');
+      hb.href = '#';
+      hb.textContent = L('📜 Istoric recent', '📜 Recent history');
+      hb.title = L('Arată modificările recente ale segmentului (nepublicate, din ultimul build și cele recente), luate din istoricul WME.', 'Shows the recent edits of the segment (unpublished, last build and recent ones), from the WME history.');
+      hb.style.cssText = 'color: inherit; text-decoration: underline; white-space: nowrap; font-weight: 700;';
+      hb.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        histOpen(segmentId, el.getBoundingClientRect());
+      });
+      textEl.appendChild(hb);
     });
+  }
+
+  // ---------------------------------------------------------------------
+  // Recent history of a segment (v0.52). Paul: "să ne preia de acolo
+  // modificările recente, nu tot istoricul [...] modificarea care n-a
+  // ajuns pe live, dar poate afișăm și modificările recente [...] verde
+  // [...] albastru", without loading memory for every pill - so it is
+  // fetched only when "📜 Recent history" is clicked, one segment at a time.
+  // Source = the same request as WME's "Show history" button:
+  // GET /<region>-Descartes/app/ElementHistory?objectID=<id>&objectType=
+  // segment (row-Descartes / il-Descartes / Descartes for usa) ->
+  // { users, streets, cities, ..., transactions: { objects: [{ date,
+  // userID, actionType, objects: [{ objectType, objectID, actionType,
+  // oldValue, newValue }], editProposals: [{ createdBy }] }] } }.
+  // Shown: the transactions classified pending / fresh / recent (same
+  // windows as the pills); if none, the newest one. Small cache (last 10
+  // segments, 2 min).
+  // ---------------------------------------------------------------------
+  const HIST_PANEL_ID = 'wme-ro-tools-hist-panel';
+  const HIST_MAX_ITEMS = 15;
+  const histCache = new Map(); // segmentId -> { at, data }
+
+  function histBase() {
+    const env = detectWmeRegion();
+    return env === 'usa' ? '/Descartes' : `/${env}-Descartes`;
+  }
+
+  async function histFetch(segmentId) {
+    const c = histCache.get(segmentId);
+    if (c && Date.now() - c.at < 120000) return c.data;
+    const r = await window.fetch(`${histBase()}/app/ElementHistory?objectID=${encodeURIComponent(segmentId)}&objectType=segment`, { credentials: 'include' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    histCache.set(segmentId, { at: Date.now(), data });
+    while (histCache.size > 10) histCache.delete(histCache.keys().next().value);
+    return data;
+  }
+
+  const HIST_FIELD_LABELS = {
+    primaryStreetID: L('Stradă', 'Street'),
+    streetIDs: L('Nume alternative', 'Alternative names'),
+    roadType: L('Tip drum', 'Road type'),
+    lockRank: L('Blocare', 'Lock'),
+    fwdMaxSpeed: L('Viteză A→B', 'Speed A→B'),
+    revMaxSpeed: L('Viteză B→A', 'Speed B→A'),
+    fwdDirection: L('Sens A→B', 'Direction A→B'),
+    revDirection: L('Sens B→A', 'Direction B→A'),
+    flags: L('Atribute', 'Attributes'),
+    level: L('Elevație', 'Elevation'),
+    geometry: L('Geometrie', 'Geometry'),
+    fromNodeID: L('Nod A', 'Node A'),
+    toNodeID: L('Nod B', 'Node B'),
+    restrictions: L('Restricții', 'Restrictions'),
+    hasHNs: L('Numere de imobil', 'House numbers'),
+    routingRoadType: L('Tip drum pentru rutare', 'Routing road type'),
+    fwdTurnsLocked: L('Viraje A blocate', 'Turns A locked'),
+    revTurnsLocked: L('Viraje B blocate', 'Turns B locked'),
+    validated: L('Validat', 'Validated'),
+    separator: L('Separator', 'Separator'),
+  };
+  const HIST_SKIP = new Set(['updatedBy', 'updatedOn', 'createdOn', 'createdBy', 'length', 'version', 'permissions', 'id']);
+
+  function histStreet(data, id) {
+    if (id === null || id === undefined) return '—';
+    const st = ((data.streets && data.streets.objects) || []).find((x) => x.id === id);
+    if (!st) return `#${id}`;
+    if (st.isEmpty || !st.name) return L('fără nume', 'no name');
+    const city = ((data.cities && data.cities.objects) || []).find((x) => x.id === st.cityID);
+    return city && city.name ? `${st.name} (${city.name})` : st.name;
+  }
+
+  function histUser(data, id) {
+    const u = ((data.users && data.users.objects) || []).find((x) => x.id === id);
+    if (!u) return id != null ? `#${id}` : '?';
+    return Number.isFinite(u.rank) ? `${u.userName}(${u.rank + 1})` : u.userName;
+  }
+
+  function histFlags(v) {
+    if (v === null || v === undefined) return '—';
+    const n = Number(v);
+    const names = [];
+    if (n & 1) names.push(L('tunel', 'tunnel'));
+    if (n & 16) names.push(L('neasfaltat', 'unpaved'));
+    return names.length ? `${n} (${names.join(', ')})` : String(n);
+  }
+
+  function histValue(data, key, v) {
+    if (v === undefined) return '—';
+    if (v === null) return L('nimic', 'none');
+    if (key === 'primaryStreetID') return histStreet(data, v);
+    if (key === 'streetIDs') return Array.isArray(v) && v.length ? v.map((id) => histStreet(data, id)).join(', ') : L('niciunul', 'none');
+    if (key === 'roadType' || key === 'routingRoadType') return ROAD_TYPE_LABEL[v] || String(v);
+    if (key === 'lockRank') return String(Number(v) + 1);
+    if (key === 'flags') return histFlags(v);
+    if (typeof v === 'boolean') return v ? L('da', 'yes') : L('nu', 'no');
+    if (Array.isArray(v)) return v.length ? `${v.length} ${L('elemente', 'items')}` : L('niciuna', 'none');
+    if (typeof v === 'object') return '{…}';
+    return String(v);
+  }
+
+  // One transaction object -> text lines.
+  function histObjectLines(data, o) {
+    const kind = o.objectType === 'segment' ? L('segment', 'segment') : o.objectType;
+    if (o.actionType === 'ADD') return [`➕ ${kind} ${L('creat', 'created')}`];
+    if (o.actionType === 'DELETE') return [`✖ ${kind} ${L('șters', 'deleted')}`];
+    const oldV = o.oldValue || {};
+    const newV = o.newValue || {};
+    const keys = [...new Set([...Object.keys(oldV), ...Object.keys(newV)])].filter((k) => !HIST_SKIP.has(k));
+    if (o.objectType !== 'segment') return [`${kind}: ${keys.map((k) => HIST_FIELD_LABELS[k] || k).join(', ') || L('modificat', 'changed')}`];
+    return keys.map((k) => {
+      const label = HIST_FIELD_LABELS[k] || k;
+      if (k === 'geometry') return `${label}: ${L('modificată', 'changed')}`;
+      return `${label}: ${histValue(data, k, oldV[k])} → ${histValue(data, k, newV[k])}`;
+    });
+  }
+
+  function histClose() {
+    const p = document.getElementById(HIST_PANEL_ID);
+    if (p) p.remove();
+  }
+
+  async function histOpen(segmentId, anchorRect) {
+    histClose();
+    const t = currentTheme();
+    const box = document.createElement('div');
+    box.id = HIST_PANEL_ID;
+    box.style.cssText = `position:fixed; z-index:${OWN_UI_MENU_Z_INDEX + 1}; width:360px; max-width:calc(100vw - 16px); max-height:60vh; overflow:auto; box-sizing:border-box; padding:8px 10px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 4px 14px rgba(0,0,0,0.45); font:11px/1.4 Arial, sans-serif; pointer-events:auto;`;
+    ['mousedown', 'mouseup', 'click', 'dblclick', 'wheel'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex; align-items:center; gap:6px; margin-bottom:6px;';
+    const title = document.createElement('div');
+    title.style.cssText = 'flex:1; font-weight:700; font-size:12px;';
+    title.textContent = L(`📜 Istoric recent · segment ${segmentId}`, `📜 Recent history · segment ${segmentId}`);
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '✕';
+    x.title = L('Închide', 'Close');
+    x.style.cssText = `border:none; background:transparent; color:${t.menuText}; cursor:pointer; font-size:13px;`;
+    x.addEventListener('click', histClose);
+    head.append(title, x);
+    box.appendChild(head);
+    const body = document.createElement('div');
+    body.textContent = L('Se încarcă istoricul…', 'Loading the history…');
+    box.appendChild(body);
+    getMapOverlayContainer().appendChild(box);
+    // Next to the pill, inside the map.
+    const { vw, vh, vx0, vy0 } = getMapViewportBounds();
+    const place = () => {
+      const br = box.getBoundingClientRect();
+      let left = anchorRect.right + 8;
+      if (left + br.width > vx0 + vw - 4) left = anchorRect.left - br.width - 8;
+      left = Math.max(vx0 + 4, left);
+      let top = anchorRect.top;
+      top = Math.max(vy0 + 4, Math.min(vy0 + vh - br.height - 4, top));
+      box.style.left = `${Math.round(left)}px`;
+      box.style.top = `${Math.round(top)}px`;
+    };
+    place();
+
+    let data;
+    try {
+      data = await histFetch(segmentId);
+    } catch (e) {
+      if (!box.isConnected) return;
+      body.textContent = L('Istoricul nu a putut fi încărcat.', 'The history could not be loaded.');
+      return;
+    }
+    if (!box.isConnected) return;
+    const all = ((data.transactions && data.transactions.objects) || []).slice().sort((a, b) => b.date - a.date);
+    let list = all.filter((tr) => ['pending', 'fresh', 'recent'].includes(classifyEditTs(tr.date))).slice(0, HIST_MAX_ITEMS);
+    body.textContent = '';
+    if (!list.length) {
+      const n = document.createElement('div');
+      n.style.cssText = 'opacity:0.7; margin-bottom:4px;';
+      n.textContent = L('Nicio modificare recentă. Ultima modificare:', 'No recent edits. Last edit:');
+      body.appendChild(n);
+      list = all.slice(0, 1);
+    }
+    list.forEach((tr) => {
+      const st = classifyEditTs(tr.date);
+      const item = document.createElement('div');
+      item.style.cssText = `padding:5px 0 5px 8px; border-left:3px solid ${PUBLISH_STATUS_COLORS[st] || '#9AA0A6'}; margin-bottom:6px;`;
+      const h = document.createElement('div');
+      h.style.cssText = 'font-weight:700;';
+      const prop = (tr.editProposals || [])[0];
+      h.textContent = `${formatNativeHistoryDate(tr.date)} · ${histUser(data, tr.userID)}${prop && prop.createdBy != null && prop.createdBy !== tr.userID ? L(` · sugestie de la ${histUser(data, prop.createdBy)}`, ` · suggestion by ${histUser(data, prop.createdBy)}`) : ''}`;
+      item.appendChild(h);
+      if (PUBLISH_STATUS_TEXT[st]) {
+        const s2 = document.createElement('div');
+        s2.style.cssText = `color:${PUBLISH_STATUS_COLORS[st]}; font-weight:600;`;
+        s2.textContent = PUBLISH_STATUS_TEXT[st];
+        item.appendChild(s2);
+      }
+      const mine = (tr.objects || []).filter((o) => o.objectType === 'segment' && o.objectID === segmentId);
+      const others = (tr.objects || []).length - mine.length;
+      mine.forEach((o) => {
+        histObjectLines(data, o).forEach((line) => {
+          const d = document.createElement('div');
+          d.style.cssText = 'overflow-wrap:anywhere;';
+          d.textContent = `• ${line}`;
+          item.appendChild(d);
+        });
+      });
+      if (others > 0) {
+        const d = document.createElement('div');
+        d.style.cssText = 'opacity:0.65;';
+        d.textContent = L(`+ ${others} ${others === 1 ? 'alt obiect' : 'alte obiecte'} în aceeași salvare`, `+ ${others} other ${others === 1 ? 'object' : 'objects'} in the same save`);
+        item.appendChild(d);
+      }
+      body.appendChild(item);
+    });
+    place();
   }
 
   // While Shift / Ctrl+Shift / Ctrl is held (WME box selection, multi-
@@ -2891,6 +3128,12 @@
 
   function unpublishedWarnCollapse(el, textEl) {
     el.style.maxWidth = '24px';
+    el.style.height = '22px';
+    el.style.minHeight = '';
+    el.style.borderRadius = '11px';
+    el.style.alignItems = 'center';
+    el.style.whiteSpace = 'nowrap';
+    textEl.style.whiteSpace = 'nowrap';
     el.style.padding = '0 4px';
     el.style.justifyContent = 'center';
     el.style.zIndex = String(OWN_UI_Z_INDEX);

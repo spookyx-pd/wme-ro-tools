@@ -23,6 +23,19 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-15 - v0.52.0 - pastilele de publicare: text pe mai multe rânduri și „Istoric recent” (pe `dev`, nepublicată)
+
+- Pastilele de pe hartă (portocaliu / verde / albastru): la hover textul se
+  încadrează pe mai multe rânduri (nu mai e tăiat), inclusiv cine a editat.
+- **Nou:** linkul „📜 Istoric recent” din pastilă deschide lângă ea o
+  fereastră cu modificările recente ale segmentului, luate din istoricul
+  WME (aceeași sursă ca „Afișează Istoricul”): cele nepublicate, din
+  ultimul build și cele recente - data, editorul, sugestia de la care a
+  pornit (dacă e cazul), starea pe Livemap și ce s-a schimbat (stradă, tip
+  drum, viteze, blocare, sens, geometrie…). Dacă nu sunt modificări
+  recente, arată ultima modificare. Se încarcă doar la click, pentru un
+  singur segment.
+
 ## 2026-11-13 - v0.51.5 - schimbarea tipului de drum păstrează viteza de neasfaltat (pe `dev`, nepublicată)
 
 - Când schimbi tipul de drum (ex. Drum îngust → Stradă, Stradă principală
