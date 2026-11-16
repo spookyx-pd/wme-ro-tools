@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.56.2
+// @version      0.57.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.56.2';
+  const SCRIPT_VERSION = '0.57.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.57', items: [
+      L('Istoricul segmentului: eticheta „Included Sugestie de <editor>” nu mai e tăiată - se văd linkul spre profilul editorului și butonul de chat 💬.', 'Segment history: the "Included Suggestion by <editor>" badge is no longer cut off - the editor profile link and the 💬 chat button are visible.'),
+    ] },
     { v: '0.56', items: [
       L('Monitor resurse: „⏺ Analiză continuă” - analiza tuturor scripturilor rulează cât vrei tu (lucrezi normal, poți închide monitorul; jos rămâne un indicator cu „⏹ Oprește”), cu fir ocupat în medie, modificări în pagină și cadre lungi pe script.', 'Resource monitor: "⏺ Continuous analysis" - the all-scripts analysis runs as long as you want (work normally, you can close the monitor; a small indicator with "⏹ Stop" stays at the bottom), with average main-thread load, DOM changes and long frames per script.'),
     ] },
@@ -1147,6 +1150,9 @@
     searchHelper: true,
     // v0.53.1: the Google logo opens Google Maps with the traffic layer.
     googleTrafficLink: true,
+    // v0.57: the "Included Suggestion by <editor>" badge in the segment
+    // history wraps instead of cutting off the profile / chat buttons.
+    suggestionBadgeWrap: true,
     // v0.54: button that sets the road shield from the street name.
     roadShieldButton: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
@@ -1821,6 +1827,12 @@
       L('Căutare locație îmbunătățită', 'Better location search'),
       L('Fără salturi la click în afară, rezultate de pe hartă, distanță, ID segment / loc, istoric.', 'No jumps on clicking outside, results from the map, distance, segment / place ID, history.'),
       L('Bara de căutare de sus: (1) click-ul în afara casetei nu mai selectează un rezultat și nu mai readuce locul căutat anterior (Enter merge ca înainte); (2) după ce alegi un rezultat, caseta se golește; (3) rezultatele au sursa (Waze / Google) și distanța față de centrul hărții; (4) primele rezultate sunt cele „🗺 pe hartă”, din datele deja încărcate - o stradă (îi selectează segmentele încărcate) sau un loc (îl selectează); (5) un număr = ID de segment, n.n.n = ID de loc: îl selectează, iar dacă nu e încărcat îi găsește locația în istoricul WME; (6) un permalink, link Google / Waze sau coordonate în grade-minute-secunde → „🔗 Deschide linkul”; (7) caseta goală arată ultimele 15 căutări (păstrate în browser), cu „Șterge istoricul”.', 'Top search box: (1) clicking outside the box no longer selects a result or brings the previous place back (Enter works as before); (2) after you pick a result the box is emptied; (3) results show their source (Waze / Google) and the distance from the map center; (4) the first results are "🗺 on the map" ones, from the data already loaded - a street (selects its loaded segments) or a place (selects it); (5) a number = segment ID, n.n.n = place ID: it gets selected, and if it is not loaded its location is found in the WME history; (6) a permalink, a Google / Waze link or degrees-minutes-seconds coordinates → "🔗 Open the link"; (7) an empty box shows the last 15 searches (kept in the browser), with "Clear the history".')
+    );
+    addToggle(
+      'suggestionBadgeWrap',
+      L('Istoric: „Inclus din sugestie” pe două rânduri', 'History: "Included suggestion" on two lines'),
+      L('În istoricul segmentului, eticheta „Included Sugestie de <editor>” nu mai e tăiată: se văd linkul spre profil și butonul de chat.', 'In the segment history, the "Included Suggestion by <editor>" badge is no longer cut off: the profile link and the chat button are visible.'),
+      L('WME taie eticheta cu „…” când numele editorului e mai lung, așa că butonul de chat (💬) și iconița de profil nu se văd. Cu opțiunea activă eticheta trece pe două rânduri; numele duce la profilul editorului, iar 💬 (colorat) deschide chatul cu el - ambele sunt butoanele native WME.', 'WME cuts the badge with "…" when the editor name is longer, so the chat button (💬) and the profile icon are hidden. With this option the badge wraps onto two lines; the name opens the editor\'s profile and 💬 (highlighted) opens the chat with them - both are the native WME buttons.')
     );
     addToggle(
       'googleTrafficLink',
@@ -6128,6 +6140,52 @@
     if (typeof el.getItems === 'function' && !el.getItems.__roSr) {
       srState.origGetItems = el.getItems;
       el.getItems = srMakeGetItems(el.getItems);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Suggestion badge in the segment history (v0.57). Paul: in the history
+  // entry of an approved edit, "Included Sugestie de sebivagyok(2)…" is cut
+  // off with an ellipsis, so the native chat button (and the profile link's
+  // icon) can't be reached - "eventual punem pe două rânduri, dacă nu
+  // încape [...] ca să pot apăsa butonul de chat către editorul căruia i-am
+  // aprobat această modificare". DOM (checked live): `.tx-item-suggetion-
+  // history > wz-badge` (light DOM: text, `wz-button` Sugestie, `wz-a` to
+  // /user/editor/<name>, `span.waze-chat-with-user` with a native React
+  // onClick); the wz-badge shadow root has `.wz-badge` (max-width 230px,
+  // fixed height) and `span.text` (nowrap, overflow hidden, ellipsis). A
+  // style element inside the shadow root lets it wrap; the chat icon gets
+  // the accent color and a tooltip. Nothing is added to the WME data.
+  // ---------------------------------------------------------------------
+  const SUGG_BADGE_STYLE_ID = 'wme-ro-tools-sugg-wrap';
+  const SUGG_BADGE_CSS =
+    '.wz-badge{height:auto!important;max-width:none!important;width:auto!important;padding-top:3px!important;padding-bottom:3px!important;align-items:flex-start!important}' +
+    '.text{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;width:auto!important;line-height:1.6!important}';
+
+  function suggBadgeWrap() {
+    if (!settings.suggestionBadgeWrap) return;
+    const badges = document.querySelectorAll('#edit-panel .tx-item-suggetion-history wz-badge');
+    for (const b of badges) {
+      const sr = b.shadowRoot;
+      if (!sr || sr.getElementById(SUGG_BADGE_STYLE_ID)) continue;
+      const st = document.createElement('style');
+      st.id = SUGG_BADGE_STYLE_ID;
+      st.textContent = SUGG_BADGE_CSS;
+      sr.appendChild(st);
+      b.style.height = 'auto';
+      b.style.maxWidth = '100%';
+      const chat = b.querySelector('.waze-chat-with-user');
+      if (chat) {
+        chat.title = L('Deschide chatul cu acest editor', 'Open the chat with this editor');
+        const ic = chat.querySelector('i');
+        if (ic) {
+          // The icon font sets its own color - override it.
+          ic.style.setProperty('color', 'var(--primary, #33ccff)', 'important');
+          ic.style.setProperty('font-size', '17px', 'important');
+        }
+      }
+      const prof = b.querySelector('wz-a');
+      if (prof && !prof.title) prof.title = L('Deschide profilul editorului', "Open the editor's profile");
     }
   }
 
@@ -17734,6 +17792,11 @@
         publishSidebarRefresh();
       } catch (e) {
         // sidebar not ready - next tick
+      }
+      try {
+        suggBadgeWrap();
+      } catch (e) {
+        // WME DOM changed - ignore
       }
     }), 700);
     setInterval(perfFn('urBulkPoll', urBulkPoll), UR_FORM_POLL_MS);

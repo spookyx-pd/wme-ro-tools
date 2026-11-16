@@ -23,6 +23,13 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-16 - v0.57.0 - istoric: „Included Sugestie de …” pe două rânduri (pe `dev`, nepublicată)
+
+- **Nou:** în istoricul segmentului, eticheta „Included Sugestie de
+  <editor>” nu mai e tăiată cu „…”: trece pe două rânduri, iar linkul spre
+  profilul editorului și butonul de chat 💬 (acum colorat) se văd și se pot
+  apăsa. Opțiune nouă, pornită.
+
 ## 2026-11-15 - v0.56.2 - monitorul arată notificările rămase active (pe `dev`, nepublicată)
 
 - Monitorul de resurse are rândul „Notificări rămase active (bucle
