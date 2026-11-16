@@ -33,7 +33,10 @@ Paste (or take from the clipboard with **📋 Paste**) a WME permalink (www or b
 - The place you left from is remembered for the session: **↩ Go back** takes you back there.
 
 ### Road closures
-Hover the red symbol of a closure on the map to see its details: status (active / scheduled / finished), description, period and duration, direction (A → B, B → A or both), the start node and whether it is closed, traffic detection, who created and last updated it. Buttons: **✏️ Edit** (selects the segment and opens the closure's form directly), **⧉ Duplicate**, **↻ Next day** and **🗑 Delete** (two clicks; applied when you press Save).
+Rest the mouse for a moment on the red symbol of a closure (just passing over it opens nothing) to see its details: status (active / scheduled / finished / finished early), description, period and duration, direction (A → B, B → A or both), the start node and whether it is closed, traffic detection, who created and last updated it. Buttons: **✏️ Edit** (selects the segment and opens the closure's form directly), **⧉ Duplicate** (starts now, with the same end time), **↻ Next day** and **🗑 Delete** (two clicks; applied when you press Save).
+
+### Road shield from the street name
+For a selected segment whose street has no road shield but whose name starts with the road code, a **🛡 Set the shield** button appears at the top of the panel: DC300 → Communal road "300", DJ / DN → County / National road with the number only, A1 → Motorway, E60 → European road, DEX… → Expressway. Alternate names are checked too. As with the WME dialog, the shield is set on the street, so on every segment that has it; it is an unsaved edit (Undo works).
 
 ### Lock level 1 indicator
 A small orange pill (lock + 1) next to every visible segment locked at level 1. Hover it to lock that segment at a higher level with one click (only levels up to yours).
@@ -75,7 +78,7 @@ WME tells you whether an edit has reached Livemap. This script also shows how *f
 The status is shown in three places:
 - **Selected segment:** an icon with the edit's age ("21h", "1d 21h", "3d") next to the length label. The tooltip shows "Edited: …" and "Live: …", for example "latest build, 9 hours ago (Thu 15.10, 05:30)".
 - **Sidebar history:** the "Last update" icon gets the same color, with an extra line underneath giving the status and when the edit went live or will go live.
-- **The whole visible map:** a small round pill next to every orange, green or blue segment. Hovering over it shows the editor, the edit date and the Livemap status.
+- **The whole visible map:** a small round pill next to every orange, green or blue segment. On hover it expands to show the editor, the edit date and the Livemap status, plus a **📜 Recent history** link: the segment's latest edits (what changed, who, when, Livemap status), loaded only on demand. The window closes by itself when you move the mouse away or click elsewhere.
 
 ### Saved-anyway warnings list
 WME sometimes says "something might be wrong with this edit". If you save anyway, the warnings are no longer lost. They are kept in a session list, one entry per warning, including the ones WME merges together. Each entry has a "take me there" button that centers the map on the problem and selects the segment.
@@ -124,6 +127,9 @@ WME only lets you accept or reject a suggestion as a whole. The script helps you
   - a confirmation before a key already used by another command is taken over.
 - **Key hints.** The assigned keys appear next to items in *Map layers* and in the **+** menu. Long hazard names in the + menu are no longer cut off.
 - **Layer quick buttons.** Round buttons on the right side of the map toggle Google Places, extra satellite imagery, house numbers and hazards.
+- **Better location search.** Clicking outside the box no longer jumps to a result; the box is emptied after you pick one; results show their source (Waze / Google) and distance; the first ones are streets and places already loaded on the map ("🗺 on the map"); a number looks up a segment ID and n.n.n a place ID; a link or coordinates give "🔗 Open the link"; an empty box shows your last 15 searches.
+- **Google logo with traffic.** Clicking the Google logo at the bottom right opens Google Maps at the map center with the traffic layer on.
+- **📊 Resource monitor** (link in the settings tab). How much CPU each function of the script uses, how busy the editor is, memory, page elements and loaded objects, the frames that stall the page per script, and "notifications still running" (loops left behind by other scripts that load the CPU until you reload the tab). **🔬 5 s analysis** or **⏺ Continuous analysis** (you stop it; if you close the monitor, a small indicator with "⏹ Stop" stays at the bottom) shows which script loads the editor while you work.
 - **What's new.** After an update, a short window lists the new features. The full history is available from the settings tab.
 
 ---

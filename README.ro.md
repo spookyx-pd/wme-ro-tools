@@ -35,7 +35,10 @@ Lipești (sau iei din clipboard cu **📋 Lipește**) un permalink WME (www sau 
 - Locul de unde ai plecat e memorat pe durata sesiunii: **↩ Înapoi** te duce înapoi acolo.
 
 ### Drumuri închise
-Cu mouse-ul pe simbolul roșu al unei închideri vezi detaliile ei: starea (activă / programată / încheiată), descrierea, intervalul și durata, sensul (A → B, B → A sau ambele), nodul de început și dacă e închis, detectarea traficului, cine a creat-o și ultima actualizare. Butoane: **✏️ Editează** (selectează segmentul și deschide direct formularul închiderii), **⧉ Duplicat**, **↻ Ziua următoare** și **🗑 Șterge** (două click-uri; se aplică la Salvează).
+Ții mouse-ul o clipă pe simbolul roșu al unei închideri (trecerea rapidă peste el nu deschide nimic) și vezi detaliile ei: starea (activă / programată / încheiată / încheiată mai devreme), descrierea, intervalul și durata, sensul (A → B, B → A sau ambele), nodul de început și dacă e închis, detectarea traficului, cine a creat-o și ultima actualizare. Butoane: **✏️ Editează** (selectează segmentul și deschide direct formularul închiderii), **⧉ Duplicat** (începe de acum, cu aceeași oră de sfârșit), **↻ Ziua următoare** și **🗑 Șterge** (două click-uri; se aplică la Salvează).
+
+### Insigna de drum din numele străzii
+La un segment selectat a cărui stradă nu are insignă, dar numele începe cu codul drumului, sus în panou apare butonul **🛡 Setează insigna**: DC300 → Drum Comunal „300”, DJ / DN → Drum Județean / Național cu doar numărul, A1 → Autostradă, E60 → Drum European, DEX… → Drum Expres. Se iau în calcul și numele alternative. Ca în dialogul WME, insigna se aplică străzii, deci tuturor segmentelor care o au; e o modificare nesalvată (merge Undo).
 
 ### Indicator segmente blocate la nivelul 1
 O pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1. Cu mouse-ul pe ea blochezi segmentul la un nivel mai mare dintr-un click (doar nivelurile până la al tău).
@@ -77,7 +80,7 @@ WME îți spune dacă o modificare a ajuns pe Livemap. Scriptul arată în plus 
 Starea apare în trei locuri:
 - **Segmentul selectat:** o iconiță cu vechimea modificării („21h”, „1d 21h”, „3d”), lângă lungime. Tooltip-ul arată „Editat: …” și „Live: …”, de exemplu „ultima asamblare, de acum 9 ore (Joi 15.10, 05:30)”.
 - **Istoricul din panoul lateral:** iconița de la „Ultima actualizare” ia aceeași culoare, iar dedesubt apare un rând cu starea și momentul în care modificarea a ajuns sau va ajunge pe Livemap.
-- **Toată harta vizibilă:** o pastilă rotundă lângă fiecare segment portocaliu, verde sau albastru. La hover arată editorul, data modificării și starea pe Livemap.
+- **Toată harta vizibilă:** o pastilă rotundă lângă fiecare segment portocaliu, verde sau albastru. La hover se lărgește și arată editorul, data modificării și starea pe Livemap, plus linkul **📜 Istoric recent**: ultimele modificări ale segmentului (ce s-a schimbat, cine, când, starea pe Livemap), încărcate doar la cerere. Fereastra se închide singură când pleci cu mouse-ul sau dai click în altă parte.
 
 ### Lista avertizărilor salvate oricum
 WME spune uneori „S-ar putea să fie ceva în neregulă cu această editare”. Dacă salvezi oricum, avertizările nu se mai pierd. Rămân într-o listă pe sesiune, câte una pe rând, inclusiv cele pe care WME le comasează. Fiecare are un buton „du-mă acolo” care centrează harta pe problemă și selectează segmentul.
@@ -126,6 +129,9 @@ WME permite doar acceptarea sau respingerea unei sugestii în întregime. Script
   - confirmare înainte să iei o tastă folosită deja de altă comandă.
 - **Tastele afișate.** Tastele alocate apar lângă elementele din *Straturi hartă* și din meniul **+**. Numele lungi de pericole din meniul + nu mai sunt tăiate.
 - **Butoane rapide pentru straturi.** Butoane rotunde în dreapta hărții pentru Locuri Google, imagini din satelit suplimentare, numere de imobil și pericole.
+- **Căutare locație îmbunătățită.** Click-ul în afara casetei nu mai sare la un rezultat; după ce alegi un rezultat, caseta se golește; rezultatele au sursa (Waze / Google) și distanța; primele sunt străzile și locurile deja încărcate pe hartă („🗺 pe hartă”); un număr caută un ID de segment, iar n.n.n un ID de loc; un link sau coordonate dau „🔗 Deschide linkul”; caseta goală arată ultimele 15 căutări.
+- **Sigla Google cu trafic.** Click pe sigla Google din dreapta jos deschide Google Maps la centrul hărții, cu stratul de trafic pornit.
+- **📊 Monitor resurse** (link în tab-ul de setări). Cât procesor consumă fiecare funcție a scriptului, cât de ocupat e editorul, memoria, elementele din pagină și obiectele încărcate, cadrele care blochează pagina pe fiecare script și „notificările rămase active” (bucle lăsate de alte scripturi, care încarcă procesorul până reîncarci tabul). **🔬 Analiză 5 s** sau **⏺ Analiză continuă** (o oprești tu; dacă închizi monitorul, jos rămâne un indicator cu „⏹ Oprește”) arată ce script încarcă editorul cât lucrezi.
 - **Ce e nou.** După o actualizare, o fereastră scurtă arată funcțiile noi. Istoricul complet e în tab-ul de setări.
 
 ---
