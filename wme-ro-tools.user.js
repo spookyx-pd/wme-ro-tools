@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.57.0
+// @version      0.59.0
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.57.0';
+  const SCRIPT_VERSION = '0.59.0';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,12 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.59', items: [
+      L('WME Bug fix: avertizare când un loc modificat are două vârfuri identice una după alta (WME refuză atunci salvarea cu „geometrie invalidă”); un click pe „Curăță” le șterge (nesalvat, anulabil).', 'WME Bug fix: warning when an edited place has two identical consecutive vertices (WME then refuses to save with "invalid geometry"); one click on "Clean" removes them (unsaved, undoable).'),
+    ] },
+    { v: '0.58', items: [
+      L('Note de hartă: titlul apare pe hartă, în mijlocul notei (ca numele locurilor), iar dacă ții mouse-ul puțin deasupra notei se deschide o fereastră cu titlul, textul, comentariile, blocarea, expirarea și autorii. Ambele se pot opri din setări.', 'Map notes: the title is shown on the map, in the middle of the note (like place names), and if you rest the mouse over a note a window opens with its title, text, comments, lock, expiry and authors. Both can be turned off in the settings.'),
+    ] },
     { v: '0.57', items: [
       L('Istoricul segmentului: eticheta „Included Sugestie de <editor>” nu mai e tăiată - se văd linkul spre profilul editorului și butonul de chat 💬.', 'Segment history: the "Included Suggestion by <editor>" badge is no longer cut off - the editor profile link and the 💬 chat button are visible.'),
     ] },
@@ -335,6 +341,10 @@
     kbLayerPoll: L('Scurtături / butoane straturi', 'Shortcuts / layer buttons'),
     tiPoll: L('Instrucțiuni viraj', 'Turn instructions'),
     rcHover: L('Drumuri închise - hover', 'Road closures - hover'),
+    mnRaf: L('Note hartă - titluri', 'Map notes - titles'),
+    mnRescan: L('Note hartă - căutare', 'Map notes - scan'),
+    mnHover: L('Note hartă - hover', 'Map notes - hover'),
+    dvgPoll: L('Vârfuri duplicate la locuri', 'Duplicate place vertices'),
     quickBarRefresh: L('Bara rapidă segment', 'Segment quick bar'),
   };
 
@@ -1131,6 +1141,14 @@
     unpublishedSegmentsWarning: true,
     // v0.47.1: orange lock-1 pill next to every visible level 1 segment.
     lock1Badges: true,
+    // v0.58.0: map notes (map comments) - title on the map, like place
+    // names, and an info window when the pointer rests on the note.
+    mapNoteTitles: true,
+    mapNoteHover: true,
+    // v0.59.0 "WME Bug fix": warns about consecutive identical vertices in
+    // places with unsaved geometry edits (Save would be refused) and offers
+    // to remove them.
+    dupVertexGuard: true,
     // v0.47.5: live length pill while drawing a new segment.
     drawLengthBadge: true,
     // v0.51: Edit / Delete buttons when hovering a road closure marker.
@@ -1558,6 +1576,15 @@
           else stopLock1Badges();
           return;
         }
+        if (key === 'mapNoteTitles' || key === 'mapNoteHover') {
+          mapNotesSync();
+          return;
+        }
+        if (key === 'dupVertexGuard') {
+          if (checkbox.checked) startDvg();
+          else stopDvg();
+          return;
+        }
         if (key === 'unpublishedSegmentsWarning') {
           if (checkbox.checked) {
             startUnpublishedWarnWatchdog();
@@ -1869,6 +1896,24 @@
       L('Indicator segmente blocate la nivel 1', 'Level 1 locked segments indicator'),
       L('Pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1.', 'Small orange pill (lock + 1) next to every visible segment locked at level 1.'),
       L('O pastilă portocalie discretă, cu un lacăt și cifra 1, apare lângă FIECARE segment vizibil pe hartă care are nivelul de blocare 1 (cel mai mic). Stă pe partea opusă a segmentului față de pastila de publicare, ca să nu se suprapună. Cel mult 150 de pastile simultan. Cu mouse-ul deasupra apare un meniu cu nivelurile de blocare: un click blochează segmentul la nivelul ales. Doar nivelurile până la al tău și doar dacă ai drept să editezi segmentul; modificarea e nesalvată, se anulează cu Ctrl+Z. Cât ții apăsat mouse-ul sau Shift / Ctrl, pastilele lasă click-urile să treacă spre hartă.', 'A discreet orange pill, with a lock and the number 1, appears next to EVERY segment visible on the map with lock level 1 (the lowest). It sits on the opposite side of the segment from the publish pill, so they do not overlap. At most 150 pills at once. Hovering it opens a menu with the lock levels: one click locks the segment at the chosen level. Only levels up to yours and only if you may edit the segment; the change is unsaved, Ctrl+Z undoes it. While the mouse button or Shift / Ctrl is held, the pills let clicks through to the map.')
+    );
+    addToggle(
+      'mapNoteTitles',
+      L('Note de hartă: titlul pe hartă', 'Map notes: title on the map'),
+      L('Titlul fiecărei note de hartă apare scris în mijlocul ei, ca numele locurilor.', 'The title of each map note is written in its middle, like place names.'),
+      L('Titlul notei (subiectul ei) se afișează pe hartă, în centrul zonei notei (sub marcaj, la notele punct), cu contur alb. Textul nu prinde clicul - nota rămâne selectabilă. Dacă nota e mai mare decât ecranul, titlul rămâne în partea ei vizibilă. Se vede doar cât stratul „Note de hartă” e activ.', 'The note title (its subject) is shown on the map, in the centre of the note area (below the marker for point notes), with a white outline. The text does not catch the click - the note stays selectable. If the note is bigger than the screen, the title stays in its visible part. Only shown while the "Map comments" layer is on.')
+    );
+    addToggle(
+      'mapNoteHover',
+      L('Note de hartă: fereastră la hover', 'Map notes: window on hover'),
+      L('Dacă ții mouse-ul puțin deasupra unei note, apare o fereastră cu titlul, textul, comentariile, blocarea, expirarea și autorii.', 'If you rest the mouse over a note, a window shows its title, text, comments, lock, expiry and authors.'),
+      L('Fereastra apare doar după ce oprești mouse-ul ~0,45 s deasupra notei (nu când treci peste ea) și dispare când ieși din notă. Arată titlul, textul, numărul de comentarii, nivelul de blocare, data expirării (dacă are), cine și când a creat / actualizat nota. Nu apare cât ții apăsat mouse-ul sau Shift / Ctrl (selecție, mutarea hărții).', 'The window appears only after you rest the mouse ~0.45 s over the note (not while passing over it) and disappears when you leave the note. It shows the title, text, number of comments, lock level, expiry date (if any), who created / updated the note and when. It does not appear while the mouse button or Shift / Ctrl is held (selection, moving the map).')
+    );
+    addToggle(
+      'dupVertexGuard',
+      L('Avertizare vârfuri duplicate la locuri (WME Bug fix)', 'Duplicate place vertices warning (WME Bug fix)'),
+      L('Când modifici geometria unui loc și apar două vârfuri identice, te avertizează și le poți șterge cu un click.', 'When you edit a place geometry and two identical vertices appear, it warns you and you can remove them with one click.'),
+      L('Un bug din WME poate crea, la modificarea unui loc (mutarea unui nod sau tragerea unui nod nou de pe margine), două vârfuri în exact același loc. Geometria devine invalidă și salvarea e refuzată. Scriptul verifică locurile cu modificări nesalvate doar când se schimbă lista de acțiuni și, dacă găsește vârfuri consecutive identice, arată un card cu „Curăță” (șterge vârfurile în plus - modificare nesalvată, Ctrl+Z o anulează), „Arată locul” și „Ignoră”. Nu salvează niciodată nimic.', 'A WME bug can, when you edit a place (moving a vertex or dragging a new vertex out of an edge), create two vertices at exactly the same spot. The geometry becomes invalid and Save is refused. The script checks the places with unsaved changes only when the action list changes and, if it finds consecutive identical vertices, shows a card with “Clean” (removes the extra vertices - an unsaved edit, Ctrl+Z undoes it), “Show the place” and “Ignore”. It never saves anything.')
     );
     addToggle(
       'publishPillsFreshRecent',
@@ -3642,34 +3687,70 @@
     return p;
   }
 
-  // Expands the pill on hover, showing the same text as the native history
-  // panel's "Last update" row, including a link to the user's profile.
-  // `rank` from the SDK is 0-indexed (like segment `lockRank`), so we
-  // display `rank + 1`.
-  //
-  // Content stays in the DOM once loaded, so re-hovering the same pill
-  // doesn't refetch or flash "Loading...".
-  function unpublishedWarnExpand(el, textEl, segmentId) {
-    // v0.52: the text wraps (Paul: "nu face wrap la text") - the pill grows
-    // in height instead of being cut at ~420px.
-    el.style.maxWidth = '340px';
-    el.style.height = 'auto';
-    el.style.minHeight = '22px';
-    el.style.borderRadius = '10px';
-    el.style.alignItems = 'flex-start';
-    el.style.whiteSpace = 'normal';
-    el.style.padding = '4px 8px 4px 6px';
-    el.style.justifyContent = 'flex-start';
-    el.style.zIndex = String(OWN_UI_MENU_Z_INDEX);
-    // The text has its own width/margin animation, separate from the
-    // container's, so collapsing doesn't leave it visually off-center
-    // (see `unpublishedWarnCollapse`).
-    textEl.style.maxWidth = '300px';
-    textEl.style.marginLeft = '6px';
-    textEl.style.whiteSpace = 'normal';
-    textEl.style.lineHeight = '1.35';
-    if (textEl.childNodes.length) return; // already loaded from a previous hover
+  // Card of a publish-status pill (v0.58.2, Paul: info windows in the style
+  // of the Nearby Google Places cards). Opens after the pointer rests on the
+  // pill (PILL_HOVER_DELAY_MS) and shows the same facts the widened pill used
+  // to: status chip, "Edited / Created: date (ago) by <editor + rank link>",
+  // the Livemap line and the "Recent history" button. `rank` from the SDK is
+  // 0-indexed (like segment `lockRank`), so we display `rank + 1`. One card
+  // at a time (`pcState`); it stays while the pointer is on the pill or on
+  // the card and goes ~300 ms after it leaves both.
+  const PC_CLASS = 'wme-ro-tools-pill-card';
+  const pcState = { box: null, owner: null, hideT: null };
 
+  function pcHide() {
+    clearTimeout(pcState.hideT);
+    pcState.hideT = null;
+    if (pcState.box) pcState.box.remove();
+    pcState.box = null;
+    pcState.owner = null;
+  }
+
+  function pcCancelHide() {
+    clearTimeout(pcState.hideT);
+    pcState.hideT = null;
+  }
+
+  function pcScheduleHide() {
+    clearTimeout(pcState.hideT);
+    pcState.hideT = setTimeout(pcHide, 300);
+  }
+
+  // Map viewport for placing cards: WME's own button column on the right
+  // (`#overlay-buttons`, z-index 1) paints OVER our overlay container
+  // (z-index 0, see `getMapOverlayContainer`), so a card placed up to the
+  // viewport edge was cut off by it (seen live, 0.58.2 test: the "6" level
+  // chip hidden). Leave that column free.
+  function getCardViewportBounds() {
+    const b = getMapViewportBounds();
+    const ob = document.getElementById('overlay-buttons');
+    if (!ob) return b;
+    const cut = b.vx0 + b.vw - ob.getBoundingClientRect().left;
+    return cut > 0 && cut < 120 ? { ...b, vw: b.vw - cut } : b;
+  }
+
+  // Above the anchor, centred; below it if there is no room at the top;
+  // always inside the map viewport (minus the button column).
+  function pcPlace(box, anchorEl, keepLeft) {
+    const pr = anchorEl.getBoundingClientRect();
+    const br = box.getBoundingClientRect();
+    const { vw, vh, vx0, vy0 } = getCardViewportBounds();
+    let left = keepLeft && box.style.left ? parseFloat(box.style.left) : pr.left + pr.width / 2 - br.width / 2;
+    left = Math.max(vx0 + 4, Math.min(vx0 + vw - br.width - 4, left));
+    let top = pr.top - br.height - 6;
+    if (top < vy0 + 4) top = pr.bottom + 6;
+    top = Math.max(vy0 + 4, Math.min(vy0 + vh - br.height - 4, top));
+    box.style.left = `${Math.round(left)}px`;
+    box.style.top = `${Math.round(top)}px`;
+  }
+
+  function publishPillCard(el, segmentId) {
+    if (pcState.owner === el && pcState.box) {
+      pcCancelHide();
+      return;
+    }
+    pcHide();
+    lock1HideMenu();
     let segment;
     try {
       segment = sdk.DataModel.Segments.getById({ segmentId });
@@ -3683,43 +3764,61 @@
     const userName = updated ? md.updatedBy : md.createdBy;
     const ts = updated ? md.updatedOn : md.createdOn;
     const status = el.dataset.pubStatus || 'pending';
-    const statusPrefix = PUBLISH_STATUS_TEXT[status] ? `${PUBLISH_STATUS_TEXT[status]} · ` : '';
-    const liveText = publishLiveText(ts, status);
-    if (!userName || !ts) {
-      textEl.textContent = L('Nu am putut citi ultima actualizare.', 'Could not read the last update.');
-      return;
-    }
-
-    textEl.textContent = L('Se încarcă…', 'Loading…');
-    const dateStr = formatNativeHistoryDate(ts);
-    unpublishedWarnGetUserInfo(userName).then((info) => {
-      // The pill may have been removed meanwhile (segment published/offscreen).
-      if (!el.isConnected) return;
-      textEl.textContent = '';
-      textEl.append(L(`${statusPrefix}${updated ? 'Editat' : 'Creat'}: ${dateStr} (acum ${formatAgoRo(ts)}) de `, `${statusPrefix}${updated ? 'Edited' : 'Created'}: ${dateStr} (${formatAgoRo(ts)} ago) by `));
-      const link = document.createElement('a');
-      link.href = (info && info.profileUrl) || `https://www.waze.com/user/editor/${userName}`;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = info && info.rankDisplay != null ? `${userName}(${info.rankDisplay})` : userName;
-      link.style.cssText = 'color: inherit; text-decoration: underline;';
-      link.addEventListener('click', (ev) => ev.stopPropagation());
-      textEl.appendChild(link);
-      if (liveText) textEl.append(` · ${liveText}`);
-      // v0.52: recent history on demand (one request, only when clicked).
-      textEl.append(' ');
-      const hb = document.createElement('a');
-      hb.href = '#';
-      hb.textContent = L('📜 Istoric recent', '📜 Recent history');
-      hb.title = L('Arată modificările recente ale segmentului (nepublicate, din ultimul build și cele recente), luate din istoricul WME.', 'Shows the recent edits of the segment (unpublished, last build and recent ones), from the WME history.');
-      hb.style.cssText = 'color: inherit; text-decoration: underline; white-space: nowrap; font-weight: 700;';
-      hb.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        histOpen(segmentId, el.getBoundingClientRect());
-      });
-      textEl.appendChild(hb);
+    const color = PUBLISH_STATUS_COLORS[status] || '#9AA0A6';
+    const card = icCard({
+      className: PC_CLASS,
+      width: 330,
+      interactive: true,
+      accent: color,
+      tint: status === 'pending' ? color : '',
+      title: L(`Segment ${segmentId}`, `Segment ${segmentId}`),
+      chips: PUBLISH_STATUS_TEXT[status] ? [{ text: PUBLISH_STATUS_TEXT[status], color }] : [],
     });
+    const box = card.box;
+    box.addEventListener('mouseenter', pcCancelHide);
+    box.addEventListener('mouseleave', pcScheduleHide);
+    ['mousedown', 'mouseup', 'click', 'dblclick', 'wheel'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
+
+    const who = card.row('✏️', updated ? L('Editat', 'Edited') : L('Creat', 'Created'), '');
+    if (!userName || !ts) {
+      who.textContent = L('Nu am putut citi ultima actualizare.', 'Could not read the last update.');
+    } else {
+      who.textContent = L('Se încarcă…', 'Loading…');
+      const dateStr = formatNativeHistoryDate(ts);
+      unpublishedWarnGetUserInfo(userName).then((info) => {
+        // The card may have been closed meanwhile.
+        if (!box.isConnected) return;
+        who.textContent = '';
+        who.append(L(`${updated ? 'Editat' : 'Creat'}: ${dateStr} (acum ${formatAgoRo(ts)}) de `, `${updated ? 'Edited' : 'Created'}: ${dateStr} (${formatAgoRo(ts)} ago) by `));
+        const link = document.createElement('a');
+        link.href = (info && info.profileUrl) || `https://www.waze.com/user/editor/${userName}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = info && info.rankDisplay != null ? `${userName}(${info.rankDisplay})` : userName;
+        link.style.cssText = `color:${IC_ACCENT}; font-weight:600;`;
+        link.addEventListener('click', (ev) => ev.stopPropagation());
+        who.appendChild(link);
+      });
+    }
+    const liveText = ts ? publishLiveText(ts, status) : '';
+    if (liveText) card.row('📡', L('Livemap', 'Livemap'), liveText);
+    // v0.52: recent history on demand (one request, only when clicked).
+    card.footer().appendChild(
+      icButton(
+        L('📜 Istoric recent', '📜 Recent history'),
+        L('Arată modificările recente ale segmentului (nepublicate, din ultimul build și cele recente), luate din istoricul WME.', 'Shows the recent edits of the segment (unpublished, last build and recent ones), from the WME history.'),
+        () => {
+          const r = el.getBoundingClientRect();
+          pcHide();
+          histOpen(segmentId, r);
+        },
+        'primary'
+      )
+    );
+    getMapOverlayContainer().appendChild(box);
+    pcPlace(box, el);
+    pcState.box = box;
+    pcState.owner = el;
   }
 
   // ---------------------------------------------------------------------
@@ -3738,6 +3837,123 @@
   // windows as the pills); if none, the newest one. Small cache (last 10
   // segments, 2 min).
   // ---------------------------------------------------------------------
+  // ---------------------------------------------------------------------
+  // Info cards (v0.58.1). Paul: every information window of the script -
+  // those shown today and future ones - has the look of the hover cards of
+  // WME Nearby Google Places (`renderCardHtml` there): rounded card in the
+  // WME theme variables (so it also works with "WME Dark Mode"), an accent
+  // bar on the left, bold title with a status chip, rows with an icon and a
+  // thin divider, rounded blue buttons at the bottom. Build such windows
+  // with `icCard()` / `icButton()` instead of styling them by hand. Text is
+  // only ever set with `textContent` (it may come from other editors).
+  // ---------------------------------------------------------------------
+  const IC_ACCENT = '#3a7bd5';
+  const IC_DIVIDER = '1px solid var(--hairline, rgba(128,128,128,0.28))';
+  const IC_FONT = 'Rubik, Arial, sans-serif';
+
+  function icEl(tag, css, text) {
+    const e = document.createElement(tag);
+    if (css) e.style.cssText = css;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // opts: { width (px, or 'auto' = as wide as the content), compact (tighter
+  // paddings and title), inlineChips (chips on the title row), z,
+  // interactive (receives the mouse), id, className,
+  // accent (left bar colour), tint (gradient behind the header), title,
+  // circle: { text, title } (round badge at the right of the title),
+  // chips: [{ text, color, dark }] (status chips), sub (grey text after the
+  // chips), onClose (adds a ✕) }.
+  // Returns { box, head, row(icon, label, content, dim), section(css),
+  // footer() }; `content` is a string or a Node.
+  function icCard(opts) {
+    const o = opts || {};
+    const box = icEl(
+      'div',
+      `position:fixed; left:0; top:0; z-index:${o.z || OWN_UI_MENU_Z_INDEX}; width:${o.width === 'auto' ? 'max-content' : `${o.width || 310}px`}; max-width:calc(100vw - 16px); box-sizing:border-box; background:var(--background_default, #fff); color:var(--content_default, #202124); border-radius:10px; box-shadow:0 4px 18px rgba(0,0,0,0.55); font:12px/16px ${IC_FONT}; overflow:hidden; pointer-events:${o.interactive ? 'auto' : 'none'};`
+    );
+    if (o.id) box.id = o.id;
+    if (o.className) box.className = o.className;
+    const accent = o.accent || IC_ACCENT;
+    const pad = o.compact ? '3px 10px' : '5px 12px';
+    const head = icEl('div', `padding:${o.compact ? '6px 10px 5px' : '9px 12px 8px'}; border-left:5px solid ${accent};${o.tint ? ` background:linear-gradient(90deg, ${o.tint}33, transparent 70%);` : ''}`);
+    const top = icEl('div', `display:flex; align-items:${o.inlineChips ? 'center' : 'flex-start'}; gap:6px;`);
+    top.appendChild(icEl('div', `flex:1; min-width:0; font-weight:700; font-size:${o.compact ? 13 : 14}px; line-height:${o.compact ? 16 : 18}px; overflow-wrap:anywhere;${o.inlineChips ? ' white-space:nowrap;' : ''}`, o.title || ''));
+    const chipEl = (ch) => icEl('span', `display:inline-block; flex:none; padding:1px 8px; border-radius:10px; font-weight:700; font-size:11px; background:${ch.color}; color:${ch.dark ? '#000' : '#fff'};`, ch.text);
+    if (o.inlineChips) (o.chips || []).forEach((ch) => top.appendChild(chipEl(ch)));
+    if (o.circle) {
+      const c = icEl('span', `flex:none; width:18px; height:18px; border-radius:50%; background:${IC_ACCENT}; color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center;`, o.circle.text);
+      if (o.circle.title) c.title = o.circle.title;
+      top.appendChild(c);
+    }
+    if (o.onClose) {
+      const x = icEl('button', 'flex:none; border:none; background:transparent; color:inherit; cursor:pointer; font-size:13px; line-height:18px; padding:0 2px;', '✕');
+      x.type = 'button';
+      x.title = L('Închide', 'Close');
+      x.addEventListener('click', o.onClose);
+      top.appendChild(x);
+    }
+    head.appendChild(top);
+    if ((!o.inlineChips && o.chips && o.chips.length) || o.sub) {
+      const line = icEl('div', 'display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:5px;');
+      if (!o.inlineChips) (o.chips || []).forEach((ch) => line.appendChild(chipEl(ch)));
+      if (o.sub) line.appendChild(icEl('span', 'opacity:0.8;', o.sub));
+      head.appendChild(line);
+    }
+    box.appendChild(head);
+    return {
+      box,
+      head,
+      row(icon, label, content, dim) {
+        const r = icEl('div', `display:flex; gap:8px; padding:${pad}; border-top:${IC_DIVIDER};`);
+        const i = icEl('span', 'flex:none; width:16px; text-align:center;', icon);
+        if (label) i.title = label;
+        const v = icEl('div', `flex:1; min-width:0; overflow-wrap:anywhere;${dim ? ' opacity:0.6;' : ''}`);
+        if (content instanceof Node) v.appendChild(content);
+        else v.textContent = content;
+        r.append(i, v);
+        box.appendChild(r);
+        return v;
+      },
+      section(css) {
+        const s = icEl('div', `padding:${o.compact ? '5px 10px' : '8px 12px'}; border-top:${IC_DIVIDER};${css || ''}`);
+        box.appendChild(s);
+        return s;
+      },
+      footer() {
+        const f = icEl('div', `display:flex; flex-wrap:wrap; gap:6px; padding:${o.compact ? '5px 10px' : '8px 12px'}; border-top:${IC_DIVIDER};`);
+        box.appendChild(f);
+        return f;
+      },
+    };
+  }
+
+  // kind: 'primary' (filled blue) | 'secondary' (blue outline, default) |
+  // 'danger' (red outline).
+  function icButton(label, title, onClick, kind) {
+    const c = kind === 'danger' ? '#e5484d' : IC_ACCENT;
+    const filled = kind === 'primary';
+    const b = icEl(
+      'button',
+      `padding:5px 10px; border-radius:8px; cursor:pointer; font:${filled ? 700 : 600} 12px/16px ${IC_FONT}; white-space:nowrap; border:1px solid ${c}; ${filled ? `background:${c}; color:#fff;` : `background:transparent; color:${c};`}`,
+      label
+    );
+    b.type = 'button';
+    if (title) b.title = title;
+    b.addEventListener('mouseenter', () => {
+      b.style.background = filled ? '#2f68b8' : `${c}22`;
+    });
+    b.addEventListener('mouseleave', () => {
+      b.style.background = filled ? c : 'transparent';
+    });
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      if (onClick) onClick(b);
+    });
+    return b;
+  }
+
   const HIST_PANEL_ID = 'wme-ro-tools-hist-panel';
   const HIST_MAX_ITEMS = 15;
   const histCache = new Map(); // segmentId -> { at, data }
@@ -3880,32 +4096,23 @@
 
   async function histOpen(segmentId, anchorRect) {
     histClose();
-    const t = currentTheme();
-    const box = document.createElement('div');
-    box.id = HIST_PANEL_ID;
-    box.style.cssText = `position:fixed; z-index:${OWN_UI_MENU_Z_INDEX + 1}; width:360px; max-width:calc(100vw - 16px); max-height:60vh; overflow:auto; box-sizing:border-box; padding:8px 10px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 4px 14px rgba(0,0,0,0.45); font:11px/1.4 Arial, sans-serif; pointer-events:auto;`;
+    const card = icCard({
+      id: HIST_PANEL_ID,
+      width: 360,
+      z: OWN_UI_MENU_Z_INDEX + 1,
+      interactive: true,
+      title: L(`📜 Istoric recent · segment ${segmentId}`, `📜 Recent history · segment ${segmentId}`),
+      onClose: histClose,
+    });
+    const box = card.box;
     ['mousedown', 'mouseup', 'click', 'dblclick', 'wheel'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
-    const head = document.createElement('div');
-    head.style.cssText = 'display:flex; align-items:center; gap:6px; margin-bottom:6px;';
-    const title = document.createElement('div');
-    title.style.cssText = 'flex:1; font-weight:700; font-size:12px;';
-    title.textContent = L(`📜 Istoric recent · segment ${segmentId}`, `📜 Recent history · segment ${segmentId}`);
-    const x = document.createElement('button');
-    x.type = 'button';
-    x.textContent = '✕';
-    x.title = L('Închide', 'Close');
-    x.style.cssText = `border:none; background:transparent; color:${t.menuText}; cursor:pointer; font-size:13px;`;
-    x.addEventListener('click', histClose);
-    head.append(title, x);
-    box.appendChild(head);
-    const body = document.createElement('div');
+    const body = card.section('max-height:52vh; overflow-y:auto;');
     body.textContent = L('Se încarcă istoricul…', 'Loading the history…');
-    box.appendChild(body);
     getMapOverlayContainer().appendChild(box);
     histAuto.anchor = anchorRect;
     histAutoBind();
     // Next to the pill, inside the map.
-    const { vw, vh, vx0, vy0 } = getMapViewportBounds();
+    const { vw, vh, vx0, vy0 } = getCardViewportBounds();
     const place = () => {
       const br = box.getBoundingClientRect();
       let left = anchorRect.right + 8;
@@ -3982,16 +4189,23 @@
   let unpublishedWarnModKeys = false;
   let unpublishedWarnMouseDown = false;
 
+  // Dwell time before a pill (publish status / level 1) opens on hover
+  // (v0.58.0); same value as the closure popup (`RC_HOVER_DELAY_MS`).
+  const PILL_HOVER_DELAY_MS = 450;
+  // True while a box selection / map drag is in progress - the dwell timer
+  // must not open a pill then (the `mouseenter` check is stale by now).
+  function pillHoverBlocked() {
+    return unpublishedWarnModKeys || unpublishedWarnMouseDown;
+  }
+
   function unpublishedWarnApplyPassthrough() {
     const on = unpublishedWarnModKeys || unpublishedWarnMouseDown;
     const root = document.documentElement;
     if (on === root.classList.contains(UNPUBLISHED_WARN_PASSTHROUGH_CLASS)) return;
     root.classList.toggle(UNPUBLISHED_WARN_PASSTHROUGH_CLASS, on);
     if (on) {
-      unpublishedWarnState.badges.forEach((pill) => {
-        const textEl = pill.lastElementChild;
-        if (textEl) unpublishedWarnCollapse(pill, textEl);
-      });
+      pcHide();
+      lock1HideMenu();
     }
   }
 
@@ -4012,7 +4226,7 @@
         // Same for the lock-1 quick menu (v0.49.2) - otherwise the
         // passthrough kicks in between mousedown and mouseup and the click
         // on a level button never happens.
-        if (ev.target && ev.target.closest && ev.target.closest('.wme-nal-unpublished-warn-pill, .wme-ro-tools-lock1-menu')) return;
+        if (ev.target && ev.target.closest && ev.target.closest('.wme-nal-unpublished-warn-pill, .wme-ro-tools-lock1-menu, .wme-ro-tools-pill-card, .wme-ro-tools-dvg-card')) return;
         unpublishedWarnModKeys = ev.shiftKey || ev.ctrlKey || ev.metaKey;
         unpublishedWarnMouseDown = true;
         unpublishedWarnApplyPassthrough();
@@ -4036,32 +4250,11 @@
     });
   }
 
-  function unpublishedWarnCollapse(el, textEl) {
-    el.style.maxWidth = '24px';
-    el.style.height = '22px';
-    el.style.minHeight = '';
-    el.style.borderRadius = '11px';
-    el.style.alignItems = 'center';
-    el.style.whiteSpace = 'nowrap';
-    textEl.style.whiteSpace = 'nowrap';
-    el.style.padding = '0 4px';
-    el.style.justifyContent = 'center';
-    el.style.zIndex = String(OWN_UI_Z_INDEX);
-    // The text collapses its own width to 0 (rather than relying on the
-    // container's max-width/overflow alone) so `justify-content: center`
-    // centers only the icon, regardless of how long the cached text is.
-    // A container-only `gap` would otherwise keep nudging the icon off
-    // center even with invisible text.
-    textEl.style.maxWidth = '0';
-    textEl.style.marginLeft = '0';
-    // Text content is not cleared - stays cached for the next hover.
-  }
-
   // Round pill using the same orange icon as the native history panel,
   // deliberately different from the script's rectangular length badges so
-  // it stands out on the map. Expands on hover to show "Last update: ..."
-  // (see `unpublishedWarnExpand`) - needs `pointer-events: auto` (length
-  // badges use `none`).
+  // it stands out on the map. On hover (after a short rest) it opens a card
+  // with "Last update: ..." (see `publishPillCard`) - needs
+  // `pointer-events: auto` (length badges use `none`).
   //
   // Uses the same semi-transparent, theme-aware background as the other
   // badges (`applyBadgeTheme`) rather than a solid orange fill, which
@@ -4104,20 +4297,28 @@
     el.appendChild(iconEl);
     el.dataset.pubStatus = status || 'pending';
 
-    const textEl = document.createElement('span');
-    // Text has its own width animation (see `unpublishedWarnCollapse`/
-    // `unpublishedWarnExpand`); starts collapsed like the pill itself.
-    textEl.style.cssText =
-      'display: inline-block; overflow: hidden; max-width: 0; margin-left: 0; transition: max-width 180ms ease, margin-left 180ms ease; vertical-align: middle;';
-    el.appendChild(textEl);
-
+    // v0.58.0 (Paul: sweeping the mouse over the map opened many pills at
+    // once): the card opens only after the pointer has rested on the pill
+    // for PILL_HOVER_DELAY_MS. v0.58.2: card (publishPillCard) instead of
+    // the widening pill.
+    let dwellT = null;
     el.addEventListener('mouseenter', (ev) => {
       // Shift/Ctrl held or a button pressed = box selection / map drag in
-      // progress - don't expand (see `initUnpublishedWarnPassthrough`).
+      // progress - don't open (see `initUnpublishedWarnPassthrough`).
       if (ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.buttons) return;
-      unpublishedWarnExpand(el, textEl, segmentId);
+      if (pcState.owner === el) pcCancelHide();
+      clearTimeout(dwellT);
+      dwellT = setTimeout(() => {
+        dwellT = null;
+        if (!el.isConnected || !el.matches(':hover') || pillHoverBlocked()) return;
+        publishPillCard(el, segmentId);
+      }, PILL_HOVER_DELAY_MS);
     });
-    el.addEventListener('mouseleave', () => unpublishedWarnCollapse(el, textEl));
+    el.addEventListener('mouseleave', () => {
+      clearTimeout(dwellT);
+      dwellT = null;
+      if (pcState.owner === el) pcScheduleHide();
+    });
 
     getMapOverlayContainer().appendChild(el);
     return el;
@@ -4250,6 +4451,7 @@
         unpublishedWarnState.badges.delete(segmentId);
       }
     });
+    if (pcState.owner && !pcState.owner.isConnected) pcHide();
   }
 
   // Repositions already-created pills every frame (cheap - just lon/lat ->
@@ -4353,28 +4555,25 @@
     const icon = document.createElement('span');
     icon.style.cssText = 'display:inline-flex; align-items:center; gap:1px; flex-shrink:0; color:#F18200; font:700 10px/1 Arial, sans-serif;';
     icon.innerHTML = `${LOCK1_SVG}<span>1</span>`;
-    const text = document.createElement('span');
-    text.style.cssText = 'display:inline-block; overflow:hidden; max-width:0; margin-left:0; transition:max-width 180ms ease, margin-left 180ms ease;';
-    text.textContent = L('Segment blocat la nivelul 1', 'Segment locked at level 1');
-    el.append(icon, text);
+    el.appendChild(icon);
+    // v0.58.0: opens only after the pointer rests on the pill
+    // (PILL_HOVER_DELAY_MS), not while sweeping the mouse over the map.
+    // v0.58.2: a card with the lock menu (lock1ShowMenu).
+    let dwellT = null;
     el.addEventListener('mouseenter', (ev) => {
       if (ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.buttons) return;
-      el.style.maxWidth = '260px';
-      el.style.padding = '0 8px 0 6px';
-      el.style.justifyContent = 'flex-start';
-      el.style.zIndex = String(OWN_UI_MENU_Z_INDEX);
-      text.style.maxWidth = '220px';
-      text.style.marginLeft = '6px';
-      lock1ShowMenu(el, segmentId);
+      if (lock1State.menu && lock1State.menuSeg === segmentId) clearTimeout(lock1State.hideT);
+      clearTimeout(dwellT);
+      dwellT = setTimeout(() => {
+        dwellT = null;
+        if (!el.isConnected || !el.matches(':hover') || pillHoverBlocked()) return;
+        lock1ShowMenu(el, segmentId);
+      }, PILL_HOVER_DELAY_MS);
     });
     el.addEventListener('mouseleave', () => {
+      clearTimeout(dwellT);
+      dwellT = null;
       lock1ScheduleHideMenu();
-      el.style.maxWidth = '30px';
-      el.style.padding = '0 4px';
-      el.style.justifyContent = 'center';
-      el.style.zIndex = String(OWN_UI_Z_INDEX);
-      text.style.maxWidth = '0';
-      text.style.marginLeft = '0';
     });
     getMapOverlayContainer().appendChild(el);
     return el;
@@ -4508,23 +4707,12 @@
     lock1State.hideT = setTimeout(lock1HideMenu, 300);
   }
 
+  // Level chip of the lock card: a compact icButton ('primary' = the
+  // suggested "all on screen" level).
   function lock1Chip(label, title, onClick, strong) {
-    const t = currentTheme();
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = label;
-    b.title = title;
-    b.style.cssText = `min-width:24px; height:22px; padding:0 6px; border-radius:11px; border:1px solid ${strong ? '#F18200' : t.menuBorder}; background:${strong ? 'rgba(241,130,0,0.22)' : 'transparent'}; color:${t.menuText}; font:600 11px/1 Arial, sans-serif; cursor:pointer;`;
-    b.addEventListener('mouseenter', () => {
-      b.style.background = strong ? 'rgba(241,130,0,0.4)' : t.menuHoverBg;
-    });
-    b.addEventListener('mouseleave', () => {
-      b.style.background = strong ? 'rgba(241,130,0,0.22)' : 'transparent';
-    });
-    b.addEventListener('click', (ev) => {
-      ev.stopPropagation();
-      onClick(b);
-    });
+    const b = icButton(label, title, onClick, strong ? 'primary' : 'secondary');
+    b.style.minWidth = '22px';
+    b.style.padding = '1px 6px';
     return b;
   }
 
@@ -4534,33 +4722,38 @@
       return;
     }
     lock1HideMenu();
-    const t = currentTheme();
+    pcHide();
     const max = lock1MaxLevel();
     const levels = [];
     for (let lv = 2; lv <= max; lv++) levels.push(lv);
-    const menu = document.createElement('div');
-    menu.className = LOCK1_MENU_CLASS;
-    menu.style.cssText = `position:fixed; left:0; top:0; z-index:${OWN_UI_MENU_Z_INDEX}; padding:6px 8px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 2px 8px rgba(0,0,0,0.4); font:11px/1.3 Arial, sans-serif; display:flex; flex-direction:column; gap:5px; pointer-events:auto;`;
+    const card = icCard({
+      className: LOCK1_MENU_CLASS,
+      width: 'auto',
+      compact: true,
+      inlineChips: true,
+      interactive: true,
+      accent: '#F18200',
+      title: L('Segment blocat', 'Segment locked'),
+      chips: [{ text: L('Nivel 1', 'Level 1'), color: '#F18200' }],
+    });
+    const menu = card.box;
     menu.addEventListener('mouseenter', () => clearTimeout(lock1State.hideT));
     menu.addEventListener('mouseleave', lock1ScheduleHideMenu);
-    // Keep map clicks / WME handlers away from the menu.
-    ['mousedown', 'mouseup', 'click', 'dblclick'].forEach((n) => menu.addEventListener(n, (ev) => ev.stopPropagation()));
+    // Keep map clicks / WME handlers away from the card.
+    ['mousedown', 'mouseup', 'click', 'dblclick', 'wheel'].forEach((n) => menu.addEventListener(n, (ev) => ev.stopPropagation()));
 
-    const row = (label) => {
-      const r = document.createElement('div');
-      r.style.cssText = 'display:flex; align-items:center; gap:4px; white-space:nowrap;';
-      const s1 = document.createElement('span');
-      s1.style.cssText = 'opacity:0.85; margin-right:2px;';
-      s1.textContent = label;
-      r.appendChild(s1);
-      menu.appendChild(r);
-      return r;
+    // A row = icon + label + the level chips (wrapping).
+    const levelRow = (icon, label) => {
+      const holder = icEl('div', 'display:flex; flex-wrap:nowrap; align-items:center; gap:4px; white-space:nowrap;');
+      holder.appendChild(icEl('span', 'opacity:0.85; margin-right:2px;', label));
+      card.row(icon, label, holder);
+      return holder;
     };
 
     if (!lock1CanEdit(segmentId)) {
-      row(L('Nu ai drept de editare pe acest segment.', 'You may not edit this segment.'));
+      card.row('⛔', '', L('Nu ai drept de editare pe acest segment.', 'You may not edit this segment.'));
     } else {
-      const r1 = row(L('Segmentul ăsta:', 'This segment:'));
+      const r1 = levelRow('🔒', L('Segmentul ăsta:', 'This segment:'));
       levels.forEach((lv) => r1.appendChild(lock1Chip(String(lv), L(`Blochează segmentul la nivelul ${lv}`, `Lock the segment at level ${lv}`), () => lock1Apply([segmentId], lv))));
     }
     // "All on screen" only for level 6 editors (v0.50.1, Paul: "să apară
@@ -4568,7 +4761,7 @@
     // segmentul respectiv").
     const ids = max >= 6 ? lock1VisibleIds() : [];
     if (ids.length > 1) {
-      const r2 = row(L(`Toate ${ids.length} de pe ecran:`, `All ${ids.length} on screen:`));
+      const r2 = levelRow('🗺️', L(`Toate ${ids.length} de pe ecran:`, `All ${ids.length} on screen:`));
       levels.forEach((lv) => {
         const tip = L(`Toate segmentele de nivel 1 vizibile (${ids.length}) la nivelul ${lv} - click de 2 ori`, `All visible level 1 segments (${ids.length}) to level ${lv} - click twice`);
         r2.appendChild(
@@ -4585,6 +4778,8 @@
               lock1State.confirm = b;
               b.dataset.lv = String(lv);
               b.textContent = L(`Sigur? ${ids.length} seg. → nivel ${lv}`, `Sure? ${ids.length} seg. → level ${lv}`);
+              // The card widens in place (no wrapping); keep it on screen.
+              pcPlace(menu, pill, true);
             },
             lv === LOCK1_FIX_ALL_DEFAULT
           )
@@ -4592,16 +4787,7 @@
       });
     }
     getMapOverlayContainer().appendChild(menu);
-    // Above the pill, centred; below it if there's no room at the top.
-    const pr = pill.getBoundingClientRect();
-    const mr = menu.getBoundingClientRect();
-    const { vw, vx0, vy0 } = getMapViewportBounds();
-    let left = pr.left + pr.width / 2 - mr.width / 2;
-    left = Math.max(vx0 + 4, Math.min(vx0 + vw - mr.width - 4, left));
-    let top = pr.top - mr.height - 4;
-    if (top < vy0 + 4) top = pr.bottom + 4;
-    menu.style.left = `${Math.round(left)}px`;
-    menu.style.top = `${Math.round(top)}px`;
+    pcPlace(menu, pill);
     lock1State.menu = menu;
     lock1State.menuSeg = segmentId;
   }
@@ -4656,6 +4842,678 @@
     lock1State.badges.forEach((el) => el.remove());
     lock1State.badges.clear();
     lock1HideMenu();
+  }
+
+  // ---------------------------------------------------------------------
+  // Map notes (map comments): title on the map + info window on hover
+  // (v0.58.0). Paul: "o opțiune de afișare titlu ca la locuri [...] când mă
+  // duc cu mouse deasupra notei de hartă on mouse over - fereastră info".
+  // Live facts (WME v2.378): `sdk.DataModel.MapComments.getAll()` returns the
+  // loaded notes; each has `id` (STRING - `getById` needs a string),
+  // `subject` (the title), `body`, `conversation[]`, `geometry`
+  // (Polygon, or Point when `isPoint`), `endDate`, `lockRank` (0-based),
+  // `modificationData`. The layer switch is
+  // `#layer-switcher-item_map_comments` (wz-checkbox, `.checked`).
+  // Both features use own overlay elements (no SDK / OpenLayers layer):
+  // the title is a click-through label at the polygon centroid; the hover
+  // window opens after the pointer rests PILL_HOVER_DELAY_MS on the note
+  // (point-in-polygon in pixel space, throttled to one test per frame) and
+  // is click-through too. All text comes from other editors - it is only
+  // ever set with `textContent`.
+  // ---------------------------------------------------------------------
+  const MN_RESCAN_MS = 1000;
+  const MN_MAX_ITEMS = 300;
+  const MN_LABEL_MAX_CHARS = 80;
+  const MN_BODY_MAX_CHARS = 300;
+  const MN_POINT_HIT_PX = 18;
+  const MN_REST_MOVE_PX = 4; // pointer moved more than this = not resting
+  const MN_POPUP_ID = 'wme-ro-tools-mapnote-popup';
+  const mnState = {
+    active: false,
+    items: [], // { id, title, shape }
+    labels: new Map(), // id -> label element
+    rafId: null,
+    intervalId: null,
+    lastSig: '',
+    dirty: true,
+    layerOn: true,
+    bound: false,
+    hoverRaf: null,
+    mouse: null,
+    dwellId: null,
+    dwellT: null,
+    dwellX: 0,
+    dwellY: 0,
+    popup: null,
+    popupId: null,
+  };
+
+  // Geometry -> { kind: 'poly', ring, anchor } | { kind: 'point', pt, anchor }
+  // (anchor = [lon, lat] where the title goes: the polygon's area centroid,
+  // computed relative to the first vertex for numeric precision).
+  function mnShape(m) {
+    const g = m && m.geometry;
+    if (!g || !Array.isArray(g.coordinates)) return null;
+    if (g.type === 'Point') {
+      const p = g.coordinates;
+      return Number.isFinite(p[0]) && Number.isFinite(p[1]) ? { kind: 'point', pt: [p[0], p[1]], anchor: [p[0], p[1]] } : null;
+    }
+    if (g.type !== 'Polygon') return null;
+    const ring = g.coordinates[0];
+    if (!Array.isArray(ring) || ring.length < 3) return null;
+    const ox = ring[0][0];
+    const oy = ring[0][1];
+    let a = 0;
+    let cx = 0;
+    let cy = 0;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (let i = 0; i < ring.length; i++) {
+      const j = (i + 1) % ring.length;
+      const x0 = ring[i][0] - ox;
+      const y0 = ring[i][1] - oy;
+      const x1 = ring[j][0] - ox;
+      const y1 = ring[j][1] - oy;
+      const f = x0 * y1 - x1 * y0;
+      a += f;
+      cx += (x0 + x1) * f;
+      cy += (y0 + y1) * f;
+      minX = Math.min(minX, ring[i][0]);
+      maxX = Math.max(maxX, ring[i][0]);
+      minY = Math.min(minY, ring[i][1]);
+      maxY = Math.max(maxY, ring[i][1]);
+    }
+    const anchor = Math.abs(a) > 1e-18 ? [ox + cx / (3 * a), oy + cy / (3 * a)] : [(minX + maxX) / 2, (minY + maxY) / 2];
+    if (!Number.isFinite(anchor[0]) || !Number.isFinite(anchor[1])) return null;
+    return { kind: 'poly', ring, anchor };
+  }
+
+  function mnLayerOn() {
+    const cb = document.getElementById('layer-switcher-item_map_comments');
+    return !cb || cb.checked !== false;
+  }
+
+  function mnCreateLabel() {
+    const el = document.createElement('div');
+    el.className = 'wme-ro-tools-mapnote-label';
+    // Dark text with a white halo, like the place names; click-through so
+    // the note stays selectable.
+    el.style.cssText =
+      'position:fixed; left:0; top:0; transform:translate(-50%,-50%); display:none; align-items:center; justify-content:center; max-width:180px; text-align:center; white-space:normal; overflow-wrap:anywhere; pointer-events:none; font:700 12px/1.2 Arial, sans-serif; color:#2b3a4a; text-shadow:-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 0 4px #fff;' +
+      `z-index:${OWN_UI_Z_INDEX};`;
+    getMapOverlayContainer().appendChild(el);
+    return el;
+  }
+
+  function mnRescan() {
+    if (!mnState.active) return;
+    mnState.dirty = true;
+    mnState.layerOn = mnLayerOn();
+    let all = [];
+    if (mnState.layerOn) {
+      try {
+        all = sdk.DataModel.MapComments.getAll();
+      } catch (e) {
+        all = [];
+      }
+    }
+    const items = [];
+    for (const m of all) {
+      if (items.length >= MN_MAX_ITEMS) break;
+      const shape = mnShape(m);
+      if (!shape) continue;
+      items.push({ id: String(m.id), shape, title: typeof m.subject === 'string' ? m.subject.trim() : '' });
+    }
+    mnState.items = items;
+    const wanted = new Set();
+    if (settings.mapNoteTitles) {
+      for (const it of items) {
+        if (!it.title) continue;
+        wanted.add(it.id);
+        let el = mnState.labels.get(it.id);
+        if (!el) {
+          el = mnCreateLabel();
+          mnState.labels.set(it.id, el);
+        }
+        const txt = it.title.length > MN_LABEL_MAX_CHARS ? `${it.title.slice(0, MN_LABEL_MAX_CHARS)}…` : it.title;
+        if (el.textContent !== txt) el.textContent = txt;
+      }
+    }
+    mnState.labels.forEach((el, id) => {
+      if (!wanted.has(id)) {
+        el.remove();
+        mnState.labels.delete(id);
+      }
+    });
+    if (mnState.popupId && !items.some((it) => it.id === mnState.popupId)) mnPopupHide();
+  }
+
+  // Screen position of a note's title: the anchor when it is on screen,
+  // else the centre of the polygon's on-screen part (a big note covering the
+  // screen keeps its title), else null.
+  function mnLabelPos(it, vw, vh, vx0, vy0) {
+    const s = it.shape;
+    const p = fastPx(s.anchor[0], s.anchor[1]);
+    if (!p) return null;
+    const y = p.y + (s.kind === 'point' ? 16 : 0);
+    const inView = (x, yy) => x >= vx0 + 20 && x <= vx0 + vw - 20 && yy >= vy0 + 12 && yy <= vy0 + vh - 12;
+    if (inView(p.x, y)) return { x: Math.round(p.x), y: Math.round(y) };
+    if (s.kind !== 'poly') return null;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const c of s.ring) {
+      const q = fastPx(c[0], c[1]);
+      if (!q) return null;
+      minX = Math.min(minX, q.x);
+      maxX = Math.max(maxX, q.x);
+      minY = Math.min(minY, q.y);
+      maxY = Math.max(maxY, q.y);
+    }
+    const x0 = Math.max(minX, vx0 + 20);
+    const x1 = Math.min(maxX, vx0 + vw - 20);
+    const y0 = Math.max(minY, vy0 + 12);
+    const y1 = Math.min(maxY, vy0 + vh - 12);
+    if (x0 >= x1 || y0 >= y1) return null;
+    return { x: Math.round((x0 + x1) / 2), y: Math.round((y0 + y1) / 2) };
+  }
+
+  function mnRaf() {
+    if (!mnState.active) {
+      mnState.rafId = null;
+      return;
+    }
+    // Same idle skip as the pills: nothing moves while the view is unchanged.
+    const sig = mnState.labels.size ? mapViewSig() : '';
+    if (sig === mnState.lastSig && !mnState.dirty) {
+      mnState.rafId = perfRaf('mnRaf', mnRaf);
+      return;
+    }
+    mnState.lastSig = sig;
+    mnState.dirty = false;
+    if (mnState.labels.size) {
+      getMapOverlayContainer();
+      const { vw, vh, vx0, vy0 } = getMapViewportBounds();
+      for (const it of mnState.items) {
+        const el = mnState.labels.get(it.id);
+        if (!el) continue;
+        const pos = mnLabelPos(it, vw, vh, vx0, vy0);
+        if (pos) setOverlayPos(el, pos.x, pos.y);
+        else hideOverlay(el);
+      }
+    }
+    mnState.rafId = perfRaf('mnRaf', mnRaf);
+  }
+
+  function mnPointInPoly(x, y, pts) {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const a = pts[i];
+      const b = pts[j];
+      if (a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+    }
+    return inside;
+  }
+
+  // The note under the pointer (window pixels), or null.
+  function mnHitTest(x, y) {
+    for (const it of mnState.items) {
+      const s = it.shape;
+      if (s.kind === 'point') {
+        const p = fastPx(s.pt[0], s.pt[1]);
+        if (p && Math.hypot(p.x - x, p.y - y) <= MN_POINT_HIT_PX) return it;
+        continue;
+      }
+      const pts = [];
+      for (const c of s.ring) {
+        const q = fastPx(c[0], c[1]);
+        if (!q) break;
+        pts.push(q);
+      }
+      if (pts.length === s.ring.length && mnPointInPoly(x, y, pts)) return it;
+    }
+    return null;
+  }
+
+  function mnPopupHide() {
+    if (mnState.popup) mnState.popup.remove();
+    mnState.popup = null;
+    mnState.popupId = null;
+  }
+
+  function mnDwellCancel() {
+    clearTimeout(mnState.dwellT);
+    mnState.dwellT = null;
+    mnState.dwellId = null;
+  }
+
+  function mnPopupShow(id, ev) {
+    mnPopupHide();
+    let m = null;
+    try {
+      m = sdk.DataModel.MapComments.getById({ mapCommentId: String(id) });
+    } catch (e) {
+      m = null;
+    }
+    if (!m || !ev) return;
+    const subject = typeof m.subject === 'string' ? m.subject.trim() : '';
+    const md = m.modificationData || {};
+    const expired = typeof m.endDate === 'number' && m.endDate < Date.now();
+    const card = icCard({
+      width: 310,
+      interactive: false,
+      accent: expired ? '#8a8f98' : IC_ACCENT,
+      tint: expired ? '#8a8f98' : '',
+      title: subject || L('(fără titlu)', '(untitled)'),
+      circle: { text: 'N', title: L('Notă de hartă', 'Map note') },
+      chips: expired ? [{ text: L('Expirată', 'Expired'), color: '#8a8f98' }] : [],
+      sub: m.isPoint ? L('Notă de hartă (punct)', 'Map note (point)') : L('Notă de hartă (zonă)', 'Map note (area)'),
+    });
+    const box = card.box;
+    box.id = MN_POPUP_ID;
+    const body = typeof m.body === 'string' ? m.body.trim() : '';
+    if (body) card.row('📝', L('Text', 'Text'), body.length > MN_BODY_MAX_CHARS ? `${body.slice(0, MN_BODY_MAX_CHARS)}…` : body).style.whiteSpace = 'pre-wrap';
+    const nc = Array.isArray(m.conversation) ? m.conversation.length : 0;
+    card.row('💬', L('Comentarii', 'Comments'), nc ? L(`${nc} ${nc === 1 ? 'comentariu' : 'comentarii'}`, `${nc} ${nc === 1 ? 'comment' : 'comments'}`) : L('Fără comentarii', 'No comments'), !nc);
+    card.row('🔒', L('Nivel blocare', 'Lock level'), m.lockRank !== null && m.lockRank !== undefined ? L(`Nivel blocare: ${m.lockRank + 1}`, `Lock level: ${m.lockRank + 1}`) : L('Nivel blocare: auto', 'Lock level: auto'));
+    if (typeof m.endDate === 'number') card.row('⏳', L('Expirare', 'Expiry'), L(`${expired ? 'Expirată' : 'Expiră'}: ${formatNativeHistoryDate(m.endDate)}`, `${expired ? 'Expired' : 'Expires'}: ${formatNativeHistoryDate(m.endDate)}`));
+    if (md.createdOn) card.row('👤', L('Creat', 'Created'), L(`Creat: ${formatNativeHistoryDate(md.createdOn)}${md.createdBy ? ` de ${md.createdBy}` : ''}`, `Created: ${formatNativeHistoryDate(md.createdOn)}${md.createdBy ? ` by ${md.createdBy}` : ''}`));
+    if (md.updatedOn && md.updatedOn !== md.createdOn) card.row('✏️', L('Actualizat', 'Updated'), L(`Actualizat: ${formatNativeHistoryDate(md.updatedOn)}${md.updatedBy ? ` de ${md.updatedBy}` : ''}`, `Updated: ${formatNativeHistoryDate(md.updatedOn)}${md.updatedBy ? ` by ${md.updatedBy}` : ''}`));
+    getMapOverlayContainer().appendChild(box);
+    // Next to the pointer, kept inside the map viewport.
+    const { vw, vh, vx0, vy0 } = getCardViewportBounds();
+    const r = box.getBoundingClientRect();
+    let left = ev.clientX + 16;
+    let top = ev.clientY + 16;
+    if (left + r.width > vx0 + vw - 4) left = ev.clientX - r.width - 12;
+    if (top + r.height > vy0 + vh - 4) top = ev.clientY - r.height - 12;
+    box.style.left = `${Math.round(Math.max(vx0 + 4, left))}px`;
+    box.style.top = `${Math.round(Math.max(vy0 + 4, top))}px`;
+    mnState.popup = box;
+    mnState.popupId = String(id);
+  }
+
+  // One throttled test per frame. The window opens after the pointer has
+  // rested MN_REST_MOVE_PX-still for PILL_HOVER_DELAY_MS over the note, and
+  // closes as soon as the pointer leaves it (or a button / Shift / Ctrl is
+  // pressed - box selection, drag).
+  function mnHoverTick() {
+    mnState.hoverRaf = null;
+    const e = mnState.mouse;
+    if (!e || !mnState.active || !settings.mapNoteHover) return;
+    let hit = null;
+    if (!e.buttons && !e.shiftKey && !e.ctrlKey && !e.metaKey && mnState.items.length) {
+      const vp = sdk.Map.getMapViewportElement ? sdk.Map.getMapViewportElement() : null;
+      if (vp && vp.contains(e.target)) hit = mnHitTest(e.clientX, e.clientY);
+    }
+    if (!hit) {
+      mnDwellCancel();
+      mnPopupHide();
+      return;
+    }
+    if (mnState.popupId === hit.id) return; // already open, stays while over the note
+    const moved = Math.hypot(e.clientX - mnState.dwellX, e.clientY - mnState.dwellY) > MN_REST_MOVE_PX;
+    if (mnState.dwellId === hit.id && !moved) return; // still resting - timer runs
+    mnDwellCancel();
+    mnPopupHide();
+    mnState.dwellId = hit.id;
+    mnState.dwellX = e.clientX;
+    mnState.dwellY = e.clientY;
+    mnState.dwellT = setTimeout(() => {
+      const id = mnState.dwellId;
+      mnState.dwellT = null;
+      mnState.dwellId = null;
+      if (!id || !mnState.active || !settings.mapNoteHover) return;
+      mnPopupShow(id, mnState.mouse);
+    }, PILL_HOVER_DELAY_MS);
+  }
+
+  function mnInitHover() {
+    if (mnState.bound) return;
+    mnState.bound = true;
+    document.addEventListener(
+      'mousemove',
+      (ev) => {
+        if (!mnState.active || !settings.mapNoteHover) return;
+        mnState.mouse = ev;
+        if (!mnState.hoverRaf) mnState.hoverRaf = requestAnimationFrame(perfFn('mnHover', mnHoverTick));
+      },
+      { passive: true, capture: true }
+    );
+  }
+
+  function startMapNotes() {
+    if (mnState.active) return;
+    mnState.active = true;
+    mnState.dirty = true;
+    mnInitHover();
+    mnRescan();
+    if (!mnState.rafId) mnState.rafId = perfRaf('mnRaf', mnRaf);
+    if (!mnState.intervalId) mnState.intervalId = setInterval(perfFn('mnRescan', mnRescan), MN_RESCAN_MS);
+  }
+
+  function stopMapNotes() {
+    mnState.active = false;
+    if (mnState.intervalId) clearInterval(mnState.intervalId);
+    mnState.intervalId = null;
+    if (mnState.rafId) cancelAnimationFrame(mnState.rafId);
+    mnState.rafId = null;
+    mnState.labels.forEach((el) => el.remove());
+    mnState.labels.clear();
+    mnState.items = [];
+    mnDwellCancel();
+    mnPopupHide();
+  }
+
+  // Called when either option is toggled in the settings.
+  function mapNotesSync() {
+    if (settings.mapNoteTitles || settings.mapNoteHover) {
+      startMapNotes();
+      mnRescan();
+    } else {
+      stopMapNotes();
+    }
+    if (!settings.mapNoteHover) {
+      mnDwellCancel();
+      mnPopupHide();
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Duplicate place vertices guard (v0.59.0, "WME Bug fix"). Paul: editing
+  // a place polygon (dragging a vertex, or dragging a new vertex out of an
+  // edge) sometimes ends in "invalid geometry" on Save. Found live
+  // (2026-11-22, a 192-point forest polygon, 21 unsaved geometry edits):
+  // ONE of the "add vertex" steps (`UPDATE_FEATURE_GEOMETRY`) inserted TWO
+  // vertices at the very same coordinates - a zero-length edge - and Save
+  // was refused; the other 9 "add vertex" steps inserted one each. Removing
+  // the second vertex with `sdk.DataModel.Venues.updateVenue({ venueId,
+  // geometry })` made the Save pass. This watchdog looks at the places with
+  // unsaved changes (`W.model.venues.objects[id].state` UPDATE / INSERT),
+  // only when the action stack changed, and offers to remove the extra
+  // vertices (a normal undoable edit, never saved by the script).
+  // ---------------------------------------------------------------------
+  const DVG_POLL_MS = 800;
+  const DVG_EPS_DEG = 1e-8; // ~1 mm: "the same place"
+  const DVG_CARD_CLASS = 'wme-ro-tools-dvg-card';
+  // `auto` = "remove automatically" ticked on the card: kept in memory only,
+  // so it lasts for the current page session (a reload resets it).
+  // `lastLen` = size of the action stack at the previous poll (to tell an
+  // Undo from a new edit).
+  const dvgState = { active: false, timer: null, sig: '', card: null, key: '', dismissed: new Set(), offenders: [], auto: false, autoFailed: new Set(), polling: false, lastLen: -1, doneT: null };
+  const dvgKeyOf = (offs) => offs.map((o) => `${o.id}:${o.total}`).join('|');
+
+  // Ids of the loaded places with unsaved changes.
+  function dvgUnsavedVenueIds() {
+    const out = [];
+    try {
+      const objs = window.W && window.W.model && window.W.model.venues && window.W.model.venues.objects;
+      if (!objs) return out;
+      for (const id of Object.keys(objs)) {
+        const o = objs[id];
+        const st = o && (o.state || (o.getState && o.getState()));
+        if (st === 'UPDATE' || st === 'INSERT') out.push(String(id));
+      }
+    } catch (e) {
+      // internal model not as expected - the guard stays silent
+    }
+    return out;
+  }
+
+  const dvgSame = (a, b) => Math.abs(a[0] - b[0]) < DVG_EPS_DEG && Math.abs(a[1] - b[1]) < DVG_EPS_DEG;
+
+  // Indexes (of the 2nd vertex of each pair) where a vertex repeats the one
+  // before it; the closing point counts as a vertex.
+  function dvgDuplicateIndexes(ring) {
+    const out = [];
+    for (let i = 0; i < ring.length - 1; i++) if (dvgSame(ring[i], ring[i + 1])) out.push(i + 1);
+    return out;
+  }
+
+  // The places with unsaved changes that have consecutive identical vertices.
+  function dvgScan() {
+    const res = [];
+    for (const id of dvgUnsavedVenueIds()) {
+      let v = null;
+      try {
+        v = sdk.DataModel.Venues.getById({ venueId: id });
+      } catch (e) {
+        v = null;
+      }
+      const g = v && v.geometry;
+      if (!g || g.type !== 'Polygon' || !Array.isArray(g.coordinates)) continue;
+      let total = 0;
+      const at = [];
+      g.coordinates.forEach((ring, r) => {
+        const d = dvgDuplicateIndexes(ring);
+        total += d.length;
+        d.forEach((i) => at.push(`${r ? `${r}:` : ''}${i - 1}/${i}`));
+      });
+      if (total) res.push({ id, name: typeof v.name === 'string' ? v.name.trim() : '', total, at });
+    }
+    return res;
+  }
+
+  // A ring without the repeated vertices; when the repeat is at the end the
+  // closing point is the one that stays.
+  function dvgCleanRing(ring) {
+    const out = [];
+    ring.forEach((c, i) => {
+      const prev = out[out.length - 1];
+      if (!prev || !dvgSame(prev, c)) {
+        out.push([c[0], c[1]]);
+      } else if (i === ring.length - 1) {
+        out[out.length - 1] = [c[0], c[1]];
+      }
+    });
+    return out;
+  }
+
+  // Returns { ok, fail }. `auto`: called by the automatic removal - the
+  // result is shown as a short card (with the checkbox to turn it off)
+  // instead of a toast.
+  function dvgFix(offenders, auto) {
+    let ok = 0;
+    let fail = 0;
+    offenders.forEach((o) => {
+      try {
+        const v = sdk.DataModel.Venues.getById({ venueId: o.id });
+        const rings = v.geometry.coordinates.map(dvgCleanRing);
+        if (rings.some((r) => r.length < 4)) throw new Error('too few vertices left');
+        sdk.DataModel.Venues.updateVenue({ venueId: o.id, geometry: { type: 'Polygon', coordinates: rings } });
+        ok++;
+      } catch (e) {
+        fail++;
+        console.warn(`${SCRIPT_NAME}: nu am putut curăța vârfurile duplicate ale locului ${o.id}.`, e);
+      }
+    });
+    if (!auto || !ok) {
+      phShowToast(
+        L(
+          `${ok ? `Vârfuri duplicate șterse la ${ok === 1 ? 'un loc' : `${ok} locuri`}. Nesalvat - Ctrl+Z anulează.` : 'Nu am putut curăța vârfurile.'}${fail ? ` (${fail} nereușite)` : ''}`,
+          `${ok ? `Duplicate vertices removed on ${ok === 1 ? 'one place' : `${ok} places`}. Not saved - Ctrl+Z undoes.` : 'Could not clean the vertices.'}${fail ? ` (${fail} failed)` : ''}`
+        ),
+        !ok
+      );
+    }
+    // Failed ones are not retried automatically (no loop); the next poll
+    // rescans. From the button, refresh the card now; inside a poll (auto)
+    // the next tick does it.
+    if (fail) dvgState.autoFailed.add(dvgKeyOf(offenders));
+    dvgState.sig = '';
+    if (!dvgState.polling) dvgPoll();
+    if (auto && ok) dvgShowDone(ok);
+    return { ok, fail };
+  }
+
+  function dvgHideCard() {
+    clearTimeout(dvgState.doneT);
+    dvgState.doneT = null;
+    if (dvgState.card) dvgState.card.remove();
+    dvgState.card = null;
+    dvgState.key = '';
+  }
+
+  // The "remove automatically" checkbox row (this page session only).
+  function dvgAutoRow(card, onChange) {
+    const label = icEl('label', 'display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none;');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = dvgState.auto;
+    cb.style.cssText = 'margin:0; cursor:pointer;';
+    cb.addEventListener('change', () => {
+      dvgState.auto = cb.checked;
+      if (onChange) onChange(cb.checked);
+    });
+    label.append(cb, icEl('span', '', L('Elimină automat (doar în sesiunea curentă)', 'Remove automatically (this session only)')));
+    label.title = L('Cât ține sesiunea (până reîncarci pagina), vârfurile duplicate nou apărute se șterg singure. Ctrl+Z anulează o curățare; după un Ctrl+Z nu se mai curăță singure până la următoarea modificare.', 'For this page session (until you reload), newly appearing duplicate vertices are removed by themselves. Ctrl+Z undoes a cleaning; after a Ctrl+Z they are not cleaned automatically until the next edit.');
+    card.row('⚙️', '', label);
+  }
+
+  // Short card after an automatic cleaning (the checkbox lets you turn the
+  // automatic removal off again); closes itself after a few seconds.
+  function dvgShowDone(ok) {
+    dvgHideCard();
+    const card = icCard({
+      className: DVG_CARD_CLASS,
+      width: 380,
+      interactive: true,
+      accent: '#2DB84C',
+      title: L('🧹 Vârfuri duplicate șterse automat', '🧹 Duplicate vertices removed automatically'),
+      chips: [{ text: ok === 1 ? L('1 loc', '1 place') : L(`${ok} locuri`, `${ok} places`), color: '#2DB84C' }],
+      onClose: dvgHideCard,
+    });
+    card.row('ℹ️', '', L('Nesalvat - Ctrl+Z anulează curățarea.', 'Not saved - Ctrl+Z undoes the cleaning.'), true);
+    dvgAutoRow(card, (on) => {
+      if (!on) dvgHideCard();
+    });
+    const box = card.box;
+    ['mousedown', 'mouseup', 'click', 'dblclick', 'wheel'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
+    getMapOverlayContainer().appendChild(box);
+    const { vw, vx0, vy0 } = getCardViewportBounds();
+    box.style.left = `${Math.round(vx0 + Math.max(8, (vw - box.getBoundingClientRect().width) / 2))}px`;
+    box.style.top = `${Math.round(vy0 + 56)}px`;
+    dvgState.card = box;
+    dvgState.key = 'done';
+    dvgState.doneT = setTimeout(dvgHideCard, 8000);
+  }
+
+  function dvgShowCard(offs) {
+    const key = dvgKeyOf(offs);
+    if (dvgState.card && dvgState.key === key) return;
+    dvgHideCard();
+    if (dvgState.dismissed.has(key)) return;
+    const first = offs[0];
+    const label = offs.length === 1 ? first.name || L('(fără nume)', '(no name)') : L(`${offs.length} locuri`, `${offs.length} places`);
+    const card = icCard({
+      className: DVG_CARD_CLASS,
+      width: 380,
+      interactive: true,
+      accent: '#e5484d',
+      tint: '#e5484d',
+      title: L('⚠ Vârfuri duplicate la un loc', '⚠ Duplicate place vertices'),
+      chips: [{ text: L('WME nu va putea salva', 'WME will refuse to save'), color: '#e5484d' }],
+      onClose: () => {
+        dvgState.dismissed.add(key);
+        dvgHideCard();
+      },
+    });
+    card.row('📍', L('Loc', 'Place'), offs.length === 1 ? `${label} · ${L('vârfuri identice', 'identical vertices')}: ${first.at.slice(0, 4).join(', ')}${first.at.length > 4 ? '…' : ''}` : label);
+    card.row(
+      'ℹ️',
+      '',
+      L(
+        'Două vârfuri consecutive în același loc fac geometria invalidă la salvare (bug WME). „Curăță” le șterge pe cele în plus - modificare nesalvată, Ctrl+Z o anulează.',
+        'Two consecutive vertices at the same spot make the geometry invalid on Save (a WME bug). "Clean" removes the extra ones - an unsaved edit, Ctrl+Z undoes it.'
+      ),
+      true
+    );
+    // Ticking it also cleans what is on the card right now.
+    dvgAutoRow(card, (on) => {
+      if (on) dvgFix(dvgState.offenders, true);
+    });
+    const foot = card.footer();
+    foot.appendChild(icButton(L('🧹 Curăță', '🧹 Clean'), L('Șterge vârfurile duplicate (nesalvat, anulabil).', 'Removes the duplicate vertices (unsaved, undoable).'), () => dvgFix(dvgState.offenders), 'primary'));
+    foot.appendChild(
+      icButton(L('Arată locul', 'Show the place'), '', () => {
+        try {
+          sdk.Editing.setSelection({ selection: { ids: [first.id], objectType: 'venue' } });
+        } catch (e) {
+          // ignore
+        }
+      })
+    );
+    foot.appendChild(
+      icButton(L('Ignoră', 'Ignore'), L('Nu mai arăta pentru această stare a locului.', "Don't show again for this state of the place."), () => {
+        dvgState.dismissed.add(key);
+        dvgHideCard();
+      })
+    );
+    const box = card.box;
+    ['mousedown', 'mouseup', 'click', 'dblclick', 'wheel'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
+    getMapOverlayContainer().appendChild(box);
+    const { vw, vx0, vy0 } = getCardViewportBounds();
+    box.style.left = `${Math.round(vx0 + Math.max(8, (vw - box.getBoundingClientRect().width) / 2))}px`;
+    box.style.top = `${Math.round(vy0 + 56)}px`;
+    dvgState.card = box;
+    dvgState.key = key;
+  }
+
+  // Cheap: the places are only scanned when the action stack changed.
+  function dvgPoll() {
+    if (!dvgState.active) return;
+    let sig;
+    let len = -1;
+    try {
+      const am = window.W.model.actionManager;
+      const acts = am.getActions ? am.getActions() : [];
+      len = acts.length;
+      sig = `${am.unsavedActionsNum ? am.unsavedActionsNum() : 0}:${len}:${len ? acts[len - 1]._actionId : ''}`;
+    } catch (e) {
+      sig = String(Date.now()); // unknown model: scan each time (cheap when nothing is unsaved)
+    }
+    if (sig === dvgState.sig) return;
+    dvgState.sig = sig;
+    // A shorter action stack = the user pressed Undo: the automatic removal
+    // must not redo what was just undone (it would make Undo useless).
+    const fromUndo = dvgState.lastLen >= 0 && len >= 0 && len < dvgState.lastLen;
+    dvgState.lastLen = len;
+    const offs = dvgScan();
+    dvgState.offenders = offs;
+    if (!offs.length) {
+      // keep the short "removed automatically" card until it times out
+      if (dvgState.key !== 'done') dvgHideCard();
+      return;
+    }
+    if (dvgState.auto && !fromUndo && !dvgState.autoFailed.has(dvgKeyOf(offs))) {
+      dvgState.polling = true;
+      let r;
+      try {
+        r = dvgFix(offs, true);
+      } finally {
+        dvgState.polling = false;
+      }
+      if (!r.fail) return;
+    }
+    dvgShowCard(offs);
+  }
+
+  function startDvg() {
+    if (dvgState.active) return;
+    dvgState.active = true;
+    dvgState.sig = '';
+    dvgPoll();
+    if (!dvgState.timer) dvgState.timer = setInterval(perfFn('dvgPoll', dvgPoll), DVG_POLL_MS);
+  }
+
+  function stopDvg() {
+    dvgState.active = false;
+    if (dvgState.timer) clearInterval(dvgState.timer);
+    dvgState.timer = null;
+    dvgHideCard();
   }
 
   // ---------------------------------------------------------------------
@@ -6802,10 +7660,24 @@
     if (!closures.length) return;
     rcHide();
     const c = closures[0];
-    const t = currentTheme();
-    const box = document.createElement('div');
-    box.className = RC_POPUP_CLASS;
-    box.style.cssText = `position:fixed; left:0; top:0; z-index:${OWN_UI_MENU_Z_INDEX}; padding:8px 10px; border-radius:8px; background:${t.menuBg}; border:1px solid ${t.menuBorder}; color:${t.menuText}; box-shadow:0 2px 10px rgba(0,0,0,0.45); font:11px/1.4 Arial, sans-serif; display:flex; flex-direction:column; gap:6px; pointer-events:auto; width:max-content; max-width:400px;`;
+    const st = String(c.status || '').toUpperCase();
+    const finished = /FINISH/.test(st);
+    const active = st === 'ACTIVE';
+    const pc = finished ? '#8a8f98' : active ? '#e5484d' : '#f0a020';
+    // v0.51.3: same wording as the WME closure card (FINISHED_EARLY_* =
+    // "Încheiate mai devreme", e.g. deleted before its end).
+    const early = /FINISH\w*EARLY|EARLY\w*FINISH/.test(st);
+    const statusText = early ? L('Încheiată mai devreme', 'Finished early') : finished ? L('Încheiată', 'Finished') : active ? L('Activă', 'Active') : /NOT_STARTED|SCHEDULED/.test(st) ? L('Neîncepută', 'Not started') : st ? st.toLowerCase().replace(/_/g, ' ') : L('Programată', 'Scheduled');
+    const card = icCard({
+      width: 340,
+      interactive: true,
+      className: RC_POPUP_CLASS,
+      accent: pc,
+      tint: active ? pc : '',
+      title: L('⛔ Drum închis', '⛔ Road closure'),
+      chips: [{ text: statusText, color: pc, dark: !finished && !active }],
+    });
+    const box = card.box;
     box.addEventListener('mouseenter', () => {
       clearTimeout(rcState.hideT);
       rcState.hideT = null;
@@ -6813,43 +7685,12 @@
     box.addEventListener('mouseleave', rcScheduleHide);
     ['mousedown', 'mouseup', 'click', 'dblclick'].forEach((n) => box.addEventListener(n, (ev) => ev.stopPropagation()));
 
-    // Header: title + status pill.
-    const st = String(c.status || '').toUpperCase();
-    const finished = /FINISH/.test(st);
-    const active = st === 'ACTIVE';
-    const head = document.createElement('div');
-    head.style.cssText = 'display:flex; align-items:center; gap:8px;';
-    const title = document.createElement('span');
-    title.style.cssText = 'font-weight:700; font-size:12px;';
-    title.textContent = L('⛔ Drum închis', '⛔ Road closure');
-    const pill = document.createElement('span');
-    const pc = finished ? '#8a8f98' : active ? '#e5484d' : '#f0a020';
-    pill.style.cssText = `padding:1px 8px; border-radius:9px; font-weight:700; font-size:10px; color:#fff; background:${pc};`;
-    // v0.51.3: same wording as the WME closure card (FINISHED_EARLY_* =
-    // "Încheiate mai devreme", e.g. deleted before its end).
-    const early = /FINISH\w*EARLY|EARLY\w*FINISH/.test(st);
-    pill.textContent = early ? L('Încheiată mai devreme', 'Finished early') : finished ? L('Încheiată', 'Finished') : active ? L('Activă', 'Active') : /NOT_STARTED|SCHEDULED/.test(st) ? L('Neîncepută', 'Not started') : st ? st.toLowerCase().replace(/_/g, ' ') : L('Programată', 'Scheduled');
-    head.append(title, pill);
-    box.appendChild(head);
-
-    // Label / value grid.
-    const grid = document.createElement('div');
-    grid.style.cssText = 'display:grid; grid-template-columns:auto 1fr; column-gap:8px; row-gap:3px;';
-    const line = (label, value, dim) => {
-      const k = document.createElement('span');
-      k.style.cssText = 'opacity:0.65; white-space:nowrap;';
-      k.textContent = label;
-      const v = document.createElement('span');
-      v.style.cssText = `overflow-wrap:anywhere;${dim ? ' opacity:0.6; font-style:italic;' : ''}`;
-      v.textContent = value;
-      grid.append(k, v);
-    };
-    line(L('Descriere', 'Description'), c.description || L('fără descriere', 'no description'), !c.description);
+    card.row('📝', L('Descriere', 'Description'), c.description || L('fără descriere', 'no description'), !c.description);
     const dur = rcDuration(c);
-    line(L('Interval', 'Period'), `${rcFmtDate(c.startDate)} → ${c.endDate ? rcFmtDate(c.endDate) : L('fără sfârșit', 'no end')}${dur ? ` (${dur})` : ''}`);
-    if (early && c.statusSince) line(L('Încheiată la', 'Ended on'), rcFmtDate(c.statusSince));
+    card.row('🕒', L('Interval', 'Period'), `${rcFmtDate(c.startDate)} → ${c.endDate ? rcFmtDate(c.endDate) : L('fără sfârșit', 'no end')}${dur ? ` (${dur})` : ''}`);
+    if (early && c.statusSince) card.row('🏁', L('Încheiată la', 'Ended on'), `${L('Încheiată la', 'Ended on')}: ${rcFmtDate(c.statusSince)}`);
     const both = closures.some((x) => x.isForward) && closures.some((x) => !x.isForward);
-    line(L('Sens', 'Direction'), both ? L('ambele sensuri (A ⇆ B)', 'both directions (A ⇆ B)') : c.isForward ? 'A → B' : 'B → A');
+    card.row('↔️', L('Sens', 'Direction'), `${L('Sens', 'Direction')}: ${both ? L('ambele sensuri (A ⇆ B)', 'both directions (A ⇆ B)') : c.isForward ? 'A → B' : 'B → A'}`);
     // Closed nodes: the start node of each closure of the card.
     const nodeTxt = closures
       .slice()
@@ -6862,35 +7703,16 @@
       })
       .filter(Boolean)
       .join(' · ');
-    if (nodeTxt) line(L('Noduri', 'Nodes'), nodeTxt);
-    line(L('Detectare trafic', 'Traffic detection'), c.permanent ? L('dezactivată (închidere fixă)', 'disabled (fixed closure)') : L('activă', 'enabled'));
+    if (nodeTxt) card.row('📍', L('Noduri', 'Nodes'), `${L('Noduri', 'Nodes')}: ${nodeTxt}`);
+    card.row('📡', L('Detectare trafic', 'Traffic detection'), `${L('Detectare trafic', 'Traffic detection')}: ${c.permanent ? L('dezactivată (închidere fixă)', 'disabled (fixed closure)') : L('activă', 'enabled')}`);
     const cr = rcFmtTs(c.createdOn);
-    line(L('Creat', 'Created'), cr ? `${cr}${c.createdBy != null ? ` ${L('de', 'by')} ${rcUser(c.createdBy)}` : ''}` : '—', !cr);
+    card.row('👤', L('Creat', 'Created'), `${L('Creat', 'Created')}: ${cr ? `${cr}${c.createdBy != null ? ` ${L('de', 'by')} ${rcUser(c.createdBy)}` : ''}` : '—'}`, !cr);
     const up = rcFmtTs(c.updatedOn);
-    line(L('Actualizat', 'Updated'), up ? `${up}${c.updatedBy != null ? ` ${L('de', 'by')} ${rcUser(c.updatedBy)}` : ''}` : L('niciodată', 'never'), !up);
-    box.appendChild(grid);
+    card.row('✏️', L('Actualizat', 'Updated'), `${L('Actualizat', 'Updated')}: ${up ? `${up}${c.updatedBy != null ? ` ${L('de', 'by')} ${rcUser(c.updatedBy)}` : ''}` : L('niciodată', 'never')}`, !up);
 
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:2px;';
-    const mk = (label, title2, onClick, danger) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = label;
-      b.title = title2;
-      b.style.cssText = `height:24px; padding:0 10px; border-radius:12px; border:1px solid ${danger ? '#e5484d' : t.menuBorder}; background:transparent; color:${danger ? '#e5484d' : t.menuText}; font:600 11px/1 Arial, sans-serif; cursor:pointer; white-space:nowrap;`;
-      b.addEventListener('mouseenter', () => {
-        b.style.background = danger ? 'rgba(229,72,77,0.15)' : t.menuHoverBg;
-      });
-      b.addEventListener('mouseleave', () => {
-        b.style.background = 'transparent';
-      });
-      b.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        onClick(b);
-      });
-      return b;
-    };
-    row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => rcCardAction(closures, 'edit')));
+    const row = card.footer();
+    const mk = (label, title2, onClick, kind) => icButton(label, title2, onClick, kind);
+    row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => rcCardAction(closures, 'edit'), 'primary'));
     row.appendChild(mk(L('⧉ Duplicat', '⧉ Duplicate'), L('Copie a închiderii începând de acum: același sfârșit (ora și câte zile după început), niciodată în trecut. Formularul rămâne deschis - verifici și apeși Salvează.', 'Copy of the closure starting now: the same end (time and how many days after the start), never in the past. The form stays open - check it and press Save.'), () => rcCardAction(closures, 'duplicate')));
     if (!finished) {
       row.appendChild(mk(L('↻ Ziua următoare', '↻ Next day'), L('„Repetă ziua următoare” din meniul închiderii (acțiunea WME).', '"Repeat next day" from the closure menu (the WME action).'), () => rcCardAction(closures, 'repeat')));
@@ -6909,15 +7731,14 @@
             }
             rcDelete(closures);
           },
-          true
+          'danger'
         )
       );
     }
-    box.appendChild(row);
     getMapOverlayContainer().appendChild(box);
     const r = el.getBoundingClientRect();
     const br = box.getBoundingClientRect();
-    const { vw, vx0, vy0 } = getMapViewportBounds();
+    const { vw, vx0, vy0 } = getCardViewportBounds();
     let left = r.left + r.width / 2 - br.width / 2;
     left = Math.max(vx0 + 4, Math.min(vx0 + vw - br.width - 4, left));
     let top = r.top - br.height - 6;
@@ -10948,8 +11769,17 @@
     });
   }
 
+  // v0.58.0 (Paul): "Mesaj lung" and "Înlocuiește rândurile noi" only make
+  // sense for UR conversations. The map note (map comment) panel has the
+  // same `.new-comment-form`, but lives in the sidebar feature editor
+  // (`#edit-panel`, live-checked in WME v2.378) - skip forms there, and pick
+  // the first form that is not in it (a UR window may be open too).
   function urFindCommentForm() {
-    return document.querySelector('.new-comment-form');
+    const forms = document.querySelectorAll('.new-comment-form');
+    for (const f of forms) {
+      if (!f.closest('#edit-panel')) return f;
+    }
+    return null;
   }
 
   // Extracts the concrete DOM refs needed from the native comment form,
@@ -17779,6 +18609,8 @@
     if (settings.forceSidebarOpen) startForceSidebarOpenWatchdog();
     if (settings.unpublishedSegmentsWarning) startUnpublishedWarnWatchdog();
     if (settings.lock1Badges) startLock1Badges();
+    if (settings.mapNoteTitles || settings.mapNoteHover) startMapNotes();
+    if (settings.dupVertexGuard) startDvg();
     initIssueTrackerMapAll();
     initLocationLabelFix();
     initUnpublishedWarnPassthrough();

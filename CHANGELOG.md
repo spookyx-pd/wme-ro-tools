@@ -23,14 +23,80 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
-## 2026-11-16 - v0.57.0 - istoric: „Included Sugestie de …” pe două rânduri (pe `dev`, nepublicată)
+## 2026-11-22 - v0.59.0 - WME Bug fix: vârfuri duplicate la locuri
+
+- **WME Bug fix:** când modifici geometria unui loc (muți un nod sau tragi
+  un nod nou de pe margine), WME poate crea două vârfuri în exact același
+  loc; geometria devine invalidă și salvarea e refuzată cu „geometrie
+  invalidă”. Scriptul verifică locurile cu modificări nesalvate (doar când
+  se schimbă lista de acțiuni) și, dacă găsește vârfuri consecutive
+  identice, arată un card cu: **Curăță** (șterge vârfurile în plus -
+  modificare nesalvată, Ctrl+Z o anulează), **Arată locul** și **Ignoră**.
+- Bifa **„Elimină automat (doar în sesiunea curentă)”** de pe card: cât ține
+  sesiunea (până reîncarci pagina) vârfurile duplicate nou apărute se șterg
+  singure, cu un card scurt de confirmare. După un Ctrl+Z nu se mai
+  curăță singure până la următoarea modificare. Bifa se poate folosi și pe
+  loc: la bifare curăță ce e pe card.
+- Opțiune nouă în setări, pornită: „Avertizare vârfuri duplicate la locuri
+  (WME Bug fix)”. Scriptul nu salvează niciodată nimic.
+
+## 2026-11-22 - v0.58.4 - cardul de blocare mai compact
+
+- Cardul pastilei de nivel 1 e mai compact: titlul „Segment blocat” și
+  eticheta „Nivel 1” pe același rând (nu se mai repetă nivelul), spații
+  mai mici, butoanele cu numere mai mici (același text).
+- Cardul se lărgește în loc să mute butoanele pe rândul următor când un
+  buton cere confirmare.
+
+## 2026-11-22 - v0.58.3 - cardurile nu mai sunt tăiate de butoanele din dreapta hărții
+
+- Cardurile (note, drumuri închise, istoric, pastile) se țin în afara
+  coloanei de butoane a WME din dreapta hărții; înainte, un card deschis
+  lângă marginea dreaptă era acoperit de ea (ex. nivelul „6” din cardul de
+  blocare).
+
+## 2026-11-22 - v0.58.2 - pastilele de pe hartă deschid carduri
+
+- Pastilele de publicare (portocaliu / verde / albastru) și cele de nivel 1
+  nu se mai lărgesc la hover: rămân mici, iar după ce oprești mouse-ul pe
+  ele se deschide un card în același stil cu celelalte ferestre. Cardul de
+  publicare arată starea (etichetă colorată), cine și când a editat (cu
+  link spre profil), linia Livemap și butonul „📜 Istoric recent”. Cardul
+  pastilei de nivel 1 arată meniul de blocare (nivelurile de blocare).
+  Cardul rămâne deschis cât ții mouse-ul pe pastilă
+  sau pe card și se închide la ~0,3 s după ce pleci; se închide și când
+  începi o selecție / tragi harta.
+
+## 2026-11-22 - v0.58.1 - ferestrele cu informații au un aspect unitar de card
+
+- Fereastra notei de hartă, cea a drumurilor închise (hover pe simbol) și
+  „📜 Istoric recent” au acum un aspect unitar de card: rotunjit, în
+  culorile temei WME (merge și cu „WME Dark Mode”), cu bară colorată în
+  stânga, titlu cu etichetă de stare, rânduri cu iconiță și linie de
+  separare, butoane albastre rotunjite. Conținutul și butoanele rămân
+  aceleași.
+
+## 2026-11-22 - v0.58.0 - note de hartă: titlu + fereastră la hover; pastile cu întârziere
+
+- **Nou:** notele de hartă (Map Comments) își afișează titlul pe hartă, în
+  mijlocul lor, ca numele locurilor (opțiune nouă, pornită).
+- **Nou:** dacă ții mouse-ul ~0,45 s deasupra unei note, apare o fereastră
+  cu titlul, textul, numărul de comentarii, nivelul de blocare, expirarea
+  și cine a creat / actualizat nota (opțiune nouă, pornită).
+- Pastilele de nivel 1 și cele de publicare se deschid doar dacă oprești
+  mouse-ul pe ele ~0,45 s; când treci cu mouse-ul peste hartă nu se mai
+  deschid câte multe deodată.
+- „Mesaj lung” și „Înlocuiește rândurile noi” nu mai apar în panoul unei
+  note de hartă, ci doar la conversațiile din ferestrele UR / PUR / MP.
+
+## 2026-11-16 - v0.57.0 - istoric: „Included Sugestie de …” pe două rânduri
 
 - **Nou:** în istoricul segmentului, eticheta „Included Sugestie de
   <editor>” nu mai e tăiată cu „…”: trece pe două rânduri, iar linkul spre
   profilul editorului și butonul de chat 💬 (acum colorat) se văd și se pot
   apăsa. Opțiune nouă, pornită.
 
-## 2026-11-15 - v0.56.2 - monitorul arată notificările rămase active (pe `dev`, nepublicată)
+## 2026-11-15 - v0.56.2 - monitorul arată notificările rămase active
 
 - Monitorul de resurse are rândul „Notificări rămase active (bucle
   orfane)”: notificările WazeWrap (folosite de alte scripturi) lasă în
@@ -38,7 +104,7 @@
   editorul ajunge la 100% procesor. Dacă numărul e peste 0, reîncarcă
   tabul. WME RO Tools nu folosește WazeWrap.
 
-## 2026-11-15 - v0.56.1 - mai puțin procesor cu multe segmente / închideri încărcate (pe `dev`, nepublicată)
+## 2026-11-15 - v0.56.1 - mai puțin procesor cu multe segmente / închideri încărcate
 
 - Fereastra drumurilor închise la hover nu mai măsoară fiecare simbol de
   închidere la fiecare mișcare a mouse-ului (cu 227 de închideri pe ecran
@@ -47,7 +113,7 @@
   segmente pe secundă (în loc de două) și verifică mai rapid dacă un
   segment e pe ecran.
 
-## 2026-11-15 - v0.56.0 - analiză continuă în monitorul de resurse (pe `dev`, nepublicată)
+## 2026-11-15 - v0.56.0 - analiză continuă în monitorul de resurse
 
 - **Nou:** în monitorul de resurse, lângă „🔬 Analiză 5 s”, butonul
   „⏺ Analiză continuă (o oprești tu)”: analiza tuturor scripturilor rulează
@@ -59,13 +125,13 @@
   modificările din pagină, cadrele lungi și, pe fiecare script, procentul
   din timp și timpul în cadrele lungi; se actualizează live cât rulează.
 
-## 2026-11-15 - v0.55.4 - dimensiunile hărții se recitesc doar când se schimbă (pe `dev`, nepublicată)
+## 2026-11-15 - v0.55.4 - dimensiunile hărții se recitesc doar când se schimbă
 
 - Poziția hărții pe ecran nu se mai recitește periodic (fiecare recitire în
   timpul mutării hărții costa ~11 ms), ci doar când se redimensionează harta,
   panoul lateral sau fereastra.
 
-## 2026-11-15 - v0.55.3 - pastilele nu mai forțează layout când muți harta (pe `dev`, nepublicată)
+## 2026-11-15 - v0.55.3 - pastilele nu mai forțează layout când muți harta
 
 - La mutarea hărții, calculul pozițiilor pastilelor forța browserul să
   recalculeze layout-ul paginii la fiecare cadru (~1 s de lucru în 8 s de
@@ -73,21 +139,21 @@
   fără nicio citire din pagină, iar dimensiunile hărții se recitesc cel mult
   de două ori pe secundă.
 
-## 2026-11-15 - v0.55.2 - butoanele de straturi nu mai generează modificări inutile în pagină (pe `dev`, nepublicată)
+## 2026-11-15 - v0.55.2 - butoanele de straturi nu mai generează modificări inutile în pagină
 
 - Butoanele de straturi de pe hartă își rescriau starea (apăsat / nu) la
   fiecare verificare, chiar dacă nu se schimba nimic; alte scripturi care
   urmăresc modificările paginii (de ex. WME Fix UI) reacționau de fiecare
   dată. Acum starea se scrie doar când se schimbă.
 
-## 2026-11-15 - v0.55.1 - pastilele de publicare nu mai forțează layout la fiecare cadru (pe `dev`, nepublicată)
+## 2026-11-15 - v0.55.1 - pastilele de publicare nu mai forțează layout la fiecare cadru
 
 - Monitorul a arătat că poziționarea pastilelor de publicare încă rula de
   60 de ori/s (15 ms/s): verificarea „s-a mișcat harta?” citea dimensiunile
   paginii, ceea ce forța browserul să recalculeze layout-ul la fiecare
   cadru. Acum verificarea folosește doar centrul și zoom-ul hărții.
 
-## 2026-11-15 - v0.55.0 - monitor de resurse; pastilele nu mai consumă procesor cu harta pe loc (pe `dev`, nepublicată)
+## 2026-11-15 - v0.55.0 - monitor de resurse; pastilele nu mai consumă procesor cu harta pe loc
 
 - **Nou:** linkul „📊 Monitor resurse” din setări deschide o fereastră cu:
   timpul de procesor al fiecărei funcții periodice a scriptului (apeluri/s,
@@ -101,7 +167,7 @@
   coordonate → pixeli e calculată local (de ~45 de ori mai rapidă), iar
   dimensiunile hărții se citesc o singură dată pe cadru.
 
-## 2026-11-15 - v0.54.0 - insigna de drum din numele străzii (pe `dev`, nepublicată)
+## 2026-11-15 - v0.54.0 - insigna de drum din numele străzii
 
 - **Nou:** la un segment selectat a cărui stradă nu are insignă, dar numele
   conține codul drumului (DC300, DJ105B, DN1, A1, E60, DEX…), sus în panou
@@ -111,7 +177,7 @@
   insigna se aplică străzii (tuturor segmentelor care o au); e o modificare
   nesalvată, se poate anula cu Undo. Opțiune nouă, pornită.
 
-## 2026-11-15 - v0.53.1 - sigla Google cu trafic; „Istoric recent” se închide singur (pe `dev`, nepublicată)
+## 2026-11-15 - v0.53.1 - sigla Google cu trafic; „Istoric recent” se închide singur
 
 - **Nou:** click pe sigla Google din dreapta jos a hărții deschide Google
   Maps cu stratul de trafic activ (opțiune nouă, pornită).
@@ -119,7 +185,7 @@
   mouse-ul în afara ei (și a pastilei) sau imediat la un click în afară; ✕
   merge în continuare.
 
-## 2026-11-15 - v0.53.0 - căutare locație îmbunătățită (pe `dev`, nepublicată)
+## 2026-11-15 - v0.53.0 - căutare locație îmbunătățită
 
 - Click-ul în afara casetei de căutare nu mai sare la un rezultat și nu
   mai readuce locul căutat anterior (Enter merge ca înainte).
@@ -135,7 +201,7 @@
   istoricul căutărilor”.
 - Opțiune nouă: „Căutare locație îmbunătățită” (pornită).
 
-## 2026-11-15 - v0.52.1 - drumuri închise: fereastra cu întârziere, Duplicat de acum (pe `dev`, nepublicată)
+## 2026-11-15 - v0.52.1 - drumuri închise: fereastra cu întârziere, Duplicat de acum
 
 - Fereastra cu detaliile închiderii apare doar dacă ții mouse-ul ~0,45 s
   pe simbol; dacă doar treci peste el, nu mai apare.
@@ -145,7 +211,7 @@
   sfârșitul se mută pe a doua zi. Formularul rămâne deschis - verifici și
   apeși Salvează.
 
-## 2026-11-15 - v0.52.0 - pastilele de publicare: text pe mai multe rânduri și „Istoric recent” (pe `dev`, nepublicată)
+## 2026-11-15 - v0.52.0 - pastilele de publicare: text pe mai multe rânduri și „Istoric recent”
 
 - Pastilele de pe hartă (portocaliu / verde / albastru): la hover textul se
   încadrează pe mai multe rânduri (nu mai e tăiat), inclusiv cine a editat.

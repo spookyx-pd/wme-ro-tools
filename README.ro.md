@@ -40,8 +40,14 @@ Lipești (sau iei din clipboard cu **📋 Lipește**) un permalink WME (www sau 
 ### Insigna de drum din numele străzii
 La un segment selectat a cărui stradă nu are insignă, dar numele începe cu codul drumului, sus în panou apare butonul **🛡 Setează insigna**: DC300 → Drum Comunal „300”, DJ / DN → Drum Județean / Național cu doar numărul, A1 → Autostradă, E60 → Drum European, DEX… → Drum Expres. Se iau în calcul și numele alternative. Ca în dialogul WME, insigna se aplică străzii, deci tuturor segmentelor care o au; e o modificare nesalvată (merge Undo).
 
+### Note de hartă (Map Comments)
+- **Titlul pe hartă.** Titlul (subiectul) fiecărei note de hartă apare scris în mijlocul ei, ca numele locurilor. Dacă nota e mai mare decât ecranul, titlul rămâne în partea ei vizibilă. Nu prinde clicul, deci nota rămâne selectabilă.
+- **Card la hover.** Ții mouse-ul o clipă pe o notă și un card arată titlul, textul, numărul de comentarii, nivelul de blocare, data expirării și cine a creat sau actualizat nota și când.
+
+Ambele se pot opri din setări.
+
 ### Indicator segmente blocate la nivelul 1
-O pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1. Cu mouse-ul pe ea blochezi segmentul la un nivel mai mare dintr-un click (doar nivelurile până la al tău).
+O pastilă portocalie mică (lacăt + 1) lângă fiecare segment vizibil blocat la nivelul 1. Ții mouse-ul o clipă pe ea (trecerea rapidă peste ea nu deschide nimic) și se deschide un card în care blochezi segmentul la un nivel mai mare dintr-un click (doar nivelurile până la al tău).
 
 ### Avertizare rute nepermise în Junction Box
 Când selectezi, creezi sau modifici un Junction Box, o avertizare arată rutele **nepermise** (dinspre ce segment, spre ce segment, de ce), cu ruta desenată pe hartă. După salvare, avertizarea rămâne dacă JB-ul salvat mai are astfel de rute.
@@ -80,7 +86,7 @@ WME îți spune dacă o modificare a ajuns pe Livemap. Scriptul arată în plus 
 Starea apare în trei locuri:
 - **Segmentul selectat:** o iconiță cu vechimea modificării („21h”, „1d 21h”, „3d”), lângă lungime. Tooltip-ul arată „Editat: …” și „Live: …”, de exemplu „ultima asamblare, de acum 9 ore (Joi 15.10, 05:30)”.
 - **Istoricul din panoul lateral:** iconița de la „Ultima actualizare” ia aceeași culoare, iar dedesubt apare un rând cu starea și momentul în care modificarea a ajuns sau va ajunge pe Livemap.
-- **Toată harta vizibilă:** o pastilă rotundă lângă fiecare segment portocaliu, verde sau albastru. La hover se lărgește și arată editorul, data modificării și starea pe Livemap, plus linkul **📜 Istoric recent**: ultimele modificări ale segmentului (ce s-a schimbat, cine, când, starea pe Livemap), încărcate doar la cerere. Fereastra se închide singură când pleci cu mouse-ul sau dai click în altă parte.
+- **Toată harta vizibilă:** o pastilă rotundă lângă fiecare segment portocaliu, verde sau albastru. Ții mouse-ul o clipă pe ea (trecerea rapidă peste ea nu deschide nimic) și se deschide un card cu starea pe Livemap, editorul (cu link spre profil), data modificării și linia Livemap, plus butonul **📜 Istoric recent**: ultimele modificări ale segmentului (ce s-a schimbat, cine, când, starea pe Livemap), încărcate doar la cerere. Cardul se închide singur când pleci cu mouse-ul sau dai click în altă parte.
 
 ### Lista avertizărilor salvate oricum
 WME spune uneori „S-ar putea să fie ceva în neregulă cu această editare”. Dacă salvezi oricum, avertizările nu se mai pierd. Rămân într-o listă pe sesiune, câte una pe rând, inclusiv cele pe care WME le comasează. Fiecare are un buton „du-mă acolo” care centrează harta pe problemă și selectează segmentul.
@@ -101,9 +107,9 @@ Butoanele apar în fereastra nativă **Instrucțiuni viraje**. Nimic nu ajunge p
 
 ## Unelte pentru Solicitări de actualizare / Probleme de hartă
 - **Coordonate GPS clicabile.** Utilizatorii răspund des cu coordonate. Atât forma zecimală (`44.223232, 23.0909034`), cât și grade-minute-secunde (`45°03'19.8"N 26°25'37.8"E`) devin linkuri. Click-ul centrează harta pe punct și afișează un marcaj care pulsează, iar fereastra problemei rămâne deschisă. Pentru România se detectează și coordonatele scrise invers (longitudine întâi).
-- **Mesaj lung.** Împarte un răspuns de peste 2.000 de caractere în mai multe bucăți, pe care le trimiți una după alta. Are previzualizare live.
+- **Mesaj lung.** Împarte un răspuns de peste 2.000 de caractere în mai multe bucăți, pe care le trimiți una după alta. Are previzualizare live. Apare doar în ferestrele Solicitărilor de actualizare / Problemelor de hartă, nu și în panoul unei note de hartă.
 - **Ciorna răspunsului.** Păstrează răspunsul netrimis pentru fiecare UR/MP, chiar dacă se reîncarcă fereastra sau pagina.
-- **Rânduri noi vizibile.** Aplicația Waze afișează comentariile fără rânduri noi. La trimitere, scriptul poate înlocui paragrafele și rândurile noi cu separatoare vizibile, cu o previzualizare a ce vede utilizatorul în aplicație. Previzualizarea are bifa „Nu mai arăta în această sesiune”.
+- **Rânduri noi vizibile** (tot doar în ferestrele UR / MP). Aplicația Waze afișează comentariile fără rânduri noi. La trimitere, scriptul poate înlocui paragrafele și rândurile noi cu separatoare vizibile, cu o previzualizare a ce vede utilizatorul în aplicație. Previzualizarea are bifa „Nu mai arăta în această sesiune”.
 - **Casetă de răspuns mai mare:** 12 rânduri.
 - **Previzualizare poze din linkuri.** Un buton 🖼 după linkurile din conversație deschide poza într-o fereastră în editor (zoom cu rotița, mutare prin tragere, rotire). Merge cu linkuri directe la poze și cu pagini ca imgbb / ibb.co, imgur, postimg. Punctul pus după link e ignorat.
 
@@ -132,6 +138,8 @@ WME permite doar acceptarea sau respingerea unei sugestii în întregime. Script
 - **Căutare locație îmbunătățită.** Click-ul în afara casetei nu mai sare la un rezultat; după ce alegi un rezultat, caseta se golește; rezultatele au sursa (Waze / Google) și distanța; primele sunt străzile și locurile deja încărcate pe hartă („🗺 pe hartă”); un număr caută un ID de segment, iar n.n.n un ID de loc; un link sau coordonate dau „🔗 Deschide linkul”; caseta goală arată ultimele 15 căutări.
 - **Sigla Google cu trafic.** Click pe sigla Google din dreapta jos deschide Google Maps la centrul hărții, cu stratul de trafic pornit.
 - **📊 Monitor resurse** (link în tab-ul de setări). Cât procesor consumă fiecare funcție a scriptului, cât de ocupat e editorul, memoria, elementele din pagină și obiectele încărcate, cadrele care blochează pagina pe fiecare script și „notificările rămase active” (bucle lăsate de alte scripturi, care încarcă procesorul până reîncarci tabul). **🔬 Analiză 5 s** sau **⏺ Analiză continuă** (o oprești tu; dacă închizi monitorul, jos rămâne un indicator cu „⏹ Oprește”) arată ce script încarcă editorul cât lucrezi.
+- **Istoricul segmentului.** Eticheta „Included Sugestie de <editor>” nu mai e tăiată: trece pe două rânduri, iar linkul spre profilul editorului și butonul de chat 💬 se văd și se pot apăsa.
+- **Carduri de informații.** Ferestrele de informații ale scriptului (note de hartă, drumuri închise, istoric recent, pastilele de pe hartă) au același aspect de card și stau departe de coloana de butoane a WME din dreapta hărții. Pastilele și notele își deschid cardul abia după ce ții mouse-ul o clipă pe ele.
 - **Ce e nou.** După o actualizare, o fereastră scurtă arată funcțiile noi. Istoricul complet e în tab-ul de setări.
 
 ---
@@ -141,6 +149,7 @@ Unele opțiuni nu adaugă funcții noi, ci ocolesc erori din WME. În tab-ul de 
 - **Numele localității deasupra hărții.** După zoom sau mutarea hărții, WME lasă des doar țara în loc de „Oraș, Județ”. Recalculează localitatea doar din ultimul lot de date, iar dacă lotul nu are segmente, numele se pierde. Scriptul îl reface din segmentele deja încărcate, fără reîncărcarea hărții.
 - **Filtrul hărții în Issue Tracker** (oprit implicit). Harta poate arăta toate problemele deschise din zonă (UR, PUR, MP, MS), iar lista din Issue Tracker rămâne filtrată. Se comută din setări, din *Straturi hartă* sau din bifa de sub lista Issue Tracker.
 - **Ține panoul lateral deschis** (oprit implicit). Redeschide panoul lateral când se restrânge sau dispare singur.
+- **Vârfuri duplicate la locuri.** Când modifici geometria unui loc (muți un nod sau tragi un nod nou de pe margine), WME poate crea două vârfuri în exact același loc; geometria devine invalidă și salvarea e refuzată cu „geometrie invalidă”. Scriptul verifică locurile cu modificări nesalvate și, dacă găsește vârfuri consecutive identice, arată un card cu **🧹 Curăță** (șterge vârfurile în plus - modificare nesalvată, merge Undo), **Arată locul** și **Ignoră**. Bifa **Elimină automat (doar în sesiunea curentă)** de pe card șterge singure duplicatele noi până reîncarci pagina. Scriptul nu salvează niciodată nimic.
 
 ---
 

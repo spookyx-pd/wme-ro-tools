@@ -38,8 +38,14 @@ Rest the mouse for a moment on the red symbol of a closure (just passing over it
 ### Road shield from the street name
 For a selected segment whose street has no road shield but whose name starts with the road code, a **🛡 Set the shield** button appears at the top of the panel: DC300 → Communal road "300", DJ / DN → County / National road with the number only, A1 → Motorway, E60 → European road, DEX… → Expressway. Alternate names are checked too. As with the WME dialog, the shield is set on the street, so on every segment that has it; it is an unsaved edit (Undo works).
 
+### Map notes (Map Comments)
+- **Title on the map.** The title (subject) of each map note is written in the middle of the note, like place names. If the note is bigger than the screen, the title stays in its visible part. It doesn't catch the click, so the note stays selectable.
+- **Info card on hover.** Rest the mouse on a note for a moment and a card shows its title, text, number of comments, lock level, expiry date, and who created or updated it and when.
+
+Both can be turned off in the settings.
+
 ### Lock level 1 indicator
-A small orange pill (lock + 1) next to every visible segment locked at level 1. Hover it to lock that segment at a higher level with one click (only levels up to yours).
+A small orange pill (lock + 1) next to every visible segment locked at level 1. Rest the mouse on it for a moment (just passing over it opens nothing) and a card opens where you lock that segment at a higher level with one click (only levels up to yours).
 
 ### Junction Box route warnings
 When you select, create or edit a Junction Box, a warning lists its routes that are **not allowed** (from which segment, to which segment, why), with the route drawn on the map. After saving, the warning stays if the saved JB still has such routes.
@@ -78,7 +84,7 @@ WME tells you whether an edit has reached Livemap. This script also shows how *f
 The status is shown in three places:
 - **Selected segment:** an icon with the edit's age ("21h", "1d 21h", "3d") next to the length label. The tooltip shows "Edited: …" and "Live: …", for example "latest build, 9 hours ago (Thu 15.10, 05:30)".
 - **Sidebar history:** the "Last update" icon gets the same color, with an extra line underneath giving the status and when the edit went live or will go live.
-- **The whole visible map:** a small round pill next to every orange, green or blue segment. On hover it expands to show the editor, the edit date and the Livemap status, plus a **📜 Recent history** link: the segment's latest edits (what changed, who, when, Livemap status), loaded only on demand. The window closes by itself when you move the mouse away or click elsewhere.
+- **The whole visible map:** a small round pill next to every orange, green or blue segment. Rest the mouse on it for a moment (just passing over it opens nothing) and a card opens with the Livemap status, the editor (with a profile link), the edit date and the Livemap line, plus a **📜 Recent history** button: the segment's latest edits (what changed, who, when, Livemap status), loaded only on demand. The card closes by itself when you move the mouse away or click elsewhere.
 
 ### Saved-anyway warnings list
 WME sometimes says "something might be wrong with this edit". If you save anyway, the warnings are no longer lost. They are kept in a session list, one entry per warning, including the ones WME merges together. Each entry has a "take me there" button that centers the map on the problem and selects the segment.
@@ -99,9 +105,9 @@ These extra controls appear in the native **Turn instructions** dialog. Nothing 
 
 ## Update Request / Map Problem tools
 - **Clickable GPS coordinates.** Users often reply with coordinates. Both decimal (`44.223232, 23.0909034`) and degrees-minutes-seconds (`45°03'19.8"N 26°25'37.8"E`) become links. A click centers the map on the point and shows a pulsing marker, and the problem window stays open. Coordinates typed in the wrong order (longitude first) are detected for Romania.
-- **Long message sender.** Splits a reply longer than 2,000 characters into several parts, which you then send one after another. It shows a live preview.
+- **Long message sender.** Splits a reply longer than 2,000 characters into several parts, which you then send one after another. It shows a live preview. It appears in the Update Request / Map Problem windows only, not in the map note panel.
 - **Draft saver.** Keeps your unsent reply for each UR/MP, even if the window or the page reloads.
-- **Visible line breaks.** The Waze app shows comments without line breaks. When you send, the script can replace paragraph and line breaks with visible separators, with a preview of what the user will see in the app. The preview has a "Don't show again this session" checkbox.
+- **Visible line breaks** (also only in the Update Request / Map Problem windows). The Waze app shows comments without line breaks. When you send, the script can replace paragraph and line breaks with visible separators, with a preview of what the user will see in the app. The preview has a "Don't show again this session" checkbox.
 - **Bigger reply box**: 12 lines.
 - **Image link preview.** A 🖼 button after links in the conversation opens the picture in a window inside the editor (zoom with the wheel, drag to pan, rotate). Works with direct picture links and hosting pages like imgbb / ibb.co, imgur, postimg. A dot typed after the link is ignored.
 
@@ -130,6 +136,8 @@ WME only lets you accept or reject a suggestion as a whole. The script helps you
 - **Better location search.** Clicking outside the box no longer jumps to a result; the box is emptied after you pick one; results show their source (Waze / Google) and distance; the first ones are streets and places already loaded on the map ("🗺 on the map"); a number looks up a segment ID and n.n.n a place ID; a link or coordinates give "🔗 Open the link"; an empty box shows your last 15 searches.
 - **Google logo with traffic.** Clicking the Google logo at the bottom right opens Google Maps at the map center with the traffic layer on.
 - **📊 Resource monitor** (link in the settings tab). How much CPU each function of the script uses, how busy the editor is, memory, page elements and loaded objects, the frames that stall the page per script, and "notifications still running" (loops left behind by other scripts that load the CPU until you reload the tab). **🔬 5 s analysis** or **⏺ Continuous analysis** (you stop it; if you close the monitor, a small indicator with "⏹ Stop" stays at the bottom) shows which script loads the editor while you work.
+- **Segment history.** The "Included Suggestion by <editor>" label is no longer cut off: it wraps onto two lines and the editor's profile link and the chat 💬 button stay visible and clickable.
+- **Info cards.** The information windows of the script (map notes, road closures, recent history, the pills on the map) share one card look and stay clear of WME's button column on the right of the map. Pills and notes open their card only after the mouse rests on them for a moment.
 - **What's new.** After an update, a short window lists the new features. The full history is available from the settings tab.
 
 ---
@@ -139,6 +147,7 @@ Some options don't add new features. They work around bugs in WME itself, and th
 - **City / county name above the map.** WME often drops the "City, County" label to just the country name after a zoom or a pan. It recalculates the location only from the last batch of map data, and loses it when that batch has no segments. The script restores the name from the segments already loaded, with no map reload.
 - **Map filter in the Issue Tracker** (off by default). The map can show every open issue (UR, PUR, MP, MS) in the visible area, while the Issue Tracker list keeps its filter. It can be toggled from the settings, from *Map layers* and from a checkbox under the Issue Tracker list.
 - **Keep the sidebar open** (off by default). Re-opens the sidebar when it collapses or hides on its own.
+- **Duplicate place vertices.** When you edit the geometry of a place (moving a vertex, or dragging a new vertex out of an edge), WME can create two vertices at exactly the same spot; the geometry then becomes invalid and Save is refused with "invalid geometry". The script checks the places with unsaved changes and, if it finds consecutive identical vertices, shows a card with **🧹 Clean** (removes the extra vertices - an unsaved edit, Undo works), **Show the place** and **Ignore**. A **Remove automatically (this session only)** checkbox on the card removes new duplicates by itself until you reload the page. The script never saves anything.
 
 ---
 
