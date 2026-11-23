@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.59.0
+// @version      0.59.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.59.0';
+  const SCRIPT_VERSION = '0.59.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -5273,6 +5273,32 @@
     return out;
   }
 
+  // Zero-width "spikes": A, B, A (the edge goes out and comes straight back).
+  // They are what is left after removing the repeated vertex of A, A, B, A, so
+  // they have to be removed too or the SDK still refuses the geometry.
+  // Returns the index of B for each spike found in the already de-duplicated ring.
+  function dvgSpikeIndexes(ring) {
+    const out = [];
+    const d = dvgDedupe(ring);
+    for (let i = 1; i < d.length - 1; i++) if (dvgSame(d[i - 1], d[i + 1])) out.push(i);
+    return out;
+  }
+
+  // Consecutive repeats removed; when the repeat is at the end the closing
+  // point is the one that stays.
+  function dvgDedupe(ring) {
+    const out = [];
+    ring.forEach((c, i) => {
+      const prev = out[out.length - 1];
+      if (!prev || !dvgSame(prev, c)) {
+        out.push([c[0], c[1]]);
+      } else if (i === ring.length - 1) {
+        out[out.length - 1] = [c[0], c[1]];
+      }
+    });
+    return out;
+  }
+
   // The places with unsaved changes that have consecutive identical vertices.
   function dvgScan() {
     const res = [];
@@ -5291,6 +5317,10 @@
         const d = dvgDuplicateIndexes(ring);
         total += d.length;
         d.forEach((i) => at.push(`${r ? `${r}:` : ''}${i - 1}/${i}`));
+        // spike: reported by the index it has after de-duplication
+        const s = dvgSpikeIndexes(ring);
+        total += s.length;
+        s.forEach((i) => at.push(`${r ? `${r}:` : ''}${L('ghimpe', 'spike')} ${i}`));
       });
       if (total) res.push({ id, name: typeof v.name === 'string' ? v.name.trim() : '', total, at });
     }
@@ -5299,16 +5329,15 @@
 
   // A ring without the repeated vertices; when the repeat is at the end the
   // closing point is the one that stays.
+  // Repeats removed, then zero-width spikes (A, B, A -> A), until stable.
   function dvgCleanRing(ring) {
-    const out = [];
-    ring.forEach((c, i) => {
-      const prev = out[out.length - 1];
-      if (!prev || !dvgSame(prev, c)) {
-        out.push([c[0], c[1]]);
-      } else if (i === ring.length - 1) {
-        out[out.length - 1] = [c[0], c[1]];
-      }
-    });
+    let out = dvgDedupe(ring);
+    for (let guard = 0; guard < 200; guard++) {
+      const s = dvgSpikeIndexes(out);
+      if (!s.length) break;
+      out.splice(s[0], 2);
+      out = dvgDedupe(out);
+    }
     return out;
   }
 

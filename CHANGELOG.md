@@ -23,6 +23,16 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-23 - v0.59.1 - Fix: „Curăță” nu avea efect la unele locuri
+
+- **WME Bug fix (vârfuri duplicate):** la un loc cu un vârf repetat care era
+  și vârful unui „ghimpe” (A, B, A - muchia pleacă și se întoarce pe
+  același drum), „Curăță” șterga vârful repetat, dar rămânea ghimpele, iar
+  WME refuza în continuare geometria; deci părea că nu se întâmplă nimic.
+  Acum se șterg și ghimpii, iar cardul îi detectează (apar ca „ghimpe N”).
+  Verificat live pe locul în cauză: după curățare WME acceptă geometria
+  (45 → 42 de puncte), fără să se schimbe suprafața.
+
 ## 2026-11-22 - v0.59.0 - WME Bug fix: vârfuri duplicate la locuri
 
 - **WME Bug fix:** când modifici geometria unui loc (muți un nod sau tragi
