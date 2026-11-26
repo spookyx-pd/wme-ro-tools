@@ -37,6 +37,8 @@ Lipești (sau iei din clipboard cu **📋 Lipește**) un permalink WME (www sau 
 ### Drumuri închise
 Ții mouse-ul o clipă pe simbolul roșu al unei închideri (trecerea rapidă peste el nu deschide nimic) și vezi detaliile ei: starea (activă / programată / încheiată / încheiată mai devreme), descrierea, intervalul și durata, sensul (A → B, B → A sau ambele), nodul de început și dacă e închis, detectarea traficului, cine a creat-o și ultima actualizare. Butoane: **✏️ Editează** (selectează segmentul și deschide direct formularul închiderii), **⧉ Duplicat** (începe de acum, cu aceeași oră de sfârșit), **↻ Ziua următoare** și **🗑 Șterge** (două click-uri; se aplică la Salvează).
 
+Dacă aceeași închidere e pusă și pe alte segmente, fereastra o spune („🔗 Aceeași închidere e și pe alte segmente”), iar **Editează**, **Duplicat**, **Ziua următoare** și **Șterge** întreabă întâi unde se aplică: **doar segmentul acesta**, **pe toată strada**, **toate cu aceeași închidere** (aceeași descriere, același interval, același eveniment) sau **tot evenimentul**. Pentru mai multe segmente se folosește fișa comună a WME din tabul „Drumuri închise”; **Șterge** le șterge pe toate deodată, după confirmare (nesalvat, Ctrl+Z anulează). Se iau în calcul doar închiderile din zona încărcată pe hartă.
+
 ### Insigna de drum din numele străzii
 La un segment selectat a cărui stradă nu are insignă, dar numele începe cu codul drumului, sus în panou apare butonul **🛡 Setează insigna**: DC300 → Drum Comunal „300”, DJ / DN → Drum Județean / Național cu doar numărul, A1 → Autostradă, E60 → Drum European, DEX… → Drum Expres. Se iau în calcul și numele alternative. Ca în dialogul WME, insigna se aplică străzii, deci tuturor segmentelor care o au; e o modificare nesalvată (merge Undo).
 
@@ -111,6 +113,7 @@ Butoanele apar în fereastra nativă **Instrucțiuni viraje**. Nimic nu ajunge p
 - **Ciorna răspunsului.** Păstrează răspunsul netrimis pentru fiecare UR/MP, chiar dacă se reîncarcă fereastra sau pagina.
 - **Rânduri noi vizibile** (tot doar în ferestrele UR / MP). Aplicația Waze afișează comentariile fără rânduri noi. La trimitere, scriptul poate înlocui paragrafele și rândurile noi cu separatoare vizibile, cu o previzualizare a ce vede utilizatorul în aplicație. Previzualizarea are bifa „Nu mai arăta în această sesiune”.
 - **Casetă de răspuns mai mare:** 12 rânduri.
+- **Ora în conversație.** Mesajele din conversația unui UR au data cu ora și minutul (ex. „25 Noiembrie 2026, 20:17”), ca să se vadă când a răspuns fiecare.
 - **Previzualizare poze din linkuri.** Un buton 🖼 după linkurile din conversație deschide poza într-o fereastră în editor (zoom cu rotița, mutare prin tragere, rotire). Merge cu linkuri directe la poze și cu pagini ca imgbb / ibb.co, imgur, postimg. Punctul pus după link e ignorat.
 
 ---
@@ -132,8 +135,9 @@ WME permite doar acceptarea sau respingerea unei sugestii în întregime. Script
   - căutare după numele comenzii sau după tastă;
   - mod „caută după tastă”;
   - filtru pentru comenzile care au tastă;
-  - confirmare înainte să iei o tastă folosită deja de altă comandă.
-- **Tastele afișate.** Tastele alocate apar lângă elementele din *Straturi hartă* și din meniul **+**. Numele lungi de pericole din meniul + nu mai sunt tăiate.
+  - confirmare înainte să iei o tastă folosită deja de altă comandă;
+  - **🎹 Tastatură:** o tastatură desenată, cu numele comenzii scris pe fiecare tastă alocată (roșu = mai multe comenzi pe aceeași tastă); Ctrl / Shift / Alt rămân apăsate ca să vezi combinațiile lor, iar în dreapta e lista scurtăturilor combinației. Click pe una o găsește în listă, ca s-o schimbi.
+- **Tastele afișate.** Tastele alocate apar lângă elementele din *Straturi hartă* și din meniul **+**. Numele lungi de pericole din meniul + nu mai sunt tăiate. Un cerculeț albastru arată comenzile care au scurtătură în WME, dar fără tastă; click pe el o găsește în fereastra scurtăturilor.
 - **Butoane rapide pentru straturi.** Butoane rotunde în dreapta hărții pentru Locuri Google, imagini din satelit suplimentare, numere de imobil și pericole.
 - **Căutare locație îmbunătățită.** Click-ul în afara casetei nu mai sare la un rezultat; după ce alegi un rezultat, caseta se golește; rezultatele au sursa (Waze / Google) și distanța; primele sunt străzile și locurile deja încărcate pe hartă („🗺 pe hartă”); un număr caută un ID de segment, iar n.n.n un ID de loc; un link sau coordonate dau „🔗 Deschide linkul”; caseta goală arată ultimele 15 căutări.
 - **Sigla Google cu trafic.** Click pe sigla Google din dreapta jos deschide Google Maps la centrul hărții, cu stratul de trafic pornit.
@@ -150,6 +154,8 @@ Unele opțiuni nu adaugă funcții noi, ci ocolesc erori din WME. În tab-ul de 
 - **Filtrul hărții în Issue Tracker** (oprit implicit). Harta poate arăta toate problemele deschise din zonă (UR, PUR, MP, MS), iar lista din Issue Tracker rămâne filtrată. Se comută din setări, din *Straturi hartă* sau din bifa de sub lista Issue Tracker.
 - **Ține panoul lateral deschis** (oprit implicit). Redeschide panoul lateral când se restrânge sau dispare singur.
 - **Vârfuri duplicate la locuri.** Când modifici geometria unui loc (muți un nod sau tragi un nod nou de pe margine), WME poate crea două vârfuri în exact același loc; geometria devine invalidă și salvarea e refuzată cu „geometrie invalidă”. Scriptul verifică locurile cu modificări nesalvate și, dacă găsește vârfuri consecutive identice, arată un card cu **🧹 Curăță** (șterge vârfurile în plus - modificare nesalvată, merge Undo), **Arată locul** și **Ignoră**. Bifa **Elimină automat (doar în sesiunea curentă)** de pe card șterge singure duplicatele noi până reîncarci pagina. Scriptul nu salvează niciodată nimic.
+- **Erori la salvare pe viraje.** Când salvarea e refuzată din cauza unui viraj (ex. „Modifying GuidanceMode is allowed only for CS Lanes”), WME nu spune care e virajul. Sub eroare apar segmentele virajului („de pe … spre …”, cu nodul) și butonul **📍 Arată virajul**. La eroarea GuidanceMode apare și explicația: virajul are la Voce „Afișare doar” / „Afișare și voce”, dar săgeata benzii nu mai e „Drept” (WME o recalculează când muți un nod), iar serverul acceptă vocea doar pe benzile care merg drept. Soluția: săgeata pe „Drept” sau Voce pe „Implicit Waze”.
+- **Pericole mutate odată cu drumul.** Când muți un nod sau schimbi forma unui segment, WME mută și semafoarele / camerele / pericolele de pe el, dar nu trimite noua lor poziție la server, iar salvarea e refuzată cu „Permanent hazard location is too far from Segment …”. Scriptul trimite mutarea la salvare (doar poziția finală a fiecărui pericol) și arată un mesaj scurt. Nu salvează nimic singur; Undo merge ca de obicei.
 
 ---
 

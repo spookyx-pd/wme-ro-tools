@@ -35,6 +35,8 @@ Paste (or take from the clipboard with **📋 Paste**) a WME permalink (www or b
 ### Road closures
 Rest the mouse for a moment on the red symbol of a closure (just passing over it opens nothing) to see its details: status (active / scheduled / finished / finished early), description, period and duration, direction (A → B, B → A or both), the start node and whether it is closed, traffic detection, who created and last updated it. Buttons: **✏️ Edit** (selects the segment and opens the closure's form directly), **⧉ Duplicate** (starts now, with the same end time), **↻ Next day** and **🗑 Delete** (two clicks; applied when you press Save).
 
+If the same closure is also set on other segments, the window says so ("🔗 The same closure is also on other segments"), and **Edit**, **Duplicate**, **Next day** and **Delete** first ask where to apply: **only this segment**, **the whole street**, **all with the same closure** (same description, period and event) or **the whole event**. For several segments WME's shared form from the "Road closures" tab is used; **Delete** removes them all at once after a confirmation (unsaved, Ctrl+Z undoes it). Only the closures in the area loaded on the map are taken into account.
+
 ### Road shield from the street name
 For a selected segment whose street has no road shield but whose name starts with the road code, a **🛡 Set the shield** button appears at the top of the panel: DC300 → Communal road "300", DJ / DN → County / National road with the number only, A1 → Motorway, E60 → European road, DEX… → Expressway. Alternate names are checked too. As with the WME dialog, the shield is set on the street, so on every segment that has it; it is an unsaved edit (Undo works).
 
@@ -109,6 +111,7 @@ These extra controls appear in the native **Turn instructions** dialog. Nothing 
 - **Draft saver.** Keeps your unsent reply for each UR/MP, even if the window or the page reloads.
 - **Visible line breaks** (also only in the Update Request / Map Problem windows). The Waze app shows comments without line breaks. When you send, the script can replace paragraph and line breaks with visible separators, with a preview of what the user will see in the app. The preview has a "Don't show again this session" checkbox.
 - **Bigger reply box**: 12 lines.
+- **Time in the conversation.** The messages of an UR conversation show the date with hour and minute (e.g. "25 November 2026, 20:17"), so you can see when each one answered.
 - **Image link preview.** A 🖼 button after links in the conversation opens the picture in a window inside the editor (zoom with the wheel, drag to pan, rotate). Works with direct picture links and hosting pages like imgbb / ibb.co, imgur, postimg. A dot typed after the link is ignored.
 
 ---
@@ -130,8 +133,9 @@ WME only lets you accept or reject a suggestion as a whole. The script helps you
   - search by command name or by key;
   - a "find by key" mode;
   - a filter to show only commands that have a key;
-  - a confirmation before a key already used by another command is taken over.
-- **Key hints.** The assigned keys appear next to items in *Map layers* and in the **+** menu. Long hazard names in the + menu are no longer cut off.
+  - a confirmation before a key already used by another command is taken over;
+  - **🎹 Keyboard:** a drawn keyboard with the command name written on each assigned key (red = several commands on the same key); Ctrl / Shift / Alt stay pressed so you can see their combinations, and on the right is the list of shortcuts for that combination. Clicking one finds it in the list so you can change it.
+- **Key hints.** The assigned keys appear next to items in *Map layers* and in the **+** menu. Long hazard names in the + menu are no longer cut off. A small blue dot marks the commands that have a shortcut in WME but no key; clicking it finds the command in the shortcuts dialog.
 - **Layer quick buttons.** Round buttons on the right side of the map toggle Google Places, extra satellite imagery, house numbers and hazards.
 - **Better location search.** Clicking outside the box no longer jumps to a result; the box is emptied after you pick one; results show their source (Waze / Google) and distance; the first ones are streets and places already loaded on the map ("🗺 on the map"); a number looks up a segment ID and n.n.n a place ID; a link or coordinates give "🔗 Open the link"; an empty box shows your last 15 searches.
 - **Google logo with traffic.** Clicking the Google logo at the bottom right opens Google Maps at the map center with the traffic layer on.
@@ -148,6 +152,8 @@ Some options don't add new features. They work around bugs in WME itself, and th
 - **Map filter in the Issue Tracker** (off by default). The map can show every open issue (UR, PUR, MP, MS) in the visible area, while the Issue Tracker list keeps its filter. It can be toggled from the settings, from *Map layers* and from a checkbox under the Issue Tracker list.
 - **Keep the sidebar open** (off by default). Re-opens the sidebar when it collapses or hides on its own.
 - **Duplicate place vertices.** When you edit the geometry of a place (moving a vertex, or dragging a new vertex out of an edge), WME can create two vertices at exactly the same spot; the geometry then becomes invalid and Save is refused with "invalid geometry". The script checks the places with unsaved changes and, if it finds consecutive identical vertices, shows a card with **🧹 Clean** (removes the extra vertices - an unsaved edit, Undo works), **Show the place** and **Ignore**. A **Remove automatically (this session only)** checkbox on the card removes new duplicates by itself until you reload the page. The script never saves anything.
+- **Save errors on turns.** When Save is refused because of a turn (e.g. "Modifying GuidanceMode is allowed only for CS Lanes"), WME does not say which turn it is. The turn's segments ("from … to …", with the node) and a **📍 Show the turn** button now appear under the error. For the GuidanceMode error there is also an explanation: the turn has a Voice setting of "Display only" / "Display and voice", but the lane arrow is no longer "Straight" (WME recalculates it when you move a node), and the server accepts the voice setting only on lanes that go straight. The fix: set the arrow to "Straight" or Voice to "Waze default".
+- **Hazards moved with the road.** When you move a node or reshape a segment, WME also moves the traffic lights / cameras / hazards on it, but does not send their new position to the server, and Save is refused with "Permanent hazard location is too far from Segment …". The script sends the move on Save (only the final position of each hazard) and shows a short message. It never saves anything by itself; Undo works as usual.
 
 ---
 
