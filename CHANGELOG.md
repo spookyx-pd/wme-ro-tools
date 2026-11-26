@@ -23,6 +23,80 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-26 - v0.62.2 - Pericole mutate odată cu drumul (WME Bug fix)
+
+- Când muți un nod sau schimbi forma unui segment, WME mută și semafoarele /
+  camerele / pericolele de pe el, dar nu trimite noua lor poziție la
+  server, iar salvarea era refuzată („Permanent hazard location is too far
+  from Segment …”). Singura cale era Undo, ștergerea pericolului și
+  refacerea editărilor. Acum scriptul trimite mutarea la salvare și arată un
+  mesaj scurt. Opțiune nouă, activă implicit, marcată „WME Bug fix”.
+
+## 2026-11-26 - v0.62.1 - Erori la salvare: care e virajul (WME Bug fix)
+
+- Când salvarea e refuzată din cauza unui viraj (ex. „Modifying GuidanceMode
+  is allowed only for CS Lanes”), WME nu spune care e virajul. Sub eroare
+  apar acum segmentele virajului („de pe … spre …”, cu nodul) și butonul
+  **📍 Arată virajul** (selectează segmentul și centrează harta pe nod).
+- Pentru eroarea GuidanceMode, o explicație: virajul are la Voce „Afișare
+  doar” / „Afișare și voce”, dar săgeata benzii nu mai e „Drept” (WME o
+  recalculează când muți un nod), iar serverul acceptă vocea doar pe
+  benzile care merg drept. Soluția: săgeata pe „Drept” sau Voce pe
+  „Implicit Waze”.
+- Opțiune nouă, activă implicit, marcată „WME Bug fix”.
+
+## 2026-11-25 - v0.62.0 - Tastatura scurtăturilor
+
+- În fereastra „Scurtături Taste”, butonul **🎹 Tastatură** desenează o
+  tastatură QWERTY (cu tastele de navigare și tastatura numerică):
+  - tastele cu scurtătură sunt albastre și au numele comenzii scris pe ele;
+    roșu = mai multe comenzi pe aceeași tastă;
+  - Ctrl, Shift și Alt rămân apăsate la click (sau când le apeși) și arată
+    combinațiile lor; sus, butoane pentru fiecare combinație, cu numărul
+    de scurtături;
+  - mouse-ul pe o tastă arată comenzile ei și ce are aceeași tastă cu alt
+    Ctrl / Shift / Alt (punctul din colț);
+  - în dreapta, scurtăturile combinației, ordonate după tastă (semne,
+    cifre, litere, restul), apoi comenzile fără tastă („None”); click pe
+    una o găsește în lista de scurtături, ca s-o schimbi;
+  - tastele alocate care nu sunt pe tastatura desenată apar la „Alte
+    taste”.
+- Meniul „+” și „Straturi hartă”: un cerculeț albastru arată comenzile
+  care au scurtătură în WME, dar fără tastă (azi „Pod îngust”); click pe
+  el o găsește în „Scurtături Taste”. Se actualizează singur dacă WME
+  adaugă scurtături noi în meniu.
+
+## 2026-11-25 - v0.61.0 - Ora și minutul în conversațiile UR
+
+- Opțiune nouă (activă implicit): la mesajele din conversația unui UR
+  data apare cu ora și minutul (ex. „25 Noiembrie 2026, 20:17”), ca să se
+  vadă când a răspuns fiecare. Se aplică și la celelalte date lungi din
+  panoul lateral. Dacă alt script a pus deja ora în formatul datei,
+  opțiunea nu mai schimbă nimic.
+
+## 2026-11-25 - v0.60.0 - Drumuri închise: unde se aplică acțiunea
+
+- În fereastra unei închideri (hover pe simbol), dacă aceeași închidere e
+  pusă și pe alte segmente, apare rândul „🔗 Aceeași închidere e și pe alte
+  segmente” (cu numele evenimentului, dacă are), iar **Editează**,
+  **Duplicat**, **Ziua următoare** și **Șterge** întreabă întâi unde se
+  aplică:
+  - **Doar segmentul acesta** (ca până acum);
+  - **Pe toată strada** - segmentele cu același nume de stradă care au
+    aceeași închidere;
+  - **Toate cu aceeași închidere** - aceeași descriere, același interval și
+    același eveniment, pe orice stradă;
+  - **Tot evenimentul** - toate închiderile evenimentului, chiar cu
+    descriere sau interval ușor diferit.
+  Variantele care ar cuprinde aceleași închideri apar o singură dată.
+- Pentru mai multe segmente, scriptul le selectează și folosește fișa
+  comună a WME din tabul „Drumuri închise” (formularul ei modifică toate
+  închiderile). Dacă WME le împarte în mai multe fișe (sensuri sau
+  intervale diferite), le marchează cu albastru ca să le iei pe rând.
+  **Șterge** le șterge pe toate deodată (confirmare cu numărul de
+  închideri; nesalvat, Ctrl+Z anulează).
+- Se văd doar închiderile din zona încărcată pe hartă.
+
 ## 2026-11-23 - v0.59.1 - Fix: „Curăță” nu avea efect la unele locuri
 
 - **WME Bug fix (vârfuri duplicate):** la un loc cu un vârf repetat care era

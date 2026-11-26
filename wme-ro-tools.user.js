@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.59.1
+// @version      0.62.2
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.59.1';
+  const SCRIPT_VERSION = '0.62.2';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,16 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.62', items: [
+      L('„Scurtături Taste”: butonul „🎹 Tastatură” desenează tastatura cu tastele alocate (Ctrl / Shift / Alt rămân apăsate, combinațiile se văd pe rând), cu numele comenzii la hover și lista scurtăturilor ordonată după tastă, plus comenzile fără tastă („None”).', '"Keyboard shortcuts": the "🎹 Keyboard" button draws the keyboard with the assigned keys (Ctrl / Shift / Alt stay pressed, one combination at a time), the action name on hover and the list of shortcuts sorted by key, plus the actions without a key ("None").'),
+      L('Meniul „+” și „Straturi hartă”: un cerculeț albastru arată comenzile care au scurtătură în WME, dar fără tastă alocată; click pe el o găsește în „Scurtături Taste”.', 'The "+" menu and "Map layers": a small blue ring marks the actions that have a WME shortcut but no key assigned; clicking it finds the action in "Keyboard shortcuts".'),
+    ] },
+    { v: '0.61', items: [
+      L('Ora și minutul la datele din conversațiile UR (și la celelalte date lungi din panoul lateral), ex. „25 Noiembrie 2026, 20:17”.', 'Hour and minute on the dates in UR conversations (and the other long dates in the side panel), e.g. "25 November 2026, 20:17".'),
+    ] },
+    { v: '0.60', items: [
+      L('Drumuri închise: la Editează, Duplicat, Ziua următoare și Șterge din fereastra unei închideri, dacă aceeași închidere e pusă și pe alte segmente, alegi unde se aplică: doar segmentul acesta, toată strada, toate segmentele cu aceeași închidere sau tot evenimentul.', 'Road closures: for Edit, Duplicate, Next day and Delete in a closure window, if the same closure is also on other segments you pick where it applies: this segment only, the whole street, every segment with the same closure or the whole event.'),
+    ] },
     { v: '0.59', items: [
       L('WME Bug fix: avertizare când un loc modificat are două vârfuri identice una după alta (WME refuză atunci salvarea cu „geometrie invalidă”); un click pe „Curăță” le șterge (nesalvat, anulabil).', 'WME Bug fix: warning when an edited place has two identical consecutive vertices (WME then refuses to save with "invalid geometry"); one click on "Clean" removes them (unsaved, undoable).'),
     ] },
@@ -339,12 +349,15 @@
     itMapAllPoll: L('Issue Tracker - toate pe hartă', 'Issue Tracker - all on map'),
     savedWarnPoll: L('Avertismente salvare', 'Save warnings'),
     kbLayerPoll: L('Scurtături / butoane straturi', 'Shortcuts / layer buttons'),
+    kbViewPoll: L('Scurtături - vizualizare tastatură', 'Shortcuts - keyboard view'),
     tiPoll: L('Instrucțiuni viraj', 'Turn instructions'),
     rcHover: L('Drumuri închise - hover', 'Road closures - hover'),
     mnRaf: L('Note hartă - titluri', 'Map notes - titles'),
     mnRescan: L('Note hartă - căutare', 'Map notes - scan'),
     mnHover: L('Note hartă - hover', 'Map notes - hover'),
     dvgPoll: L('Vârfuri duplicate la locuri', 'Duplicate place vertices'),
+    svePoll: L('Erori la salvare: viraje', 'Save errors: turns'),
+    hmfPoll: L('Pericole mutate cu drumul', 'Hazards moved with the road'),
     quickBarRefresh: L('Bara rapidă segment', 'Segment quick bar'),
   };
 
@@ -1149,6 +1162,12 @@
     // places with unsaved geometry edits (Save would be refused) and offers
     // to remove them.
     dupVertexGuard: true,
+    // v0.62.1 "WME Bug fix": a Save refused because of a turn (e.g. lane
+    // voice on a lane that no longer goes straight) - show which turn it is.
+    saveErrorTurns: true,
+    // v0.62.2 "WME Bug fix": permanent hazards WME moves together with a
+    // node / segment are sent on Save (otherwise refused: "too far").
+    hazardMoveFix: true,
     // v0.47.5: live length pill while drawing a new segment.
     drawLengthBadge: true,
     // v0.51: Edit / Delete buttons when hovering a road closure marker.
@@ -1171,6 +1190,9 @@
     // v0.57: the "Included Suggestion by <editor>" badge in the segment
     // history wraps instead of cutting off the profile / chat buttons.
     suggestionBadgeWrap: true,
+    // v0.61: hour and minute added to the WME "long" date format (UR
+    // conversations, other side-panel dates).
+    dateWithTime: true,
     // v0.54: button that sets the road shield from the street name.
     roadShieldButton: true,
     // v0.38: the map pills also show for 'fresh' (green, in the last
@@ -1221,7 +1243,7 @@
 
   // Options that work around WME bugs (badge "WME Bug fix" in the
   // settings tab, v0.42).
-  const WME_BUGFIX_KEYS = ['locationLabelFix', 'issueTrackerMapAll', 'forceSidebarOpen'];
+  const WME_BUGFIX_KEYS = ['locationLabelFix', 'issueTrackerMapAll', 'forceSidebarOpen', 'saveErrorTurns', 'hazardMoveFix'];
 
   function loadSettings() {
     try {
@@ -1562,6 +1584,10 @@
           srPoll();
           return;
         }
+        if (key === 'dateWithTime') {
+          dateTimeApply();
+          return;
+        }
         if (key === 'permalinkTool') {
           if (checkbox.checked) plEnsureButton();
           else plRemoveAll();
@@ -1583,6 +1609,16 @@
         if (key === 'dupVertexGuard') {
           if (checkbox.checked) startDvg();
           else stopDvg();
+          return;
+        }
+        if (key === 'saveErrorTurns') {
+          if (checkbox.checked) startSve();
+          else stopSve();
+          return;
+        }
+        if (key === 'hazardMoveFix') {
+          if (checkbox.checked) startHmf();
+          else stopHmf();
           return;
         }
         if (key === 'unpublishedSegmentsWarning') {
@@ -1787,7 +1823,7 @@
       'shortcutsHelper',
       L('Ajutor pentru scurtături de tastatură', 'Keyboard shortcuts helper'),
       L('Căutare în "Scurtături Tastatură", confirmare la tastă deja alocată, taste afișate în meniuri.', 'Search in "Keyboard shortcuts", confirmation for an already assigned key, keys shown in menus.'),
-      L('În fereastra "Scurtături Tastatură": câmp de căutare (după numele comenzii sau după tastă, ex. "Shift+H"), buton "Caută după tastă" (apeși o combinație și vezi ce comandă o folosește sau că e liberă) și bifa "Doar cu tastă alocată"; comenzile fără tastă apar estompate. Când aloci unei comenzi o tastă deja folosită de alta, WME o mută fără avertizare - acum întreabă înainte ("Înlocuiește" / "Anulează"). În plus, tasta fiecărei comenzi apare lângă ea în "Straturi hartă" și în meniul "+" (Drum, Giratoriu, Pericol etc.).', 'In the "Keyboard shortcuts" window: a search field (by command name or by key, e.g. "Shift+H"), a "Search by key" button (press a combination and see which command uses it, or that it\'s free) and an "Only with assigned key" checkbox; commands without a key are dimmed. When you assign a key already used by another command, WME moves it without warning - now it asks first ("Replace" / "Cancel"). Also, each command\'s key is shown next to it in "Map layers" and in the "+" menu (Road, Roundabout, Hazard etc.).')
+      L('În fereastra "Scurtături Tastatură": câmp de căutare (după numele comenzii sau după tastă, ex. "Shift+H"), buton "Caută după tastă" (apeși o combinație și vezi ce comandă o folosește sau că e liberă) și bifa "Doar cu tastă alocată"; comenzile fără tastă apar estompate. Când aloci unei comenzi o tastă deja folosită de alta, WME o mută fără avertizare - acum întreabă înainte ("Înlocuiește" / "Anulează"). În plus, tasta fiecărei comenzi apare lângă ea în "Straturi hartă" și în meniul "+" (Drum, Giratoriu, Pericol etc.); un cerculeț albastru arată comenzile care au scurtătură în WME, dar fără tastă (click pe el o găsește în listă). Butonul "🎹 Tastatură" desenează tastatura: tastele alocate sunt albastre (roșu = mai multe comenzi pe aceeași tastă), Ctrl / Shift / Alt rămân apăsate la click și arată combinațiile lor, iar la hover vezi comanda; în dreapta, scurtăturile combinației ordonate după tastă (semne, cifre, litere, restul) și comenzile fără tastă ("None").', 'In the "Keyboard shortcuts" window: a search field (by command name or by key, e.g. "Shift+H"), a "Search by key" button (press a combination and see which command uses it, or that it\'s free) and an "Only with assigned key" checkbox; commands without a key are dimmed. When you assign a key already used by another command, WME moves it without warning - now it asks first ("Replace" / "Cancel"). Also, each command\'s key is shown next to it in "Map layers" and in the "+" menu (Road, Roundabout, Hazard etc.); a small blue ring marks the actions that have a WME shortcut but no key (clicking it finds the action in the list). The "🎹 Keyboard" button draws the keyboard: assigned keys are blue (red = several actions on the same key), Ctrl / Shift / Alt stay pressed when clicked and show their combinations, and hovering shows the action; on the right, the combination\'s shortcuts sorted by key (symbols, digits, letters, the rest) and the actions without a key ("None").')
     );
     addToggle(
       'layerQuickButtons',
@@ -1841,7 +1877,7 @@
       'closureQuickActions',
       L('Butoane rapide la drumurile închise', 'Quick buttons on road closures'),
       L('Cu mouse-ul pe simbolul unui drum închis vezi detaliile și ai Editează, Duplicat, Ziua următoare, Șterge.', 'Hovering a road closure symbol shows its details with Edit, Duplicate, Next day, Delete.'),
-      L('Când ții mouse-ul deasupra simbolului roșu al unui drum închis (pe hartă), apare deasupra lui o fereastră mică cu starea (activă / programată / încheiată), descrierea (sau „fără descriere”), intervalul și durata, sensul (A → B, B → A sau ambele), nodul de început cu numele lui și dacă e închis, detectarea traficului (activă / dezactivată), cine a creat-o și când, ultima actualizare. Butoane: „✏️ Editează” selectează segmentul, deschide tabul „Drumuri închise” și formularul de editare al închiderii; „⧉ Duplicat” și „↻ Ziua următoare” rulează acțiunile WME din meniul închiderii; „🗑 Șterge” (click de 2 ori) șterge închiderea - ca la „Șterge” din WME, adică ambele sensuri dacă sunt pe aceeași fișă. Ștergerea se aplică la Salvează (până atunci se anulează cu Ctrl+Z); după salvare WME o păstrează ca „Încheiată mai devreme”. La închiderile deja încheiate apare doar „Editează”.', 'When you hover the red symbol of a road closure (on the map), a small window shows above it with the status (active / scheduled / finished), description (or "no description"), period and duration, direction (A → B, B → A or both), the start node with its name and whether it is closed, traffic detection (enabled / disabled), who created it and when, last update. Buttons: "✏️ Edit" selects the segment, opens the "Closures" tab and the closure\'s edit form; "⧉ Duplicate" and "↻ Next day" run the WME actions from the closure menu; "🗑 Delete" (click twice) deletes the closure - like "Delete" in WME, i.e. both directions if they are on the same card. The deletion is applied on Save (until then Ctrl+Z undoes it); after saving WME keeps it as "Finished early". Closures that already ended only get "Edit".')
+      L('Când ții mouse-ul deasupra simbolului roșu al unui drum închis (pe hartă), apare deasupra lui o fereastră mică cu starea (activă / programată / încheiată), descrierea (sau „fără descriere”), intervalul și durata, sensul (A → B, B → A sau ambele), nodul de început cu numele lui și dacă e închis, detectarea traficului (activă / dezactivată), cine a creat-o și când, ultima actualizare. Butoane: „✏️ Editează” selectează segmentul, deschide tabul „Drumuri închise” și formularul de editare al închiderii; „⧉ Duplicat” și „↻ Ziua următoare” rulează acțiunile WME din meniul închiderii; „🗑 Șterge” (click de 2 ori) șterge închiderea - ca la „Șterge” din WME, adică ambele sensuri dacă sunt pe aceeași fișă. Ștergerea se aplică la Salvează (până atunci se anulează cu Ctrl+Z); după salvare WME o păstrează ca „Încheiată mai devreme”. La închiderile deja încheiate apare doar „Editează”. Dacă aceeași închidere (aceeași descriere, același interval, același eveniment) e pusă și pe alte segmente încărcate pe hartă, butoanele întreabă întâi unde se aplică: doar segmentul acesta, toată strada (segmentele cu același nume), toate segmentele cu aceeași închidere sau tot evenimentul; pentru mai multe segmente scriptul le selectează și folosește fișa comună a WME (sau marchează fișele, dacă WME le împarte după sens / interval).', 'When you hover the red symbol of a road closure (on the map), a small window shows above it with the status (active / scheduled / finished), description (or "no description"), period and duration, direction (A → B, B → A or both), the start node with its name and whether it is closed, traffic detection (enabled / disabled), who created it and when, last update. Buttons: "✏️ Edit" selects the segment, opens the "Closures" tab and the closure\'s edit form; "⧉ Duplicate" and "↻ Next day" run the WME actions from the closure menu; "🗑 Delete" (click twice) deletes the closure - like "Delete" in WME, i.e. both directions if they are on the same card. The deletion is applied on Save (until then Ctrl+Z undoes it); after saving WME keeps it as "Finished early". Closures that already ended only get "Edit". If the same closure (same description, period and event) is also on other loaded segments, the buttons first ask where it applies: this segment only, the whole street (segments with the same name), every segment with the same closure or the whole event; for several segments the script selects them and uses WME\x27s shared card (or outlines the cards when WME splits them by direction / period).')
     );
     addToggle(
       'drawLengthBadge',
@@ -1860,6 +1896,12 @@
       L('Istoric: „Inclus din sugestie” pe două rânduri', 'History: "Included suggestion" on two lines'),
       L('În istoricul segmentului, eticheta „Included Sugestie de <editor>” nu mai e tăiată: se văd linkul spre profil și butonul de chat.', 'In the segment history, the "Included Suggestion by <editor>" badge is no longer cut off: the profile link and the chat button are visible.'),
       L('WME taie eticheta cu „…” când numele editorului e mai lung, așa că butonul de chat (💬) și iconița de profil nu se văd. Cu opțiunea activă eticheta trece pe două rânduri; numele duce la profilul editorului, iar 💬 (colorat) deschide chatul cu el - ambele sunt butoanele native WME.', 'WME cuts the badge with "…" when the editor name is longer, so the chat button (💬) and the profile icon are hidden. With this option the badge wraps onto two lines; the name opens the editor\'s profile and 💬 (highlighted) opens the chat with them - both are the native WME buttons.')
+    );
+    addToggle(
+      'dateWithTime',
+      L('Ora și minutul la datele din conversațiile UR', 'Hour and minute on UR conversation dates'),
+      L('În conversația unui UR, lângă dată apare și ora (ex. „25 Noiembrie 2026, 20:17”), ca să vezi când a răspuns fiecare.', 'In a UR conversation the date also shows the time (e.g. "25 November 2026, 20:17"), so you can see when everyone replied.'),
+      L('WME arată la mesajele din conversația unui UR (și la alte date lungi din panoul lateral) doar ziua, luna și anul. Cu opțiunea activă se adaugă ora și minutul, în ora calculatorului tău. Se aplică la următoarea deschidere a UR-ului. Dacă alt script (ex. WME Fix UI) a pus deja ora în formatul datei, opțiunea nu mai schimbă nimic.', 'WME shows only the day, month and year on the messages of a UR conversation (and on other long dates in the side panel). With this option the hour and minute are added, in your computer\x27s time. It applies the next time the UR is opened. If another script (e.g. WME Fix UI) already put the time in the date format, the option changes nothing.')
     );
     addToggle(
       'googleTrafficLink',
@@ -1914,6 +1956,18 @@
       L('Avertizare vârfuri duplicate la locuri (WME Bug fix)', 'Duplicate place vertices warning (WME Bug fix)'),
       L('Când modifici geometria unui loc și apar două vârfuri identice, te avertizează și le poți șterge cu un click.', 'When you edit a place geometry and two identical vertices appear, it warns you and you can remove them with one click.'),
       L('Un bug din WME poate crea, la modificarea unui loc (mutarea unui nod sau tragerea unui nod nou de pe margine), două vârfuri în exact același loc. Geometria devine invalidă și salvarea e refuzată. Scriptul verifică locurile cu modificări nesalvate doar când se schimbă lista de acțiuni și, dacă găsește vârfuri consecutive identice, arată un card cu „Curăță” (șterge vârfurile în plus - modificare nesalvată, Ctrl+Z o anulează), „Arată locul” și „Ignoră”. Nu salvează niciodată nimic.', 'A WME bug can, when you edit a place (moving a vertex or dragging a new vertex out of an edge), create two vertices at exactly the same spot. The geometry becomes invalid and Save is refused. The script checks the places with unsaved changes only when the action list changes and, if it finds consecutive identical vertices, shows a card with “Clean” (removes the extra vertices - an unsaved edit, Ctrl+Z undoes it), “Show the place” and “Ignore”. It never saves anything.')
+    );
+    addToggle(
+      'saveErrorTurns',
+      L('Erori la salvare: arată virajul', 'Save errors: show the turn'),
+      L('Când salvarea e refuzată din cauza unui viraj, arată care e virajul și buton „Arată virajul”.', 'When Save is refused because of a turn, shows which turn it is and a “Show the turn” button.'),
+      L('Unele erori de salvare privesc un viraj (legătura dintre două segmente), de exemplu „Modifying GuidanceMode is allowed only for CS Lanes”. WME scrie doar mesajul, fără buton de focalizare, deși serverul spune exact care e virajul. Scriptul adaugă sub eroare segmentele virajului („de pe … spre …”), butonul „📍 Arată virajul” (selectează segmentul de plecare și centrează harta pe nod) și, la erorile cunoscute, o explicație în română. Pentru eroarea GuidanceMode: virajul are la „Voce” „Afișare doar” / „Afișare și voce”, dar săgeata benzii nu mai e „Drept” - WME recalculează săgețile când muți un nod sau schimbi geometria; serverul acceptă vocea doar pe benzile care merg drept. Nu modifică și nu salvează nimic.', 'Some save errors are about a turn (the connection between two segments), e.g. “Modifying GuidanceMode is allowed only for CS Lanes”. WME writes only the message, with no focus button, although the server says exactly which turn it is. The script adds under the error the segments of the turn (“from … to …”), the “📍 Show the turn” button (selects the segment the turn starts from and centres the map on the node) and, for known errors, an explanation. For the GuidanceMode error: the turn has “Display only” / “Display and voice” as lane voice, but the lane arrow is no longer “Straight” - WME recomputes the arrows when you move a node or change the geometry; the server accepts the voice setting only on lanes that go straight. It does not change or save anything.')
+    );
+    addToggle(
+      'hazardMoveFix',
+      L('Pericole mutate odată cu drumul', 'Hazards moved with the road'),
+      L('Când muți un nod sau schimbi forma unui segment, semafoarele / camerele / pericolele de pe el se salvează pe noua poziție, în loc ca salvarea să fie refuzată („too far from Segment”).', 'When you move a node or reshape a segment, the traffic lights / cameras / hazards on it are saved at their new position instead of the save being refused ("too far from Segment").'),
+      L('Când muți un nod sau schimbi geometria unui segment, WME mută și pericolele permanente de pe el (semafoare, camere etc.), dar nu trimite noua lor poziție la server. Serverul le vede atunci în locul vechi, departe de drum, și refuză salvarea: „Permanent hazard location is too far from Segment …”. Până acum singura cale era Undo, ștergerea pericolului și refacerea editărilor. Cu opțiunea activă, scriptul marchează mutarea făcută de WME ca să fie trimisă la salvare (doar ultima mutare a fiecărui pericol, doar dacă s-a deplasat cu peste 0,5 m) și arată un mesaj scurt. Nu salvează nimic singur; Undo merge ca de obicei.', 'When you move a node or change the geometry of a segment, WME also moves the permanent hazards on it (traffic lights, cameras etc.), but does not send their new position to the server. The server then sees them at the old place, away from the road, and refuses the save: "Permanent hazard location is too far from Segment …". Until now the only way was Undo, deleting the hazard and redoing the edits. With this option the script marks the move made by WME so that it is sent on Save (only the last move of each hazard, only if it moved more than 0.5 m) and shows a short message. It never saves anything by itself; Undo works as usual.')
     );
     addToggle(
       'publishPillsFreshRecent',
@@ -5546,6 +5600,328 @@
   }
 
   // ---------------------------------------------------------------------
+  // Save errors on turns (v0.62.1, "WME Bug fix"). When Save is refused
+  // because of a turn, WME lists only the server message: the error has no
+  // geometry, so there is no focus button and the editor cannot tell which
+  // turn it is. Found live (2026-11-26): code 795 "Modifying GuidanceMode is
+  // allowed only for CS Lanes"; the list item's React props are
+  // { model, onFocusClick } with model = { code, details, geometry: null,
+  // objects: [{ objectType: 'nodeConnection', id: { fromSegID, toSegID,
+  // fromSegFwd, toSegFwd } }] }. Cause in that case: moving a node made WME
+  // recompute the lane arrows (ResetNodeLaneAnglesAction -> SetTurn), a turn
+  // went from "straight" (laneArrowAngle 0) to "slight left" (-45) but kept
+  // guidanceMode 2 ("Display and voice"), which the server only accepts on
+  // lanes that go straight. This adds, under each such error, the turn's
+  // segments, a "Show the turn" button and an explanation. Read only.
+  // ---------------------------------------------------------------------
+  const SVE_POLL_MS = 700;
+  const SVE_CLASS = 'wme-ro-tools-sve';
+  const SVE_MAX_TURNS = 5;
+  const sveState = { active: false, timer: null };
+
+  // The error model WME rendered the list item from (null if the React
+  // shape changed).
+  function sveErrorModel(item) {
+    const fk = Object.keys(item).find((k) => k.startsWith('__reactFiber'));
+    let f = fk ? item[fk] : null;
+    for (let i = 0; i < 6 && f; i++, f = f.return) {
+      const p = f.memoizedProps;
+      if (p && p.model && typeof p.model === 'object' && Array.isArray(p.model.objects)) return p.model;
+    }
+    return null;
+  }
+
+  function sveTurnsOf(model) {
+    return model.objects
+      .filter((o) => o && o.objectType === 'nodeConnection' && o.id && Number.isFinite(Number(o.id.fromSegID)) && Number.isFinite(Number(o.id.toSegID)))
+      .slice(0, SVE_MAX_TURNS)
+      .map((o) => ({ from: Number(o.id.fromSegID), to: Number(o.id.toSegID), fromFwd: o.id.fromSegFwd !== false }));
+  }
+
+  function sveSegName(id) {
+    try {
+      const seg = sdk.DataModel.Segments.getById({ segmentId: id });
+      if (!seg) return null;
+      const st = seg.primaryStreetId ? sdk.DataModel.Streets.getById({ streetId: seg.primaryStreetId }) : null;
+      return st && st.name ? st.name : L('fără nume', 'no name');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // The node the turn goes through: the end of the "from" segment in the
+  // travel direction, else the node both segments share.
+  function sveNodeOf(t) {
+    try {
+      const a = sdk.DataModel.Segments.getById({ segmentId: t.from });
+      const b = sdk.DataModel.Segments.getById({ segmentId: t.to });
+      if (!a) return null;
+      let id = t.fromFwd ? a.toNodeId : a.fromNodeId;
+      if (b && id !== b.fromNodeId && id !== b.toNodeId) {
+        id = [a.fromNodeId, a.toNodeId].find((n) => n === b.fromNodeId || n === b.toNodeId) || id;
+      }
+      const node = id != null ? sdk.DataModel.Nodes.getById({ nodeId: id }) : null;
+      const c = node && node.geometry && node.geometry.coordinates;
+      return { id, lon: c ? c[0] : null, lat: c ? c[1] : null };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Lane data of the turn from WME's own turn graph (not in the SDK).
+  function sveLaneData(t, nodeId) {
+    try {
+      const Wm = window.W && window.W.model;
+      const a = Wm.segments.getObjectById(t.from);
+      const b = Wm.segments.getObjectById(t.to);
+      const n = Wm.nodes.getObjectById(nodeId);
+      const turn = a && b && n ? Wm.getTurnGraph().getTurnThroughNode(n, a, b) : null;
+      const td = turn && turn.getTurnData();
+      const l = td && typeof td.hasLanes === 'function' && td.hasLanes() ? td.getLaneData() : null;
+      return l && typeof l === 'object' ? l : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function sveI18nLanes() {
+    try {
+      const I = window.I18n;
+      return I.translations[I.currentLocale()].lanes || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function sveAngleLabel(angle) {
+    const t = sveI18nLanes().override;
+    const v = t && t.angles && t.angles[String(angle)];
+    return typeof v === 'string' ? v : `${angle}°`;
+  }
+
+  function sveVoiceLabel(mode) {
+    const t = sveI18nLanes().instructions || {};
+    if (mode === 1) return typeof t.DISPLAY === 'string' ? t.DISPLAY : L('Afișare doar', 'Display only');
+    if (mode === 2) return typeof t.DISPLAY_AND_VOICE === 'string' ? t.DISPLAY_AND_VOICE : L('Afișare și voce', 'Display and voice');
+    return String(mode);
+  }
+
+  const sveStraightLabel = () => sveAngleLabel(0);
+  const sveDefaultVoiceLabel = () => {
+    const t = sveI18nLanes().instructions || {};
+    return typeof t.DEFAULT === 'string' ? t.DEFAULT : L('Implicit Waze', 'Waze default');
+  };
+
+  function sveExplainGuidance(lanes) {
+    const fix = L(
+      `Pune săgeata pe „${sveStraightLabel()}” (Înlocuiește indicațiile de viraj), dacă drumul chiar merge drept, sau Voce pe „${sveDefaultVoiceLabel()}”.`,
+      `Set the arrow to “${sveStraightLabel()}” (override the turn instructions) if the road really goes straight, or the voice to “${sveDefaultVoiceLabel()}”.`
+    );
+    const gm = lanes ? Number(lanes.guidanceMode) : NaN;
+    const angle = lanes ? (lanes.angleOverride != null ? Number(lanes.angleOverride) : Number(lanes.laneArrowAngle)) : NaN;
+    if ((gm === 1 || gm === 2) && Number.isFinite(angle) && angle !== 0) {
+      return L(
+        `Benzile virajului au la Voce „${sveVoiceLabel(gm)}”, dar săgeata nu mai e „${sveStraightLabel()}” (acum „${sveAngleLabel(angle)}”). WME recalculează săgețile când muți un nod sau schimbi geometria, iar serverul acceptă vocea doar pe benzile care merg drept. ${fix}`,
+        `The lanes of this turn have “${sveVoiceLabel(gm)}” as voice, but the arrow is no longer “${sveStraightLabel()}” (now “${sveAngleLabel(angle)}”). WME recomputes the arrows when you move a node or change the geometry, and the server accepts the voice setting only on lanes that go straight. ${fix}`
+      );
+    }
+    return L(
+      `Serverul acceptă „${sveVoiceLabel(1)}” / „${sveVoiceLabel(2)}” la Voce doar pe benzile care merg drept; săgeata acestui viraj probabil nu mai e „${sveStraightLabel()}” (WME o recalculează când muți un nod). ${fix}`,
+      `The server accepts “${sveVoiceLabel(1)}” / “${sveVoiceLabel(2)}” as voice only on lanes that go straight; the arrow of this turn is probably no longer “${sveStraightLabel()}” (WME recomputes it when you move a node). ${fix}`
+    );
+  }
+
+  function sveShow(t) {
+    const node = sveNodeOf(t);
+    try {
+      if (node && node.lon != null) {
+        sdk.Map.setMapCenter({ lonLat: { lon: node.lon, lat: node.lat }, zoomLevel: Math.max(sdk.Map.getZoomLevel(), 18) });
+      }
+      sdk.Editing.setSelection({ selection: { objectType: 'segment', ids: [t.from] } });
+    } catch (e) {
+      phShowToast(L(`Segmentul ${t.from} nu e încărcat pe hartă.`, `Segment ${t.from} is not loaded on the map.`), true);
+    }
+  }
+
+  function sveBuild(model, turns) {
+    const wrap = icEl('div', `display:flex; flex-direction:column; gap:5px; margin-top:6px; padding-top:6px; border-top:${IC_DIVIDER}; font:12px/16px ${IC_FONT};`);
+    wrap.className = SVE_CLASS;
+    const isGuidance = model.code === 795 || /GuidanceMode/i.test(String(model.details || ''));
+    turns.forEach((t) => {
+      const node = sveNodeOf(t);
+      const line = icEl('div', 'overflow-wrap:anywhere;');
+      const seg = (id) => {
+        const n = sveSegName(id);
+        return icEl('b', '', n ? `${n} (${id})` : String(id));
+      };
+      line.append(
+        document.createTextNode(L('↪ Virajul de pe ', '↪ The turn from ')),
+        seg(t.from),
+        document.createTextNode(L(' spre ', ' to ')),
+        seg(t.to),
+        document.createTextNode(node && node.id != null ? L(` (nodul ${node.id})`, ` (node ${node.id})`) : '')
+      );
+      wrap.appendChild(line);
+      if (isGuidance) wrap.appendChild(icEl('div', 'opacity:0.85;', sveExplainGuidance(node ? sveLaneData(t, node.id) : null)));
+      const btns = icEl('div', 'display:flex; gap:6px;');
+      btns.appendChild(icButton(L('📍 Arată virajul', '📍 Show the turn'), L('Selectează segmentul de plecare și centrează harta pe nodul virajului.', 'Selects the segment the turn starts from and centres the map on the node.'), () => sveShow(t)));
+      wrap.appendChild(btns);
+    });
+    return wrap;
+  }
+
+  function svePoll() {
+    if (!sveState.active) return;
+    const list = document.querySelector('.save-popover .error-list');
+    if (!list) return;
+    list.querySelectorAll('[role="listitem"]').forEach((item) => {
+      const model = sveErrorModel(item);
+      const turns = model ? sveTurnsOf(model) : [];
+      const sig = turns.map((t) => `${t.from}>${t.to}`).join(',');
+      const old = item.querySelector(`.${SVE_CLASS}`);
+      if (old && old.dataset.sig === sig) return;
+      if (old) old.remove();
+      if (!turns.length) return;
+      const block = sveBuild(model, turns);
+      block.dataset.sig = sig;
+      (item.firstElementChild || item).appendChild(block);
+    });
+  }
+
+  function startSve() {
+    if (sveState.active) return;
+    sveState.active = true;
+    if (!sveState.timer) sveState.timer = setInterval(perfFn('svePoll', svePoll), SVE_POLL_MS);
+  }
+
+  function stopSve() {
+    sveState.active = false;
+    if (sveState.timer) clearInterval(sveState.timer);
+    sveState.timer = null;
+    document.querySelectorAll(`.${SVE_CLASS}`).forEach((e) => e.remove());
+  }
+
+  // ---------------------------------------------------------------------
+  // Hazards moved with the road (v0.62.2, "WME Bug fix"). When a node is
+  // moved or a segment reshaped, WME moves the permanent hazards that sit on
+  // it (UpdateSegmentGeometry.doSideEffectsActions, snackbar "Hazard moved
+  // to match road shape") with `UpdateObject` sub-actions created with
+  // `shouldSerialize: false`, so the new position is never sent. The server
+  // keeps the hazard where it was and refuses the save: code 859 "Permanent
+  // hazard location is too far from Segment N" (geometry = the OLD hazard
+  // position). Found live 2026-11-26 (traffic lights 1993780 / 1993782 /
+  // 1993783 moved 20-25 m with a node). Marking the LAST such sub-action of
+  // each moved hazard serializable (`serialize()` = { _objectType:
+  // 'permanentHazard', action: 'UPDATE', attributes: { id,
+  // geoJSONGeometry } }) made the very same save pass. Only one update per
+  // hazard is sent: an earlier action we marked goes back to unmarked when
+  // a newer move of the same hazard appears.
+  // ---------------------------------------------------------------------
+  const HMF_POLL_MS = 800;
+  const HMF_MIN_MOVE_M = 0.5;
+  const hmfState = { active: false, timer: null, sig: '', marked: new Set() };
+
+  function hmfDistM(a, b) {
+    const k = Math.cos((a[1] * Math.PI) / 180) * 111320;
+    return Math.hypot((a[0] - b[0]) * k, (a[1] - b[1]) * 111320);
+  }
+
+  const hmfIsHazardMove = (a) =>
+    a &&
+    a.object &&
+    typeof a.object.getType === 'function' &&
+    a.object.getType() === 'permanentHazard' &&
+    typeof a.serialize === 'function' &&
+    'shouldSerialize' in a &&
+    a.newAttributes &&
+    a.newAttributes.geoJSONGeometry &&
+    a.oldAttributes &&
+    a.oldAttributes.geoJSONGeometry;
+
+  function hmfPoll() {
+    if (!hmfState.active) return;
+    let am;
+    let flat;
+    try {
+      am = window.W.model.actionManager;
+      const acts = am.getActions();
+      const len = acts.length;
+      const sig = `${am.unsavedActionsNum()}:${len}:${len ? acts[len - 1]._actionId : ''}:${am.getRedoActionsLength ? am.getRedoActionsLength() : ''}`;
+      if (sig === hmfState.sig) return;
+      hmfState.sig = sig;
+      flat = am.getFlatActions();
+    } catch (e) {
+      return; // unknown model shape - leave WME alone
+    }
+    if (!Array.isArray(flat)) return;
+    // hazard id -> { first, last } among the unsaved actions
+    const byId = new Map();
+    flat.forEach((a) => {
+      if (!hmfIsHazardMove(a)) return;
+      const id = a.object.getID();
+      const e = byId.get(id);
+      if (e) e.last = a;
+      else byId.set(id, { first: a, last: a });
+    });
+    const inStack = new Set(flat);
+    // Our marks on actions that are gone (undone / saved) are forgotten;
+    // a mark on an action that is no longer the last move of its hazard is
+    // taken back (one update per hazard in the save).
+    hmfState.marked.forEach((a) => {
+      if (!inStack.has(a)) {
+        hmfState.marked.delete(a);
+        return;
+      }
+      const e = byId.get(a.object.getID());
+      if (!e || e.last !== a) {
+        a.shouldSerialize = false;
+        hmfState.marked.delete(a);
+      }
+    });
+    let added = 0;
+    byId.forEach(({ first, last }) => {
+      if (last.shouldSerialize !== false) return; // already sent (native move or ours)
+      let moved;
+      try {
+        moved = hmfDistM(first.oldAttributes.geoJSONGeometry.coordinates, last.newAttributes.geoJSONGeometry.coordinates);
+      } catch (e) {
+        return;
+      }
+      if (!(moved > HMF_MIN_MOVE_M)) return;
+      last.shouldSerialize = true;
+      hmfState.marked.add(last);
+      added++;
+    });
+    if (added) {
+      phShowToast(
+        L(
+          `${added === 1 ? 'Un pericol permanent mutat' : `${added} pericole permanente mutate`} odată cu drumul: noua poziție se trimite la salvare (WME Bug fix).`,
+          `${added === 1 ? 'A permanent hazard moved' : `${added} permanent hazards moved`} with the road: the new position is sent on Save (WME Bug fix).`
+        )
+      );
+    }
+  }
+
+  function startHmf() {
+    if (hmfState.active) return;
+    hmfState.active = true;
+    hmfState.sig = '';
+    hmfPoll();
+    if (!hmfState.timer) hmfState.timer = setInterval(perfFn('hmfPoll', hmfPoll), HMF_POLL_MS);
+  }
+
+  // Turning the option off takes our marks back (WME's own behaviour).
+  function stopHmf() {
+    hmfState.active = false;
+    if (hmfState.timer) clearInterval(hmfState.timer);
+    hmfState.timer = null;
+    hmfState.marked.forEach((a) => {
+      a.shouldSerialize = false;
+    });
+    hmfState.marked.clear();
+  }
+
+  // ---------------------------------------------------------------------
   // Open a link (v0.49): 🔗 button next to the top search box -> a small
   // window where you paste (or "Lipește" from the clipboard) a WME
   // permalink (www / beta, any language path), a Google Maps link (incl.
@@ -7269,7 +7645,7 @@
   // unsaved and undoable.
   // ---------------------------------------------------------------------
   const RC_POPUP_CLASS = 'wme-ro-tools-rc-popup';
-  const rcState = { popup: null, el: null, hideT: null, bound: false, confirm: false, raf: null, dwellEl: null, dwellT: null };
+  const rcState = { popup: null, el: null, hideT: null, bound: false, confirm: false, raf: null, dwellEl: null, dwellT: null, popupBottom: NaN };
   // v0.52.1: how long the pointer must rest on a closure symbol before the
   // popup opens.
   const RC_HOVER_DELAY_MS = 450;
@@ -7386,6 +7762,7 @@
             startDate: a.startDate,
             endDate: a.endDate,
             description: a.reason || '',
+            eventId: a.eventId || '',
             status: a.closureStatus || '',
             // v0.51.3: when the current status started (last entry of the
             // status history), e.g. the moment it was ended early.
@@ -7407,6 +7784,7 @@
     try {
       return (sdk.DataModel.RoadClosures.getAll() || []).map((c) => ({
         ...c,
+        eventId: c.eventId || '',
         permanent: !!c.isPermanent,
         fromNodeClosed: null,
         createdBy: c.modificationData && c.modificationData.createdBy,
@@ -7504,16 +7882,126 @@
     return new Promise((r) => setTimeout(r, ms));
   }
 
-  // Select the segment, open its "Closures" tab and return the card of
-  // these closures (or null). The panel is re-rendered after the selection
-  // (and WME may switch back to "General" a moment later), so the 2nd tab
-  // is clicked until it has stayed active for two checks in a row.
-  async function rcOpenCard(c) {
+  // v0.60.0 - where an action applies (Paul: "doar închiderea de pe
+  // segmentul selectat sau de pe toate segmentele unde există aceeași
+  // închidere" + "doar de pe strada respectivă" + the whole event).
+  // Confirmed live (CONTEXT.md, 2026-11-25): closures put on several
+  // segments at once share reason / start / end (and `eventId` when they
+  // belong to an event, `W.model.eventsForClosures` has its name); WME
+  // groups them the same way in the "Closures" tab of a multi-selection,
+  // and the grouped card's form holds all their ids. Only the loaded
+  // closures (the area on screen) can be found.
+  function rcStreetName(segId) {
     try {
-      sdk.Editing.setSelection({ selection: { objectType: 'segment', ids: [c.segmentId] } });
+      const o = sdk.DataModel.Segments.getById({ segmentId: segId });
+      const st = o && o.primaryStreetId ? sdk.DataModel.Streets.getById({ streetId: o.primaryStreetId }) : null;
+      return st && st.name ? st.name : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function rcEventName(eventId) {
+    try {
+      const m = window.W.model.eventsForClosures;
+      const o = m && (m.getObjectById ? m.getObjectById(eventId) : m.objects && m.objects[eventId]);
+      const names = (o && o.attributes && o.attributes.names) || [];
+      const pick = names.find((n) => n.locale === LANG) || names.find((n) => n.locale === 'ro') || names[0];
+      return pick && pick.value ? String(pick.value) : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  const rcStatusBucket = (c) => {
+    const st = String(c.status || '').toUpperCase();
+    return /FINISH/.test(st) ? 'F' : st === 'ACTIVE' ? 'A' : 'S';
+  };
+  const rcSameKey = (c) => [c.eventId || '', c.description || '', c.startDate, c.endDate, c.permanent ? 1 : 0, rcStatusBucket(c)].join('\u0001');
+  const rcSegCount = (list) => new Set(list.map((x) => x.segmentId)).size;
+
+  // [{ id, list, label, title }] - 'seg' first; a scope with exactly the
+  // same closures as an earlier one is left out (e.g. a street that has
+  // the whole closure).
+  function rcScopes(closures) {
+    const c = closures[0];
+    // Closures can point at segments that are not loaded (edge of the
+    // area): those can't be selected (setSelection throws), so they are
+    // left out.
+    const loaded = new Map();
+    const isLoaded = (segId) => {
+      if (!loaded.has(segId)) {
+        let o = null;
+        try {
+          o = sdk.DataModel.Segments.getById({ segmentId: segId });
+        } catch (e) {
+          o = null;
+        }
+        loaded.set(segId, !!o);
+      }
+      return loaded.get(segId);
+    };
+    const all = rcAllClosures().filter((x) => isLoaded(x.segmentId));
+    const key = rcSameKey(c);
+    const same = all.filter((x) => rcSameKey(x) === key);
+    closures.forEach((x) => {
+      if (!same.some((y) => y.id === x.id)) same.push(x);
+    });
+    const names = new Map();
+    const nameOf = (segId) => {
+      if (!names.has(segId)) names.set(segId, rcStreetName(segId));
+      return names.get(segId);
+    };
+    const street = nameOf(c.segmentId);
+    const streetsOf = (list) => [...new Set(list.map((x) => nameOf(x.segmentId) || L('fără nume', 'no name')))];
+    const segTxt = (n) => (n === 1 ? '1 segment' : L(`${n} segmente`, `${n} segments`));
+    const opts = [];
+    const add = (id, list, label, title) => {
+      if (!list.length) return;
+      const sig = list
+        .map((x) => String(x.id))
+        .sort()
+        .join(',');
+      if (opts.some((o) => o.sig === sig)) return;
+      opts.push({ id, list, sig, label, title });
+    };
+    add('seg', closures, L('Doar segmentul acesta', 'This segment only'), '');
+    if (street) {
+      const onStreet = same.filter((x) => nameOf(x.segmentId) === street);
+      add('street', onStreet, L(`Pe toată ${street} (${segTxt(rcSegCount(onStreet))})`, `All of ${street} (${segTxt(rcSegCount(onStreet))})`), L('Aceeași închidere, doar pe segmentele cu același nume de stradă.', 'The same closure, only on the segments with the same street name.'));
+    }
+    const sts = streetsOf(same);
+    add(
+      'same',
+      same,
+      L(`Toate cu aceeași închidere (${segTxt(rcSegCount(same))}${sts.length > 1 ? `, ${sts.length} străzi` : ''})`, `All with the same closure (${segTxt(rcSegCount(same))}${sts.length > 1 ? `, ${sts.length} streets` : ''})`),
+      `${L('Aceeași descriere, același interval', 'Same description, same period')}${c.eventId ? L(' și același eveniment', ' and the same event') : ''}: ${sts.join(', ')}`
+    );
+    if (c.eventId) {
+      const bucket = rcStatusBucket(c);
+      const ev = all.filter((x) => x.eventId === c.eventId && rcStatusBucket(x) === bucket);
+      const evName = rcEventName(c.eventId);
+      const evSts = streetsOf(ev);
+      add(
+        'event',
+        ev,
+        L(`Tot evenimentul${evName ? ` „${evName}”` : ''} (${segTxt(rcSegCount(ev))})`, `The whole event${evName ? ` "${evName}"` : ''} (${segTxt(rcSegCount(ev))})`),
+        `${L('Toate închiderile evenimentului încărcate pe hartă, chiar cu descriere sau interval diferit', 'All the loaded closures of the event, even with a different description or period')}: ${evSts.join(', ')}`
+      );
+    }
+    return opts;
+  }
+
+  // Select the segments and open their "Closures" tab. The panel is
+  // re-rendered after the selection (and WME may switch back to "General"
+  // a moment later), so the 2nd tab is clicked until it has stayed active
+  // for two checks in a row.
+  async function rcOpenClosuresTab(ids) {
+    try {
+      sdk.Editing.setSelection({ selection: { objectType: 'segment', ids } });
     } catch (e) {
       phShowToast(L('Segmentul închis nu a putut fi selectat.', 'The closed segment could not be selected.'), true);
-      return null;
+      return false;
     }
     let stable = 0;
     for (let i = 0; i < 40 && stable < 2; i++) {
@@ -7533,8 +8021,38 @@
     }
     if (stable < 2) {
       phShowToast(L('Tabul „Drumuri închise” nu s-a deschis - încearcă din nou.', 'The "Closures" tab did not open - try again.'), true);
-      return null;
+      return false;
     }
+    return true;
+  }
+
+  // Several segments: the WME cards (of the multi-selection) that hold
+  // these closures - one card when WME groups them all, several when
+  // their periods or direction patterns differ. null = tab not opened.
+  async function rcOpenGroupCards(list) {
+    const ids = [...new Set(list.map((x) => x.segmentId))];
+    if (!(await rcOpenClosuresTab(ids))) return null;
+    const pairs = [...new Set(list.map((x) => `${rcFmtDate(x.startDate)}\u0001${rcFmtDate(x.endDate)}`))].map((p) => p.split('\u0001'));
+    const descs = [...new Set(list.map((x) => x.description || ''))];
+    for (let i = 0; i < 20; i++) {
+      const cards = [...document.querySelectorAll('#edit-panel wz-card[class*="closureCard"]')];
+      if (cards.length) {
+        return cards.filter((k) => {
+          const t = k.innerText;
+          return pairs.some((w) => w.every((x) => t.includes(x))) && descs.some((d) => !d || t.includes(d));
+        });
+      }
+      await rcSleep(150);
+    }
+    return [];
+  }
+
+  // Select the segment, open its "Closures" tab and return the card of
+  // these closures (or null). The panel is re-rendered after the selection
+  // (and WME may switch back to "General" a moment later), so the 2nd tab
+  // is clicked until it has stayed active for two checks in a row.
+  async function rcOpenCard(c) {
+    if (!(await rcOpenClosuresTab([c.segmentId]))) return null;
     const want = [rcFmtDate(c.startDate), rcFmtDate(c.endDate)];
     for (let i = 0; i < 20; i++) {
       const cards = [...document.querySelectorAll('#edit-panel wz-card[class*="closureCard"]')];
@@ -7547,16 +8065,49 @@
   // kind: 'edit' (click the card = WME's edit form), 'duplicate' or
   // 'repeat' (WME's own items of the card's ⋮ menu - "Duplicat", "Repetă
   // ziua următoare"; matched by text RO / EN, else by position).
-  async function rcCardAction(closures, kind) {
+  // `scope` (v0.60.0): the closures chosen in the "where" question; on
+  // several segments the action runs on WME's grouped card of the
+  // multi-selection (its form edits / duplicates all of them).
+  async function rcCardAction(closures, kind, scope) {
     rcHide();
-    const card = await rcOpenCard(closures[0]);
+    const list = scope && scope.length ? scope : closures;
+    const segN = rcSegCount(list);
+    let card;
+    let reopen;
+    if (segN > 1) {
+      const cards = await rcOpenGroupCards(list);
+      if (!cards) return;
+      if (cards.length !== 1) {
+        // WME splits them by direction pattern (both / A→B / B→A) or period:
+        // the matching cards are outlined so they can be done one by one.
+        cards.forEach((k) => {
+          k.style.outline = `2px solid ${IC_ACCENT}`;
+          k.style.outlineOffset = '1px';
+        });
+        phShowToast(
+          cards.length
+            ? L(`WME arată aceste închideri în ${cards.length} fișe (sensuri sau intervale diferite), marcate cu albastru în tabul „Drumuri închise”: am selectat cele ${segN} segmente, ia fișele pe rând.`, `WME shows these closures in ${cards.length} cards (different directions or periods), outlined in blue in the "Closures" tab: the ${segN} segments are selected, do the cards one by one.`)
+            : L(`Nu am găsit fișa comună a închiderilor. Am selectat cele ${segN} segmente - alege fișa din tabul „Drumuri închise”.`, `The shared card of the closures was not found. The ${segN} segments are selected - pick the card in the "Closures" tab.`),
+          !cards.length
+        );
+        return;
+      }
+      card = cards[0];
+      reopen = async () => {
+        const again = await rcOpenGroupCards(list);
+        return again && again.length === 1 ? again[0] : null;
+      };
+    } else {
+      card = await rcOpenCard(list[0]);
+      reopen = () => rcOpenCard(list[0]);
+    }
     if (!card) return;
     if (kind === 'edit') {
       card.click();
       // Form not open (e.g. the card was re-rendered) - one more try.
       await rcSleep(500);
       if (!document.querySelector('#edit-panel #closure_reason')) {
-        const again = await rcOpenCard(closures[0]);
+        const again = await reopen();
         if (again) again.click();
       }
       return;
@@ -7571,7 +8122,7 @@
       return;
     }
     item.click();
-    if (kind === 'duplicate') await rcDuplicateDates(closures[0]);
+    if (kind === 'duplicate') await rcDuplicateDates(list[0]);
   }
 
   // v0.52.1 - Duplicate starting NOW (Paul: start = the moment of the
@@ -7647,6 +8198,7 @@
   }
 
   function rcDelete(closures) {
+    const segN = rcSegCount(closures);
     let ok = 0;
     closures.forEach((c) => {
       try {
@@ -7659,7 +8211,7 @@
     rcHide();
     phShowToast(
       ok
-        ? L(`${ok === 1 ? 'Închidere ștearsă' : `${ok} închideri șterse (ambele sensuri)`}. Nesalvat - apasă Salvează (Ctrl+Z anulează).`, `${ok === 1 ? 'Closure deleted' : `${ok} closures deleted (both directions)`}. Not saved - press Save (Ctrl+Z undoes).`)
+        ? L(`${ok === 1 ? 'Închidere ștearsă' : segN > 1 ? `${ok} închideri șterse pe ${segN} segmente` : `${ok} închideri șterse (ambele sensuri)`}. Nesalvat - apasă Salvează (Ctrl+Z anulează).`, `${ok === 1 ? 'Closure deleted' : segN > 1 ? `${ok} closures deleted on ${segN} segments` : `${ok} closures deleted (both directions)`}. Not saved - press Save (Ctrl+Z undoes).`)
         : L('Închiderea nu a putut fi ștearsă (drepturi sau închidere din alt sistem).', 'The closure could not be deleted (permissions or a closure from another system).'),
       !ok
     );
@@ -7739,12 +8291,68 @@
     const up = rcFmtTs(c.updatedOn);
     card.row('✏️', L('Actualizat', 'Updated'), `${L('Actualizat', 'Updated')}: ${up ? `${up}${c.updatedBy != null ? ` ${L('de', 'by')} ${rcUser(c.updatedBy)}` : ''}` : L('niciodată', 'never')}`, !up);
 
+    // v0.60.0: same closure on other segments -> the action buttons first
+    // ask where it applies (this segment / street / all / event).
+    const scopes = rcScopes(closures);
+    if (scopes.length > 1) {
+      const sameScope = scopes.find((o) => o.id === 'same') || scopes[scopes.length - 1];
+      const evName = c.eventId ? rcEventName(c.eventId) : '';
+      card.row('🔗', L('Și pe alte segmente', 'Also on other segments'), `${L('Aceeași închidere e și pe alte segmente', 'The same closure is also on other segments')}: ${rcSegCount(sameScope.list)} ${L('seg.', 'seg.')}${evName ? ` · ${L('eveniment', 'event')} „${evName}”` : ''}`);
+    }
     const row = card.footer();
     const mk = (label, title2, onClick, kind) => icButton(label, title2, onClick, kind);
-    row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => rcCardAction(closures, 'edit'), 'primary'));
-    row.appendChild(mk(L('⧉ Duplicat', '⧉ Duplicate'), L('Copie a închiderii începând de acum: același sfârșit (ora și câte zile după început), niciodată în trecut. Formularul rămâne deschis - verifici și apeși Salvează.', 'Copy of the closure starting now: the same end (time and how many days after the start), never in the past. The form stays open - check it and press Save.'), () => rcCardAction(closures, 'duplicate')));
+    // The question replaces the buttons inside the card; the card keeps its
+    // bottom edge (it opens above the symbol).
+    const keepBottom = () => {
+      const bottom = rcState.popupBottom;
+      if (!Number.isFinite(bottom)) return;
+      const { vy0 } = getCardViewportBounds();
+      box.style.top = `${Math.round(Math.max(vy0 + 4, bottom - box.getBoundingClientRect().height))}px`;
+    };
+    const ask = (kind, actionLabel) => {
+      if (scopes.length < 2) return false;
+      row.style.display = 'none';
+      const sec = card.section('display:flex; flex-direction:column; gap:6px;');
+      sec.appendChild(icEl('div', 'font-weight:600;', `${actionLabel} - ${L('unde se aplică?', 'where does it apply?')}`));
+      scopes.forEach((o, i) => {
+        const n = o.list.length;
+        const b = icButton(
+          o.label,
+          o.title,
+          () => {
+            if (kind !== 'delete') {
+              rcCardAction(closures, kind, o.list);
+              return;
+            }
+            if (b.dataset.armed !== '1') {
+              b.dataset.armed = '1';
+              b.textContent = n === 1 ? L('Sigur? Șterge 1 închidere', 'Sure? Delete 1 closure') : L(`Sigur? Șterge ${n} închideri`, `Sure? Delete ${n} closures`);
+              b.style.background = 'rgba(229,72,77,0.25)';
+              return;
+            }
+            rcDelete(o.list);
+          },
+          kind === 'delete' ? 'danger' : i ? 'secondary' : 'primary'
+        );
+        b.style.whiteSpace = 'normal';
+        b.style.textAlign = 'left';
+        sec.appendChild(b);
+      });
+      const back = icButton(L('← Înapoi', '← Back'), '', () => {
+        sec.remove();
+        row.style.display = '';
+        keepBottom();
+      });
+      back.style.alignSelf = 'flex-start';
+      back.style.border = 'none';
+      sec.appendChild(back);
+      keepBottom();
+      return true;
+    };
+    row.appendChild(mk(L('✏️ Editează', '✏️ Edit'), L('Selectează segmentul și deschide închiderea în tabul „Drumuri închise”.', 'Selects the segment and opens the closure in the "Closures" tab.'), () => ask('edit', L('✏️ Editează', '✏️ Edit')) || rcCardAction(closures, 'edit'), 'primary'));
+    row.appendChild(mk(L('⧉ Duplicat', '⧉ Duplicate'), L('Copie a închiderii începând de acum: același sfârșit (ora și câte zile după început), niciodată în trecut. Formularul rămâne deschis - verifici și apeși Salvează.', 'Copy of the closure starting now: the same end (time and how many days after the start), never in the past. The form stays open - check it and press Save.'), () => ask('duplicate', L('⧉ Duplicat', '⧉ Duplicate')) || rcCardAction(closures, 'duplicate')));
     if (!finished) {
-      row.appendChild(mk(L('↻ Ziua următoare', '↻ Next day'), L('„Repetă ziua următoare” din meniul închiderii (acțiunea WME).', '"Repeat next day" from the closure menu (the WME action).'), () => rcCardAction(closures, 'repeat')));
+      row.appendChild(mk(L('↻ Ziua următoare', '↻ Next day'), L('„Repetă ziua următoare” din meniul închiderii (acțiunea WME).', '"Repeat next day" from the closure menu (the WME action).'), () => ask('repeat', L('↻ Ziua următoare', '↻ Next day')) || rcCardAction(closures, 'repeat')));
       // A finished closure can't be deleted any more (WME keeps it as
       // history).
       row.appendChild(
@@ -7752,6 +8360,7 @@
           L('🗑 Șterge', '🗑 Delete'),
           L('Șterge închiderea (click de 2 ori). Se aplică la Salvează (până atunci Ctrl+Z anulează); după salvare WME o arată „Încheiată mai devreme”.', 'Deletes the closure (click twice). Applied on Save (until then Ctrl+Z undoes); after saving WME shows it as "Finished early".'),
           (b) => {
+            if (ask('delete', L('🗑 Șterge', '🗑 Delete'))) return;
             if (!rcState.confirm) {
               rcState.confirm = true;
               b.textContent = closures.length > 1 ? L('Sigur? (ambele sensuri)', 'Sure? (both directions)') : L('Sigur?', 'Sure?');
@@ -7774,6 +8383,8 @@
     if (top < vy0 + 4) top = r.bottom + 6;
     box.style.left = `${Math.round(left)}px`;
     box.style.top = `${Math.round(top)}px`;
+    // above the symbol: keep the bottom edge when the card grows (question)
+    rcState.popupBottom = top < r.top ? top + br.height : NaN;
     rcState.popup = box;
     rcState.el = el;
   }
@@ -7974,6 +8585,35 @@
       if (e.key === 'Alt') set(false);
     }, true);
     window.addEventListener('blur', () => set(false));
+  }
+
+  // ---------------------------------------------------------------------
+  // v0.61: hour and minute on the WME "long" dates. The UR conversation
+  // renders each message date with I18n date.formats.long ("%d %B %Y" in
+  // ro, confirmed live 2026-11-25); appending ", %H:%M" makes it
+  // "25 Noiembrie 2026, 20:17". Left alone when the format already has an
+  // hour (e.g. set by WME Fix UI). The original is kept to undo it.
+  // ---------------------------------------------------------------------
+  const dateTimeOrig = {};
+
+  function dateTimeApply() {
+    try {
+      const I = window.I18n;
+      const loc = I && typeof I.currentLocale === 'function' ? I.currentLocale() : null;
+      const tr = loc && I.translations && I.translations[loc];
+      const fm = tr && tr.date && tr.date.formats;
+      if (!fm || typeof fm.long !== 'string') return;
+      if (settings.dateWithTime) {
+        if (/%[HIkl]/.test(fm.long)) return;
+        dateTimeOrig[loc] = fm.long;
+        fm.long = `${fm.long}, %H:%M`;
+      } else if (dateTimeOrig[loc] != null && fm.long === `${dateTimeOrig[loc]}, %H:%M`) {
+        fm.long = dateTimeOrig[loc];
+        delete dateTimeOrig[loc];
+      }
+    } catch (e) {
+      // I18n missing or changed shape - leave the WME format untouched.
+    }
   }
 
   function mapIconsApply(force) {
@@ -14042,6 +14682,18 @@
       }
       kbRenderToolbarState();
     });
+    // v0.62: keyboard view.
+    const viewBtn = document.createElement('button');
+    viewBtn.type = 'button';
+    viewBtn.className = 'ro-kb-viewbtn';
+    viewBtn.textContent = L('🎹 Tastatură', '🎹 Keyboard');
+    viewBtn.title = L('Desenează tastatura cu tastele alocate și lista scurtăturilor ordonată după tastă.', 'Draws the keyboard with the assigned keys and the list of shortcuts sorted by key.');
+    viewBtn.style.cssText = `${ctrlStyle} cursor:pointer; white-space:nowrap;`;
+    viewBtn.addEventListener('click', () => {
+      kbStopCapture();
+      kbRenderToolbarState();
+      kbvOpen();
+    });
     const only = document.createElement('label');
     only.style.cssText = 'display:inline-flex; align-items:center; gap:4px; cursor:pointer; user-select:none;';
     const onlyCb = document.createElement('input');
@@ -14061,6 +14713,7 @@
     info.style.cssText = 'flex:1 0 100%; opacity:0.75; font-size:11px;';
     bar.appendChild(search);
     bar.appendChild(keyBtn);
+    bar.appendChild(viewBtn);
     bar.appendChild(only);
     bar.appendChild(info);
     return bar;
@@ -14092,21 +14745,47 @@
 
   // --- key hints in "Straturi hartă" and the "+" menu --------------------
 
-  function kbSetHint(host, label) {
+  // label = the key ("Shift+Q"); with no label, `freeActionId` = an action
+  // that exists in WME but has no key (v0.62): a small blue ring, click =
+  // find it in "Keyboard shortcuts".
+  function kbSetHint(host, label, freeActionId) {
     if (!host) return;
     let hint = host.querySelector(`:scope > .${KB_HINT_CLASS}`);
-    if (!label) {
+    const mode = label ? 'key' : freeActionId ? 'free' : '';
+    if (!mode) {
       if (hint) hint.remove();
       return;
+    }
+    if (hint && hint.dataset.mode !== mode) {
+      hint.remove();
+      hint = null;
     }
     if (!hint) {
       hint = document.createElement('span');
       hint.className = KB_HINT_CLASS;
-      hint.style.cssText =
-        'display:inline-block; margin-left:6px; padding:0 4px; border:1px solid var(--hairline, #bbb); border-radius:3px; font:600 10px/15px Rubik, Arial, sans-serif; opacity:0.7; white-space:nowrap; vertical-align:middle;';
+      hint.dataset.mode = mode;
+      if (mode === 'key') {
+        hint.style.cssText =
+          'display:inline-block; margin-left:6px; padding:0 4px; border:1px solid var(--hairline, #bbb); border-radius:3px; font:600 10px/15px Rubik, Arial, sans-serif; opacity:0.7; white-space:nowrap; vertical-align:middle;';
+      } else {
+        hint.style.cssText = `display:inline-block; box-sizing:border-box; width:10px; height:10px; margin-left:7px; border:2px solid ${IC_ACCENT}; border-radius:50%; vertical-align:middle; cursor:pointer; flex:none;`;
+        hint.title = L('Comandă fără tastă - o poți aloca din „Scurtături Taste” (click aici)', 'Action without a key - you can assign one in "Keyboard shortcuts" (click here)');
+        // The ring sits inside a menu item / layer label: its click must
+        // not start the drawing or toggle the layer.
+        const stop = (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        };
+        ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach((t) => hint.addEventListener(t, stop));
+        hint.addEventListener('click', (ev) => {
+          stop(ev);
+          if (hint.dataset.action) kbOpenDialogFor(hint.dataset.action);
+        });
+      }
       host.appendChild(hint);
     }
-    if (hint.textContent !== label) hint.textContent = label;
+    if (mode === 'key' && hint.textContent !== label) hint.textContent = label;
+    if (mode === 'free' && hint.dataset.action !== freeActionId) hint.dataset.action = freeActionId;
   }
 
   // The "+" menu caps its sub-menus at 288px (`--wz-menu-max-width`, set
@@ -14133,8 +14812,11 @@
     });
   }
 
-  // v0.51.4: WME no longer passes `keyboardAction` to the "+" menu items
-  // (checked 2026-11-13 - the hints had disappeared). The action is now
+  // v0.51.4: WME no longer passed `keyboardAction` to the "+" menu items
+  // (checked 2026-11-13 - the hints had disappeared); on 2026-11-25 it
+  // passes it again (e.g. drawNarrowBridge, drawHighwayCrosswalk), which
+  // is read first, so a menu item WME wires to a new action shows up
+  // without a script change. The action is now
   // derived from what the item creates: permanent hazard type / camera
   // sub-type and venue category (React props of the item), else from the
   // label (RO / EN) for the items without such props.
@@ -14205,7 +14887,7 @@
         host = el ? el.querySelector('.layer-selector-container, [class*="container--"]') || (el.tagName === 'WZ-CHECKBOX' ? el : null) : null;
       }
       const a = acts[actionId];
-      kbSetHint(host, a ? kbKeyLabel(a.shortcut) : '');
+      kbSetHint(host, a ? kbKeyLabel(a.shortcut) : '', a ? actionId : null);
     }
     if (
       Date.now() - kbState.menuScanAt > KB_MENU_RESCAN_MS ||
@@ -14216,8 +14898,450 @@
     for (const { el, actionId } of kbState.menuItems) {
       const labelHost = el.querySelector('[class*="itemLabel"]') || el;
       const a = acts[actionId];
-      kbSetHint(labelHost, a ? kbKeyLabel(a.shortcut) : '');
+      kbSetHint(labelHost, a ? kbKeyLabel(a.shortcut) : '', a ? actionId : null);
     }
+  }
+
+  // --- v0.62: keyboard view ("🎹 Tastatură") ------------------------------
+  //
+  // A QWERTY keyboard drawn from `W.accelerators` (keys by keyCode, so the
+  // two "-" / "." keys stay apart): for the chosen Ctrl / Shift / Alt layer
+  // every key with a shortcut is blue (red = several actions on the same
+  // keys), hover shows the actions, and a column on the right lists the
+  // layer's shortcuts by key (punctuation, digits, letters, rest) plus the
+  // actions without a key ("None"). Read-only - nothing is assigned here;
+  // a click on an action finds it in the native list.
+
+  const KBV_ID = 'wme-ro-tools-kb-view';
+  const KBV_POLL_MS = 1000;
+  const KBV_MOD_BITS = { ctrl: 1, shift: 2, alt: 4 };
+  const KBV_CONFLICT = '#e5484d';
+  const KBV_MOD_ON = '#f5a623';
+
+  const kbvChars = (s) => s.split('').map((c) => [c, c.charCodeAt(0)]);
+  // Rows: { x, y, keys: [[label, keyCode | 'ctrl' | 'shift' | 'alt' | null, width, height] | gap] }
+  // in key units; null = drawn but not used by WME (Caps, Win, NumLock).
+  const KBV_LAYOUT = [
+    { x: 0, y: 0, keys: [['Esc', 27], 1, ['F1', 112], ['F2', 113], ['F3', 114], ['F4', 115], 0.5, ['F5', 116], ['F6', 117], ['F7', 118], ['F8', 119], 0.5, ['F9', 120], ['F10', 121], ['F11', 122], ['F12', 123]] },
+    { x: 0, y: 1.5, keys: [['`', 192], ...kbvChars('1234567890'), ['-', 189], ['=', 187], ['Backspace', 8, 2]] },
+    { x: 0, y: 2.5, keys: [['Tab', 9, 1.5], ...kbvChars('QWERTYUIOP'), ['[', 219], [']', 221], ['\\', 220, 1.5]] },
+    { x: 0, y: 3.5, keys: [['Caps', null, 1.75], ...kbvChars('ASDFGHJKL'), [';', 186], ["'", 222], ['Enter', 13, 2.25]] },
+    { x: 0, y: 4.5, keys: [['Shift', 'shift', 2.25], ...kbvChars('ZXCVBNM'), [',', 188], ['.', 190], ['/', 191], ['Shift', 'shift', 2.75]] },
+    { x: 0, y: 5.5, keys: [['Ctrl', 'ctrl', 1.25], ['Win', null, 1.25], ['Alt', 'alt', 1.25], ['Space', 32, 6.25], ['Alt', 'alt', 1.25], ['Win', null, 1.25], ['Menu', null, 1.25], ['Ctrl', 'ctrl', 1.25]] },
+    { x: 15.5, y: 1.5, keys: [['Ins', 45], ['Home', 36], ['PgUp', 33]] },
+    { x: 15.5, y: 2.5, keys: [['Del', 46], ['End', 35], ['PgDn', 34]] },
+    { x: 16.5, y: 4.5, keys: [['↑', 38]] },
+    { x: 15.5, y: 5.5, keys: [['←', 37], ['↓', 40], ['→', 39]] },
+    { x: 19, y: 1.5, keys: [['Num', null], ['/', 111], ['*', 106], ['-', 109]] },
+    { x: 19, y: 2.5, keys: [['7', 103], ['8', 104], ['9', 105], ['+', 107, 1, 2]] },
+    { x: 19, y: 3.5, keys: [['4', 100], ['5', 101], ['6', 102]] },
+    { x: 19, y: 4.5, keys: [['1', 97], ['2', 98], ['3', 99], ['Enter', 13, 1, 2]] },
+    { x: 19, y: 5.5, keys: [['0', 96, 2], ['.', 110]] },
+  ];
+  const KBV_W = 23;
+  const KBV_H = 6.5;
+
+  const kbvState = { open: false, bits: 0, focusCode: null, sig: '', timer: null, tip: null };
+
+  function kbvLayoutKeys() {
+    const out = [];
+    for (const row of KBV_LAYOUT) {
+      let x = row.x;
+      for (const k of row.keys) {
+        if (typeof k === 'number') {
+          x += k;
+          continue;
+        }
+        const [label, code, w = 1, h = 1] = k;
+        out.push({ label, code, x, y: row.y, w, h });
+        x += w;
+      }
+    }
+    return out;
+  }
+
+  function kbvComboLabel(bits) {
+    const p = [];
+    if (bits & 1) p.push('Ctrl');
+    if (bits & 4) p.push('Alt');
+    if (bits & 2) p.push('Shift');
+    return p.length ? p.join('+') : L('fără Ctrl / Shift / Alt', 'no Ctrl / Shift / Alt');
+  }
+
+  // { byKey: Map("bits,code" -> [action]), free: [action], sig }
+  function kbvIndex() {
+    const byKey = new Map();
+    const free = [];
+    const sig = [];
+    for (const a of Object.values(kbActions())) {
+      if (!a || !a.id) continue;
+      if (kbIsEmpty(a.shortcut)) {
+        free.push(a);
+        sig.push(`${a.id}=`);
+        continue;
+      }
+      const k = `${kbBits(a.shortcut)},${Number(a.shortcut.keyCode)}`;
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(a);
+      sig.push(`${a.id}=${k}`);
+    }
+    return { byKey, free, sig: sig.sort().join('|') };
+  }
+
+  // Column order: punctuation, digits, letters, F keys, the rest, numpad.
+  function kbvRank(code) {
+    if ((code >= 186 && code <= 192) || (code >= 219 && code <= 222)) return 0;
+    if (code >= 48 && code <= 57) return 1;
+    if (code >= 65 && code <= 90) return 2;
+    if (code >= 112 && code <= 123) return 3;
+    if (code >= 96 && code <= 111) return 5;
+    return 4;
+  }
+
+  // Same look as the native `kbd` of the shortcuts dialog (theme-aware).
+  function kbvKbdCss() {
+    let bg = '#333';
+    let border = '0.8px solid #808080';
+    let color = '#fff';
+    try {
+      const k = document.querySelector('#shortcuts-dialog kbd');
+      if (k) {
+        const cs = getComputedStyle(k);
+        bg = cs.backgroundColor;
+        border = cs.border;
+        color = cs.color;
+      }
+    } catch (e) {
+      // keep the defaults
+    }
+    return `display:inline-block; flex:none; padding:0 5px; border-radius:3px; background:${bg}; border:${border}; color:${color}; font:11.5px/17px Menlo, Monaco, Consolas, "Courier New", monospace; white-space:nowrap;`;
+  }
+
+  function kbvClose() {
+    kbvState.open = false;
+    if (kbvState.timer) clearInterval(kbvState.timer);
+    kbvState.timer = null;
+    window.removeEventListener('keydown', kbvOnKey, true);
+    window.removeEventListener('keyup', kbvOnKeyUp, true);
+    const el = document.getElementById(KBV_ID);
+    if (el) el.remove();
+  }
+
+  // Keys pressed while the view is open never reach WME (no accidental
+  // shortcut or assignment in the dialog below). Ctrl / Shift / Alt toggle
+  // the layer; another key shows its layer and highlights it.
+  function kbvOnKey(ev) {
+    if (!kbvState.open) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    if (ev.keyCode === 27) {
+      kbvClose();
+      return;
+    }
+    if (ev.repeat) return;
+    const mod = { 16: 2, 17: 1, 18: 4, 91: 1, 92: 1, 224: 1 }[ev.keyCode];
+    if (mod) {
+      kbvState.bits ^= mod;
+      kbvState.focusCode = null;
+    } else {
+      kbvState.bits = (ev.ctrlKey || ev.metaKey ? 1 : 0) | (ev.shiftKey ? 2 : 0) | (ev.altKey ? 4 : 0);
+      kbvState.focusCode = ev.keyCode;
+    }
+    kbvRender();
+  }
+
+  function kbvOnKeyUp(ev) {
+    if (!kbvState.open) return;
+    // Alt alone would move the focus to the browser menu.
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+  }
+
+  // Finds the action in the native list (search box), view closed.
+  function kbvFindInDialog(a) {
+    kbvClose();
+    kbOpenDialogFor(a.id);
+  }
+
+  function kbvOpen() {
+    if (kbvState.open) return;
+    kbvState.open = true;
+    kbvState.bits = 0;
+    kbvState.focusCode = null;
+    window.addEventListener('keydown', kbvOnKey, true);
+    window.addEventListener('keyup', kbvOnKeyUp, true);
+    kbvRender();
+    kbvState.timer = setInterval(perfFn('kbViewPoll', () => {
+      if (!kbvState.open || !settings.shortcutsHelper) {
+        kbvClose();
+        return;
+      }
+      if (kbvIndex().sig !== kbvState.sig) kbvRender();
+    }), KBV_POLL_MS);
+  }
+
+  function kbvHideTip() {
+    if (kbvState.tip) kbvState.tip.style.display = 'none';
+  }
+
+  function kbvShowTip(anchor, title, lines) {
+    const tip = kbvState.tip;
+    if (!tip) return;
+    tip.textContent = '';
+    tip.appendChild(icEl('div', 'font-weight:700; margin-bottom:3px;', title));
+    lines.forEach(([text, dim]) => tip.appendChild(icEl('div', dim ? 'opacity:0.65;' : '', text)));
+    tip.style.display = 'block';
+    const r = anchor.getBoundingClientRect();
+    const tr = tip.getBoundingClientRect();
+    let left = r.left + r.width / 2 - tr.width / 2;
+    left = Math.max(8, Math.min(window.innerWidth - tr.width - 8, left));
+    let top = r.top - tr.height - 6;
+    if (top < 8) top = r.bottom + 6;
+    tip.style.left = `${Math.round(left)}px`;
+    tip.style.top = `${Math.round(top)}px`;
+  }
+
+  function kbvRender() {
+    const old = document.getElementById(KBV_ID);
+    const oldList = old && old.querySelector('.ro-kbv-list');
+    const keepScroll = oldList ? oldList.scrollTop : 0;
+    if (old) old.remove();
+    if (!kbvState.open) return;
+    const idx = kbvIndex();
+    kbvState.sig = idx.sig;
+    const bits = kbvState.bits;
+    const kbdCss = kbvKbdCss();
+    const nameOf = (a) => kbActionName(a);
+    const layerOf = (b) => {
+      const m = new Map(); // code -> [action]
+      for (const [k, list] of idx.byKey) {
+        const [kb, code] = k.split(',').map(Number);
+        if (kb === b) m.set(code, list);
+      }
+      return m;
+    };
+    const layer = layerOf(bits);
+    // code -> [{ bits, list }] in the other layers (for the dot + tooltip)
+    const others = new Map();
+    for (const [k, list] of idx.byKey) {
+      const [kb, code] = k.split(',').map(Number);
+      if (kb === bits) continue;
+      if (!others.has(code)) others.set(code, []);
+      others.get(code).push({ bits: kb, list });
+    }
+
+    const overlay = icEl('div', 'position:fixed; inset:0; z-index:100001; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; padding:12px; box-sizing:border-box;');
+    overlay.id = KBV_ID;
+    overlay.addEventListener('mousedown', (ev) => {
+      if (ev.target === overlay) kbvClose();
+    });
+    const card = icCard({
+      width: 'auto',
+      interactive: true,
+      z: 100001,
+      title: L('Tastatura - scurtături alocate', 'Keyboard - assigned shortcuts'),
+      sub: L('Ctrl / Shift / Alt: click pe ele (sau apasă-le) - rămân apăsate. Albastru = alocată, roșu = mai multe comenzi pe aceeași tastă, punct = are comenzi cu alt Ctrl / Shift / Alt. Esc închide.', 'Ctrl / Shift / Alt: click them (or press them) - they stay pressed. Blue = assigned, red = several actions on the same key, dot = has actions with another Ctrl / Shift / Alt. Esc closes.'),
+      onClose: kbvClose,
+    });
+    const box = card.box;
+    box.style.position = 'relative';
+    box.style.left = 'auto';
+    box.style.top = 'auto';
+    box.style.maxHeight = 'calc(100vh - 24px)';
+    box.style.display = 'flex';
+    box.style.flexDirection = 'column';
+    const body = card.section('display:flex; gap:14px; align-items:stretch; min-height:0; flex:1;');
+
+    // --- layers (combination chips) ---
+    const left = icEl('div', 'flex:none; display:flex; flex-direction:column; gap:10px;');
+    const chips = icEl('div', 'display:flex; flex-wrap:wrap; gap:6px; align-items:center;');
+    chips.appendChild(icEl('span', 'opacity:0.75;', L('Combinații:', 'Combinations:')));
+    [0, 2, 1, 4, 3, 6, 5, 7].forEach((b) => {
+      let n = 0;
+      for (const [k, list] of idx.byKey) if (Number(k.split(',')[0]) === b) n += list.length;
+      const on = b === bits;
+      const c = icEl('button', `padding:2px 9px; border-radius:10px; cursor:pointer; font:600 11px/16px ${IC_FONT}; border:1px solid ${on ? IC_ACCENT : 'var(--hairline, #bbb)'}; background:${on ? IC_ACCENT : 'transparent'}; color:${on ? '#fff' : 'inherit'};${n ? '' : ' opacity:0.45;'}`, `${b ? kbvComboLabel(b) : L('Simplu', 'Plain')} · ${n}`);
+      c.type = 'button';
+      c.addEventListener('click', () => {
+        kbvState.bits = b;
+        kbvState.focusCode = null;
+        kbvRender();
+      });
+      chips.appendChild(c);
+    });
+    left.appendChild(chips);
+
+    // --- keyboard ---
+    const avail = window.innerWidth - 24 - 24 - 380;
+    const u = Math.max(26, Math.min(48, Math.floor(avail / KBV_W)));
+    const kb = icEl('div', `position:relative; width:${Math.round(KBV_W * u)}px; height:${Math.round(KBV_H * u)}px; flex:none;`);
+    const keyEls = new Map(); // code -> [el]
+    const rowEls = new Map(); // code -> [el]
+    const mark = (code, on) => {
+      (keyEls.get(code) || []).forEach((el) => {
+        el.style.boxShadow = on ? `0 0 0 2px ${KBV_MOD_ON}` : '';
+      });
+      (rowEls.get(code) || []).forEach((el) => {
+        el.style.background = on ? `${IC_ACCENT}33` : '';
+      });
+    };
+    const layoutCodes = new Set();
+    const keyBox = (k, css) => {
+      const isMod = typeof k.code === 'string';
+      const modOn = isMod && (bits & KBV_MOD_BITS[k.code]);
+      const list = typeof k.code === 'number' ? layer.get(k.code) || [] : [];
+      const other = typeof k.code === 'number' ? others.get(k.code) || [] : [];
+      let bg = 'var(--surface_default, #f2f2f2)';
+      let fg = 'inherit';
+      let bd = '1px solid var(--hairline, #bbb)';
+      if (modOn) {
+        bg = KBV_MOD_ON;
+        fg = '#000';
+        bd = `1px solid ${KBV_MOD_ON}`;
+      } else if (list.length > 1) {
+        bg = KBV_CONFLICT;
+        fg = '#fff';
+        bd = `1px solid ${KBV_CONFLICT}`;
+      } else if (list.length) {
+        bg = IC_ACCENT;
+        fg = '#fff';
+        bd = `1px solid ${IC_ACCENT}`;
+      }
+      const el = icEl('div', `${css} box-sizing:border-box; border-radius:5px; background:${bg}; color:${fg}; border:${bd}; padding:2px 4px; overflow:hidden; font:${u >= 38 ? 11 : 10}px/1.2 ${IC_FONT}; cursor:${isMod || list.length || other.length ? 'pointer' : 'default'}; user-select:none;${k.code === null ? ' opacity:0.35;' : ''}`);
+      el.appendChild(icEl('div', 'font-weight:700; white-space:nowrap;', k.label));
+      if (list.length && u >= 34) {
+        el.appendChild(icEl('div', `font-size:${u >= 42 ? 9 : 8}px; line-height:1.15; opacity:0.92; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word;`, list.map(nameOf).join(' / ')));
+      }
+      if (other.length && !isMod) {
+        el.appendChild(icEl('span', `position:absolute; right:3px; bottom:3px; width:5px; height:5px; border-radius:50%; background:${list.length ? '#fff' : IC_ACCENT}; opacity:0.85;`));
+      }
+      if (isMod) {
+        el.addEventListener('click', () => {
+          kbvState.bits ^= KBV_MOD_BITS[k.code];
+          kbvState.focusCode = null;
+          kbvRender();
+        });
+        return el;
+      }
+      if (typeof k.code !== 'number') return el;
+      layoutCodes.add(k.code);
+      if (!keyEls.has(k.code)) keyEls.set(k.code, []);
+      keyEls.get(k.code).push(el);
+      el.addEventListener('mouseenter', () => {
+        mark(k.code, true);
+        const lines = list.length
+          ? list.map((a) => [`${nameOf(a)} (${kbGroupName(a.group)})`])
+          : [[L('Liberă - nicio comandă', 'Free - no action'), true]];
+        if (list.length > 1) lines.push([L('Conflict: mai multe comenzi pe aceeași tastă.', 'Conflict: several actions on the same key.'), true]);
+        other.forEach((o) => lines.push([`${kbLabelFromString(`${o.bits},${k.code}`)}: ${o.list.map(nameOf).join(' / ')}`, true]));
+        kbvShowTip(el, kbLabelFromString(`${bits},${k.code}`), lines);
+      });
+      el.addEventListener('mouseleave', () => {
+        mark(k.code, false);
+        kbvHideTip();
+      });
+      return el;
+    };
+    for (const k of kbvLayoutKeys()) {
+      kb.appendChild(keyBox(k, `position:absolute; left:${Math.round(k.x * u) + 1}px; top:${Math.round(k.y * u) + 1}px; width:${Math.round(k.w * u) - 3}px; height:${Math.round(k.h * u) - 3}px;`));
+    }
+    left.appendChild(kb);
+
+    // Assigned keys that are not on the drawn keyboard (e.g. media keys).
+    const extra = new Set();
+    for (const k of idx.byKey.keys()) {
+      const code = Number(k.split(',')[1]);
+      if (!layoutCodes.has(code)) extra.add(code);
+    }
+    if (extra.size) {
+      const ex = icEl('div', 'display:flex; flex-wrap:wrap; gap:4px; align-items:center;');
+      ex.appendChild(icEl('span', 'opacity:0.75; margin-right:4px;', L('Alte taste:', 'Other keys:')));
+      [...extra].sort((a, b) => a - b).forEach((code) => {
+        ex.appendChild(keyBox({ label: kbLabelFromString(`0,${code}`), code }, `position:relative; min-width:${u}px; height:${u - 3}px;`));
+      });
+      left.appendChild(ex);
+    }
+    body.appendChild(left);
+
+    // --- column: this layer's shortcuts by key, then the free actions ---
+    const col = icEl('div', `width:360px; flex:none; display:flex; flex-direction:column; min-height:0; height:${Math.max(Math.round(KBV_H * u) + 80, 260)}px; max-height:calc(100vh - 150px); border-left:${IC_DIVIDER}; padding-left:12px;`);
+    const list = icEl('div', 'overflow:auto; flex:1; min-height:0;');
+    list.className = 'ro-kbv-list';
+    const entries = [];
+    for (const [code, acts] of layer) acts.forEach((a) => entries.push({ code, a }));
+    entries.sort((p, q) => {
+      const rp = kbvRank(p.code);
+      const rq = kbvRank(q.code);
+      if (rp !== rq) return rp - rq;
+      if (rp === 0) {
+        const c = kbLabelFromString(`0,${p.code}`).localeCompare(kbLabelFromString(`0,${q.code}`));
+        if (c) return c;
+      } else if (p.code !== q.code) return p.code - q.code;
+      return nameOf(p.a).localeCompare(nameOf(q.a), LANG);
+    });
+    const head = (text) => icEl('div', 'font-weight:700; padding:2px 0 4px; position:sticky; top:0; background:var(--background_default, #fff); z-index:1;', text);
+    const addRow = (a, keyText, code, dim) => {
+      const r = icEl('div', `display:flex; align-items:center; gap:8px; padding:3px 4px; border-radius:4px; cursor:pointer;${dim ? ' opacity:0.5;' : ''}`);
+      const k = icEl('kbd', kbdCss, keyText);
+      const txt = icEl('div', 'flex:1; min-width:0;');
+      txt.appendChild(icEl('div', 'overflow-wrap:anywhere;', nameOf(a)));
+      txt.appendChild(icEl('div', 'font-size:10px; opacity:0.6;', kbGroupName(a.group)));
+      r.append(k, txt);
+      r.title = L('Click: o găsești în lista de scurtături, ca s-o schimbi', 'Click: find it in the shortcuts list, to change it');
+      r.addEventListener('click', () => kbvFindInDialog(a));
+      if (code != null) {
+        if (!rowEls.has(code)) rowEls.set(code, []);
+        rowEls.get(code).push(r);
+        r.addEventListener('mouseenter', () => mark(code, true));
+        r.addEventListener('mouseleave', () => mark(code, false));
+      }
+      list.appendChild(r);
+    };
+    list.appendChild(head(L(`${bits ? kbvComboLabel(bits) : 'Simplu (fără Ctrl / Shift / Alt)'} · ${entries.length}`, `${bits ? kbvComboLabel(bits) : 'Plain (no Ctrl / Shift / Alt)'} · ${entries.length}`)));
+    if (!entries.length) list.appendChild(icEl('div', 'opacity:0.6; padding:2px 4px 8px;', L('Nicio scurtătură cu această combinație.', 'No shortcut with this combination.')));
+    entries.forEach(({ code, a }) => addRow(a, kbLabelFromString(`${bits},${code}`), code, false));
+    const free = idx.free.slice().sort((p, q) => nameOf(p).localeCompare(nameOf(q), LANG));
+    list.appendChild(head(L(`Fără tastă (se pot aloca) · ${free.length}`, `No key (can be assigned) · ${free.length}`)));
+    free.forEach((a) => addRow(a, 'None', null, true));
+    col.appendChild(list);
+    body.appendChild(col);
+
+    const tip = icEl('div', `position:fixed; z-index:100002; display:none; max-width:340px; padding:6px 9px; border-radius:6px; background:var(--background_default, #fff); color:var(--content_default, #202124); box-shadow:0 3px 12px rgba(0,0,0,0.5); border:1px solid var(--hairline, #bbb); font:12px/16px ${IC_FONT}; pointer-events:none;`);
+    kbvState.tip = tip;
+    overlay.appendChild(box);
+    overlay.appendChild(tip);
+    document.body.appendChild(overlay);
+    list.scrollTop = keepScroll;
+    if (kbvState.focusCode != null) {
+      mark(kbvState.focusCode, true);
+      const first = (keyEls.get(kbvState.focusCode) || [])[0];
+      if (first) first.dispatchEvent(new MouseEvent('mouseenter'));
+      const row = (rowEls.get(kbvState.focusCode) || [])[0];
+      if (row) row.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Opens the native "Keyboard shortcuts" dialog (or uses the open one)
+  // with the search box set to the action's name.
+  function kbOpenDialogFor(actionId) {
+    const a = kbActions()[actionId];
+    if (!a) return;
+    kbState.capturedKey = null;
+    kbStopCapture();
+    kbState.onlyAssigned = false;
+    kbState.query = kbActionName(a);
+    const dlg = document.getElementById('shortcuts-dialog');
+    const bar = dlg && dlg.querySelector(`#${KB_TOOLBAR_ID}`);
+    if (bar) {
+      const s = bar.querySelector('.ro-kb-search');
+      if (s) s.value = kbState.query;
+      const cb = bar.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = false;
+      kbRenderToolbarState();
+      return;
+    }
+    const link = document.getElementById('keyboard-dialog-link');
+    if (link) link.click();
   }
 
   // --- quick layer buttons under Layers / Reload / Permalink -------------
@@ -18640,6 +19764,8 @@
     if (settings.lock1Badges) startLock1Badges();
     if (settings.mapNoteTitles || settings.mapNoteHover) startMapNotes();
     if (settings.dupVertexGuard) startDvg();
+    if (settings.saveErrorTurns) startSve();
+    if (settings.hazardMoveFix) startHmf();
     initIssueTrackerMapAll();
     initLocationLabelFix();
     initUnpublishedWarnPassthrough();
@@ -18665,6 +19791,7 @@
     setInterval(perfFn('imgPoll', imgPoll), IMG_POLL_MS);
     setInterval(perfFn('jbPoll', jbPoll), JB_POLL_MS);
     setInterval(perfFn('drawLenWatch', drawLenWatch), DRAW_LEN_WATCH_MS);
+    dateTimeApply();
     mapIconsApply(true);
     setInterval(perfFn('mapIconsApply', () => mapIconsApply(false)), MAP_ICONS_POLL_MS);
     plPoll();
