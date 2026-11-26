@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.62.2
+// @version      0.62.3
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.62.2';
+  const SCRIPT_VERSION = '0.62.3';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -346,7 +346,6 @@
     rsPoll: L('Buton insignă de drum', 'Road shield button'),
     srPoll: L('Căutare locație', 'Location search'),
     esPoll: L('Editare rapidă / sugestii', 'Quick edit / suggestions'),
-    itMapAllPoll: L('Issue Tracker - toate pe hartă', 'Issue Tracker - all on map'),
     savedWarnPoll: L('Avertismente salvare', 'Save warnings'),
     kbLayerPoll: L('Scurtături / butoane straturi', 'Shortcuts / layer buttons'),
     kbViewPoll: L('Scurtături - vizualizare tastatură', 'Shortcuts - keyboard view'),
@@ -1198,11 +1197,6 @@
     // v0.38: the map pills also show for 'fresh' (green, in the last
     // build) and 'recent' (blue) edits, not only for unpublished ones.
     publishPillsFreshRecent: true,
-    // Issue Tracker: the MAP shows all open issues ("Toate problemele"),
-    // while the tracker LIST keeps the selected filter. Off by default -
-    // changes native WME behavior. Three synced controls: settings tab,
-    // "Straturi hartă" > Userscripts, and a checkbox in the tracker footer.
-    issueTrackerMapAll: false,
     // Restores the city/county name above the map when WME drops it to
     // just the country (WME bug - see `locationLabelFix`).
     locationLabelFix: true,
@@ -1243,7 +1237,7 @@
 
   // Options that work around WME bugs (badge "WME Bug fix" in the
   // settings tab, v0.42).
-  const WME_BUGFIX_KEYS = ['locationLabelFix', 'issueTrackerMapAll', 'forceSidebarOpen', 'saveErrorTurns', 'hazardMoveFix'];
+  const WME_BUGFIX_KEYS = ['locationLabelFix', 'forceSidebarOpen', 'saveErrorTurns', 'hazardMoveFix'];
 
   function loadSettings() {
     try {
@@ -1509,11 +1503,6 @@
       checkbox.style.cssText = 'margin-top: 2px;';
       settingsToggleEls[key] = checkbox;
       checkbox.addEventListener('change', () => {
-        // Synced with 2 other controls - see `setIssueTrackerMapAll`.
-        if (key === 'issueTrackerMapAll') {
-          setIssueTrackerMapAll(checkbox.checked, 'settings');
-          return;
-        }
         if (key === 'shortcutsHelper' || key === 'layerQuickButtons') {
           settings[key] = checkbox.checked;
           saveSettings();
@@ -1974,12 +1963,6 @@
       L('Pastile pe hartă și pentru modificările proaspete', 'Map pills for fresh edits too'),
       L('Pe lângă portocaliu: verde = în ultimul build, albastru = recente.', 'Besides orange: green = in the last build, blue = recent.'),
       L('Extinde pastilele de mai sus: pe lângă segmentele nepublicate (portocaliu) apar și cele a căror modificare a intrat în ULTIMUL build, deci e deja pe Livemap (verde), și cele modificate cu până la 3 zile înainte de el (albastru). Ajută să nu repari ceva deja reparat, raportat înainte să ajungă pe Livemap. Peste 60 de pastile vizibile au prioritate portocaliu, apoi verde, apoi albastru. Necesită „Avertizare segmente nepublicate” activ.', 'Extends the pills above: besides unpublished segments (orange), it also shows those whose edit made it into the LAST build, so already on Livemap (green), and those edited up to 3 days before it (blue). Helps you avoid fixing something already fixed, reported before it reached Livemap. Above 60 visible pills, priority goes to orange, then green, then blue. Requires "Unpublished segments warning" enabled.')
-    );
-    addToggle(
-      'issueTrackerMapAll',
-      L('Issue Tracker: harta arată toate problemele', 'Issue Tracker: map shows all issues'),
-      L('Lista rămâne filtrată, harta arată toate problemele deschise.', 'The list stays filtered, the map shows all open issues.'),
-      L('Când e activă, pe hartă apar toate problemele deschise (UR, PUR, MP, MS) din zona vizibilă, exact ca la filtrul "Toate problemele", indiferent de filtrul ales în Issue Tracker. Lista din coloana Issue Tracker rămâne filtrată normal. Se poate comuta și din "Straturi hartă" > Userscripts și din checkbox-ul din josul coloanei Issue Tracker (sub "Actualizează rezultatele când harta este mutată") - toate trei sunt sincronizate. Oprită implicit.', 'When enabled, the map shows all open issues (UR, PUR, MP, MS) in the visible area, exactly like the "All issues" filter, regardless of the filter chosen in the Issue Tracker. The list in the Issue Tracker column stays filtered as usual. Can also be toggled from "Map layers" > Userscripts and from the checkbox at the bottom of the Issue Tracker column (under "Update results when map moves") - all three are synced. Off by default.')
     );
     addToggle(
       'locationLabelFix',
@@ -13515,208 +13498,6 @@
   }
 
   // ---------------------------------------------------------------------
-  // Issue Tracker: map shows all open issues, list keeps its filter
-  // ---------------------------------------------------------------------
-  //
-  // With the Issue Tracker loaded, WME fills the MAP with issues from
-  // `W.issueTrackerController.fetchIssuesMap()`, which calls
-  // `descartesClient.searchIssuesByBbox(params)` with the tracker filter +
-  // the map bbox (results replace the issues in the data model). The LIST
-  // uses a different request. Live-checked (stack trace): only
-  // `fetchIssuesMap` calls `searchIssuesByBbox`. We wrap it and swap the
-  // filter fields for the "Toate problemele" (all open) filter, keeping
-  // bbox + sorting - the list is untouched. No SDK equivalent exists, so
-  // this relies on WME internals; if they change, nothing is hooked and
-  // WME behaves natively.
-
-  const IT_MAP_ALL_LAYER_NAME = L('RO Tools: Hartă - toate problemele', 'RO Tools: Map - all issues');
-  const IT_MAP_ALL_FOOTER_ID = 'wme-ro-tools-it-map-all';
-  const IT_MAP_ALL_POLL_MS = 1000;
-
-  // Filter fields of the native "Toate problemele" filter, captured live
-  // from `searchIssuesByBbox` params (everything except bbox/sorting).
-  const IT_MAP_ALL_FILTER = {
-    fromCreationTime: null,
-    fromUpdateTime: null,
-    toCreationTime: null,
-    toUpdateTime: null,
-    cityId: null,
-    countryId: null,
-    managedAreaId: null,
-    managedAreaIds: null,
-    stateId: null,
-    userPropertiesFilter: {},
-    mapUpdateRequestsFilter: {
-      commentCountRanges: [
-        { from: 0, to: 0 },
-        { from: 1, to: 1 },
-        { from: 2, to: 2 },
-        { from: 3, to: 3 },
-        { from: 4, to: null },
-      ],
-      fromLastCommentTime: null,
-      toLastCommentTime: null,
-      lastCommentBy: null,
-      commentedByUser: false,
-      isOpen: true,
-      reportedByUser: false,
-      resolvedByUser: false,
-      sources: null,
-      types: null,
-      descriptionOrComments: 'ALL',
-    },
-    venueUpdateRequestsFilter: { categories: null, lockRanks: [0, 1, 2, 3, 4, 5], residential: null, types: null },
-    mapProblemsFilter: { isOpen: true, types: null },
-    mapSuggestionsFilter: {
-      createdByUser: false,
-      editorRanks: null,
-      lockRanks: [0, 1, 2, 3, 4, 5, 6],
-      mapChangeTypes: null,
-      resolvedByUser: false,
-      segmentSuggestionsFilter: { roadTypes: null, unpaved: null },
-      sources: null,
-      status: ['OPEN'],
-    },
-  };
-
-  const itMapAllState = {
-    client: null, // descartesClient we wrapped
-    orig: null, // its original searchIssuesByBbox
-    wrapper: null,
-    layerCheckboxAdded: false,
-  };
-
-  function itGetDescartesClient() {
-    const itc = window.W && window.W.issueTrackerController;
-    const client = itc && itc.descartesClient;
-    return client && typeof client.searchIssuesByBbox === 'function' ? client : null;
-  }
-
-  function itMapAllHook() {
-    const client = itGetDescartesClient();
-    if (!client) return false;
-    if (itMapAllState.client === client && client.searchIssuesByBbox === itMapAllState.wrapper) return true;
-    const orig = client.searchIssuesByBbox;
-    const wrapper = function (params, ...rest) {
-      let p = params;
-      if (settings.issueTrackerMapAll && params && Array.isArray(params.bbox)) {
-        p = {
-          ...params,
-          ...JSON.parse(JSON.stringify(IT_MAP_ALL_FILTER)),
-          bbox: params.bbox,
-          sorting: params.sorting,
-        };
-      }
-      return orig.call(this, p, ...rest);
-    };
-    client.searchIssuesByBbox = wrapper;
-    itMapAllState.client = client;
-    itMapAllState.orig = orig;
-    itMapAllState.wrapper = wrapper;
-    return true;
-  }
-
-  function itMapAllUnhook() {
-    const { client, orig, wrapper } = itMapAllState;
-    // Restore only if nobody wrapped it after us.
-    if (client && orig && client.searchIssuesByBbox === wrapper) client.searchIssuesByBbox = orig;
-    itMapAllState.client = null;
-    itMapAllState.orig = null;
-    itMapAllState.wrapper = null;
-  }
-
-  // Reloads the map issues right away (no need to pan the map).
-  function itMapAllRefresh() {
-    try {
-      const itc = window.W && window.W.issueTrackerController;
-      if (itc && typeof itc.fetchIssuesMap === 'function') {
-        const r = itc.fetchIssuesMap();
-        if (r && typeof r.catch === 'function') r.catch(() => {});
-      }
-    } catch (e) {
-      // ignore - next map move reloads anyway
-    }
-  }
-
-  // Single entry point for all 3 controls; `source` avoids echoing the
-  // change back to the control that triggered it.
-  function setIssueTrackerMapAll(value, source) {
-    const v = !!value;
-    const changed = settings.issueTrackerMapAll !== v;
-    settings.issueTrackerMapAll = v;
-    saveSettings();
-    if (v) itMapAllHook();
-    else itMapAllUnhook();
-
-    if (source !== 'settings' && settingsToggleEls.issueTrackerMapAll) settingsToggleEls.issueTrackerMapAll.checked = v;
-    if (source !== 'footer') {
-      const cb = document.getElementById(IT_MAP_ALL_FOOTER_ID);
-      if (cb) cb.checked = v;
-    }
-    if (source !== 'layer' && itMapAllState.layerCheckboxAdded) {
-      try {
-        sdk.LayerSwitcher.setLayerCheckboxChecked({ name: IT_MAP_ALL_LAYER_NAME, isChecked: v });
-      } catch (e) {
-        // ignore
-      }
-    }
-    if (changed) itMapAllRefresh();
-  }
-
-  // Checkbox in "Straturi hartă" > Userscripts. `addLayerCheckbox` takes no
-  // callback - clicks arrive via the `wme-layer-checkbox-toggled` event.
-  function itMapAllRegisterLayerCheckbox() {
-    if (!sdk.LayerSwitcher || typeof sdk.LayerSwitcher.addLayerCheckbox !== 'function') return;
-    try {
-      sdk.LayerSwitcher.addLayerCheckbox({ name: IT_MAP_ALL_LAYER_NAME, isChecked: !!settings.issueTrackerMapAll });
-      itMapAllState.layerCheckboxAdded = true;
-    } catch (e) {
-      return;
-    }
-    sdk.Events.on({
-      eventName: 'wme-layer-checkbox-toggled',
-      eventHandler: (e) => {
-        if (!e || e.name !== IT_MAP_ALL_LAYER_NAME) return;
-        setIssueTrackerMapAll(!!e.checked, 'layer');
-      },
-    });
-  }
-
-  // Checkbox under the native "Actualizează rezultatele când harta este
-  // mutată" (`wz-checkbox#feed-sync-with-map`) at the bottom of the Issue
-  // Tracker column. Placed in its own row after the native footer, reusing
-  // the footer's class so it looks native. Re-injected if React re-renders.
-  function itMapAllEnsureFooterCheckbox() {
-    if (document.getElementById(IT_MAP_ALL_FOOTER_ID)) return;
-    const nativeCb = document.getElementById('feed-sync-with-map');
-    const footer = nativeCb && nativeCb.parentElement;
-    if (!footer || !footer.parentElement) return;
-    const row = document.createElement('div');
-    row.className = footer.className;
-    const cb = document.createElement('wz-checkbox');
-    cb.id = IT_MAP_ALL_FOOTER_ID;
-    cb.textContent = L('Hartă: arată toate problemele (ignoră filtrul)', 'Map: show all issues (ignore filter)');
-    cb.title = L('WME RO Tools - lista rămâne filtrată, harta arată toate problemele deschise', 'WME RO Tools - the list stays filtered, the map shows all open issues');
-    cb.checked = !!settings.issueTrackerMapAll;
-    cb.addEventListener('change', () => setIssueTrackerMapAll(cb.checked, 'footer'));
-    row.appendChild(cb);
-    footer.insertAdjacentElement('afterend', row);
-  }
-
-  function itMapAllPoll() {
-    itMapAllEnsureFooterCheckbox();
-    // Re-hook if WME replaced the client (e.g. re-init).
-    if (settings.issueTrackerMapAll) itMapAllHook();
-  }
-
-  function initIssueTrackerMapAll() {
-    itMapAllRegisterLayerCheckbox();
-    if (settings.issueTrackerMapAll) itMapAllHook();
-    itMapAllPoll();
-    setInterval(perfFn('itMapAllPoll', itMapAllPoll), IT_MAP_ALL_POLL_MS);
-  }
-
-  // ---------------------------------------------------------------------
   // Location label fix ("Oraș, Județ" above the map)
   // ---------------------------------------------------------------------
   //
@@ -15581,7 +15362,9 @@
   }
 
   function tiPanel() {
-    return document.querySelector('#panel-container .turn-instructions-panel');
+    // WME v2.382 moved the window from `#panel-container` to a floating
+    // `#TURN_INSTRUCTIONS_WINDOW` over the map; any container is accepted.
+    return document.querySelector('.turn-instructions-panel');
   }
 
   // Live handles into the native window (recomputed for every action -
@@ -19766,7 +19549,6 @@
     if (settings.dupVertexGuard) startDvg();
     if (settings.saveErrorTurns) startSve();
     if (settings.hazardMoveFix) startHmf();
-    initIssueTrackerMapAll();
     initLocationLabelFix();
     initUnpublishedWarnPassthrough();
     initSavedWarnings();

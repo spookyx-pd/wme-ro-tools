@@ -23,6 +23,18 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-26 - v0.62.3 - Fix: butoanele din „Instrucțiuni viraje”; scoasă opțiunea Issue Tracker
+
+- **Fix:** în fereastra „Instrucțiuni viraje” nu mai apăreau butoanele
+  scriptului (⚡ Implicit, », ·, 🛡 Insigne, ⚠️ Avertizare, + nume local,
+  uneltele TTS, mânerele ⋮). În WME v2.382 fereastra nu mai stă în panoul
+  lateral, ci plutește deasupra hărții, iar scriptul o căuta doar în panou.
+  Acum o găsește oriunde.
+- **Scoasă opțiunea „Issue Tracker: harta arată toate problemele”.** WME o
+  are acum nativ: în Setări → „Task display” → „Allow option to show all
+  tasks on the map, even when filtered”, apoi bifa „Show unfiltered tasks”
+  de sub lista Issue Tracker.
+
 ## 2026-11-26 - v0.62.2 - Pericole mutate odată cu drumul (WME Bug fix)
 
 - Când muți un nod sau schimbi forma unui segment, WME mută și semafoarele /
