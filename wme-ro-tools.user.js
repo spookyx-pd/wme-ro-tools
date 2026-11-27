@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WME RO Tools
 // @namespace    https://greasyfork.org/users/5715-spookyx
-// @version      0.62.3
+// @version      0.63.1
 // @name:ro      WME RO Tools
 // @description:ro  Unelte pentru Waze Map Editor, pentru comunitatea din România (în dezvoltare/testare): lungimi și unghiuri la segmente/noduri, bară de butoane rapide, stare publicare Livemap, tăiere segmente, numere de imobil rapide, ajutor pentru instrucțiuni viraje, unelte pentru răspunsuri UR, coordonate GPS clicabile și altele. Interfață în română și engleză.
 // @description  Waze Map Editor toolkit for the Romanian community (in development/testing): segment & node lengths/angles, quick-action toolbar, Livemap publish status, cut tool, quick house numbers, turn-instruction helper, UR reply tools, clickable GPS coordinates and more. UI in Romanian and English.
@@ -44,7 +44,7 @@
   // tools are added on top over time.
   const SCRIPT_ID = 'wme-ro-tools';
   const SCRIPT_NAME = 'WME RO Tools';
-  const SCRIPT_VERSION = '0.62.3';
+  const SCRIPT_VERSION = '0.63.1';
 
   // ---------------------------------------------------------------------
   // Language (v0.41, Paul: bilingual RO / EN UI).
@@ -126,6 +126,9 @@
   // (0.34.1, 0.34.2...) bump the version but are not listed here - the full
   // history is in the project's CHANGELOG.md.
   const VERSION_HISTORY = [
+    { v: '0.63', items: [
+      L('Hărți externe: deasupra siglei Google din dreapta jos, iconițe care deschid OpenStreetMap, Yandex, HERE WeGo și Mapillary la centrul hărții.', 'External maps: icons above the Google logo at the bottom right open OpenStreetMap, Yandex, HERE WeGo and Mapillary at the map centre.'),
+    ] },
     { v: '0.62', items: [
       L('„Scurtături Taste”: butonul „🎹 Tastatură” desenează tastatura cu tastele alocate (Ctrl / Shift / Alt rămân apăsate, combinațiile se văd pe rând), cu numele comenzii la hover și lista scurtăturilor ordonată după tastă, plus comenzile fără tastă („None”).', '"Keyboard shortcuts": the "🎹 Keyboard" button draws the keyboard with the assigned keys (Ctrl / Shift / Alt stay pressed, one combination at a time), the action name on hover and the list of shortcuts sorted by key, plus the actions without a key ("None").'),
       L('Meniul „+” și „Straturi hartă”: un cerculeț albastru arată comenzile care au scurtătură în WME, dar fără tastă alocată; click pe el o găsește în „Scurtături Taste”.', 'The "+" menu and "Map layers": a small blue ring marks the actions that have a WME shortcut but no key assigned; clicking it finds the action in "Keyboard shortcuts".'),
@@ -343,6 +346,7 @@
     jbPoll: L('Intersecții (JB)', 'Junction boxes'),
     mapIconsApply: L('Iconițe hartă compacte', 'Compact map icons'),
     plPoll: L('Buton „Deschide un link”', '"Open a link" button'),
+    emPoll: L('Hărți externe (dreapta jos)', 'External maps (bottom right)'),
     rsPoll: L('Buton insignă de drum', 'Road shield button'),
     srPoll: L('Căutare locație', 'Location search'),
     esPoll: L('Editare rapidă / sugestii', 'Quick edit / suggestions'),
@@ -1186,6 +1190,9 @@
     searchHelper: true,
     // v0.53.1: the Google logo opens Google Maps with the traffic layer.
     googleTrafficLink: true,
+    // v0.63.0: icons above the Google logo open other maps (OSM, Yandex,
+    // HERE, Mapillary) at the map centre.
+    externalMapsBar: true,
     // v0.57: the "Included Suggestion by <editor>" badge in the segment
     // history wraps instead of cutting off the profile / chat buttons.
     suggestionBadgeWrap: true,
@@ -1891,6 +1898,12 @@
       L('Ora și minutul la datele din conversațiile UR', 'Hour and minute on UR conversation dates'),
       L('În conversația unui UR, lângă dată apare și ora (ex. „25 Noiembrie 2026, 20:17”), ca să vezi când a răspuns fiecare.', 'In a UR conversation the date also shows the time (e.g. "25 November 2026, 20:17"), so you can see when everyone replied.'),
       L('WME arată la mesajele din conversația unui UR (și la alte date lungi din panoul lateral) doar ziua, luna și anul. Cu opțiunea activă se adaugă ora și minutul, în ora calculatorului tău. Se aplică la următoarea deschidere a UR-ului. Dacă alt script (ex. WME Fix UI) a pus deja ora în formatul datei, opțiunea nu mai schimbă nimic.', 'WME shows only the day, month and year on the messages of a UR conversation (and on other long dates in the side panel). With this option the hour and minute are added, in your computer\x27s time. It applies the next time the UR is opened. If another script (e.g. WME Fix UI) already put the time in the date format, the option changes nothing.')
+    );
+    addToggle(
+      'externalMapsBar',
+      L('Hărți externe deasupra siglei Google', 'External maps above the Google logo'),
+      L('Iconițe deasupra siglei Google din dreapta jos: OpenStreetMap, Yandex, HERE WeGo și Mapillary, deschise la centrul hărții.', 'Icons above the Google logo at the bottom right: OpenStreetMap, Yandex, HERE WeGo and Mapillary, opened at the map centre.'),
+      L('Deasupra siglei Google din colțul din dreapta jos al hărții apare un rând de iconițe: OSM (OpenStreetMap), Я (Yandex Maps), HERE (HERE WeGo) și M (Mapillary). Click pe una deschide harta respectivă într-un tab nou, la centrul și zoom-ul hărții WME (limitat la zoom-ul maxim al fiecărei hărți). Click cu rotița sau Ctrl+click merg ca la orice link. Bara stă lipită de sigla Google, deci rămâne la locul ei și când redimensionezi fereastra.', 'A row of icons appears above the Google logo in the bottom right corner of the map: OSM (OpenStreetMap), Я (Yandex Maps), HERE (HERE WeGo) and M (Mapillary). Clicking one opens that map in a new tab at the WME map centre and zoom (capped at each map\'s maximum zoom). Middle click or Ctrl+click work as for any link. The bar is attached to the Google logo, so it stays in place when you resize the window.')
     );
     addToggle(
       'googleTrafficLink',
@@ -7433,6 +7446,162 @@
       const prof = b.querySelector('wz-a');
       if (prof && !prof.title) prof.title = L('Deschide profilul editorului', "Open the editor's profile");
     }
+  }
+
+  // ---------------------------------------------------------------------
+  // External maps bar (v0.63.0). Paul: icons for OSM and other maps "fix
+  // deasupra lui Google" at the bottom right, even when the window is
+  // resized - replaces the private userscript "WME Open in External Maps"
+  // (Honkson 0.0.7: a dropdown next to the Google logo with OpenStreetMap,
+  // Yandex, HERE WeGo and Mapillary).
+  // The bar is a child of WME's `.wz-map-ol-control-google-map-permalink`
+  // (absolute, bottom/right 20px in the map footer) placed at
+  // `bottom: 100%`, so it follows the logo by itself on any resize. Checked
+  // live (WME v2.382): the zoom "-" button ends 30px above the logo, so a
+  // row of 22px icons fits between them. Links are built from the SDK map
+  // centre / zoom when the pointer reaches an icon and on click (middle
+  // click / "open in new tab" use the same href).
+  // WME styles every `a` in that container as the logo (width 74px), so
+  // the icons set width:auto / flex:none; the Google-traffic click handler
+  // ignores them (their host is not google.*).
+  // v0.63.1 (Paul: logos instead of text, dark background): each service
+  // has an inline SVG logo drawn on a dark tile. OSM, HERE and Mapillary
+  // paths come from Simple Icons 16.38.1 (CC0), in their brand colours;
+  // Simple Icons has no Yandex Maps logo, so Yandex uses the current Yandex
+  // mark (white "Я" on a red circle). Built with createElementNS only.
+  // ---------------------------------------------------------------------
+  const EM_BAR_ID = 'wme-ro-tools-ext-maps';
+  const EM_POLL_MS = 1000;
+  const EM_SERVICES = [
+    {
+      key: 'osm',
+      name: 'OpenStreetMap',
+      logo: [{ tag: 'path', fill: '#7ebc6f', d: 'M2.672 23.969c-.352-.089-.534-.234-1.471-1.168C.085 21.688.014 21.579.018 20.999c0-.645-.196-.414 3.368-3.986 3.6-3.608 3.415-3.451 4.064-3.449.302 0 .378.016.62.14l.277.14 1.744-1.744-.218-.343c-.425-.662-.825-1.629-1.006-2.429a7.657 7.657 0 0 1 1.479-6.44c2.49-3.12 6.959-3.812 10.26-1.588 1.812 1.218 2.99 3.099 3.328 5.314.07.467.07 1.579 0 2.074a7.554 7.554 0 0 1-2.205 4.402 6.712 6.712 0 0 1-1.943 1.401c-.959.483-1.775.71-2.881.803-1.573.131-3.32-.305-4.656-1.163l-.343-.218-1.744 1.744.14.28c.125.241.14.316.14.617.003.651.156.467-3.426 4.049-2.761 2.756-3.186 3.164-3.398 3.261-.271.125-.69.171-.945.106zM17.485 13.95a6.425 6.425 0 0 0 4.603-3.51c1.391-2.899.455-6.306-2.227-8.108-.638-.43-1.529-.794-2.367-.962-.581-.117-1.809-.104-2.414.025a6.593 6.593 0 0 0-2.452 1.064c-.444.315-1.177 1.048-1.487 1.487a6.384 6.384 0 0 0 .38 7.907 6.406 6.406 0 0 0 3.901 2.136c.509.078 1.542.058 2.065-.037zm-3.738 7.376a80.97 80.97 0 0 1-2.196-.651c-.025-.028 1.207-4.396 1.257-4.449.023-.026 4.242 1.152 4.414 1.236.062.026-.003.288-.525 2.102a398.513 398.513 0 0 0-.635 2.236c-.025.087-.069.156-.097.156-.028-.003-1.028-.287-2.219-.631zm2.912.524c0-.053 1.227-4.333 1.246-4.347.047-.034 4.324-1.23 4.341-1.211.019.019-1.199 4.337-1.23 4.36-.02.019-4.126 1.191-4.259 1.218-.054.011-.098 0-.098-.019zm-7.105-1.911c.846-.852 1.599-1.627 1.674-1.728.171-.218.405-.732.472-1.015.026-.118.053-.352.058-.522l.011-.307.182-.051c.103-.028.193-.044.202-.034.023.025-1.207 4.321-1.246 4.36-.02.016-.677.213-1.464.436l-1.425.405 1.537-1.542zm8.289-3.06a1.371 1.371 0 0 1-.059-.187l-.044-.156.156-.028c1.339-.227 2.776-.856 3.908-1.713.16-.125.252-.171.265-.134.054.165.272.95.265.959-.034.034-4.48 1.282-4.492 1.261zm-15.083-1.3c-.05-.039-1.179-3.866-1.264-4.29-.016-.084.146-.044 2.174.536 2.121.604 2.192.629 2.222.74.028.098.011.129-.125.223-.084.059-.769.724-1.523 1.479a63.877 63.877 0 0 1-1.39 1.367c-.016 0-.056-.025-.093-.054zm.821-4.378c-1.188-.343-2.164-.623-2.167-.626-.016-.012 1.261-4.433 1.285-4.46.022-.022 4.422 1.211 4.469 1.252.009.009-.269 1.017-.618 2.239-.576 2.02-.643 2.224-.723 2.22-.05-.003-1.059-.285-2.247-.626zm2.959.538c.012-.031.212-.723.444-1.534l.42-1.476.056.321c.093.556.265 1.188.464 1.741.106.296.187.539.181.545-.008.006-.332.101-.719.212-.389.109-.741.21-.786.224-.058.016-.075.006-.059-.034zM4.905 6.112c-1.187-.339-2.167-.635-2.18-.654-.04-.062-1.246-4.321-1.23-4.338.026-.025 4.31 1.204 4.351 1.246.047.051 1.28 4.379 1.246 4.376L4.91 6.113zm2.148-1.713l-.519-1.806-.078-.28 1.693-.483c.934-.265 1.724-.495 1.76-.508.034-.016-.083.14-.26.336A8.729 8.729 0 0 0 7.69 5.23a4.348 4.348 0 0 0-.132.561c0 .293-.115-.025-.505-1.39z' }],
+      maxZ: 19,
+      url: (lat, lon, z) => `https://www.openstreetmap.org/#map=${z}/${lat}/${lon}`,
+    },
+    {
+      key: 'yandex',
+      name: 'Yandex Maps',
+      logo: [
+        { tag: 'circle', fill: '#fc3f1d', cx: 12, cy: 12, r: 12 },
+        { tag: 'text', fill: '#fff', x: 12.4, y: 17.6, text: 'Я' },
+      ],
+      maxZ: 21,
+      url: (lat, lon, z) => `https://yandex.com/maps/?ll=${lon}%2C${lat}&z=${z}`,
+    },
+    {
+      key: 'here',
+      name: 'HERE WeGo',
+      logo: [{ tag: 'path', fill: '#00afaa', d: 'M19.29 1.007c-.697.036-1.367.384-2.008 1.036-.97.987-1.104 2.206-.679 3.316l-1.091-1.312c-.106.041-.306.203-.506.406-.572.596-.705 1.516-.558 2.125l-.734-.635-1.45 1.475 1.996 2.03c-1.583-1.326-3.007-1.259-4.323.082-1.331 1.353-1.252 3.006-.147 4.385l-.186-.189c-1.184-1.205-2.328-1.463-3.46-.298-.666.663-.772 1.314-.706 1.897l-2.794-2.83-1.625 1.651 5.372 5.48H0l3.312 3.37 3.282-3.34h3.128l-2.275-2.314c-.798-.8-1.039-1.354-.547-1.855.36-.379.773-.367 1.278.148l2.741 2.803 1.65-1.679-2.049-2.084c1.623 1.368 3.393 1.03 4.738-.351.706-.704 1.09-1.355 1.278-1.801l-1.452-.825a6.544 6.544 0 0 1-.878 1.218c-.799.812-1.543.812-2.048.392l2.94-2.992L17 12.25l1.65-1.678-1.782-1.815c-1.45-1.476-1.025-2.26-.691-2.599.212-.217.425-.378.572-.46a4.183 4.183 0 0 0 .797 1.096c1.728 1.774 3.62 1.53 5.07.042.865-.88 1.279-1.692 1.384-2.099l-1.424-.799a5.902 5.902 0 0 1-1.023 1.489c-.786.812-1.532.813-2.037.394l2.97-3.007-.374-.379C21.13 1.43 20.188.961 19.291 1.007zm-.055 1.918c.273-.002.558.113.838.35l-1.596 1.623c-.452-.527-.465-1.136 0-1.623.226-.23.485-.349.758-.35zm-7.357 7.486c.275-.002.564.113.85.35l-1.61 1.626c-.452-.528-.466-1.151 0-1.626.227-.23.486-.349.76-.35z' }],
+      maxZ: 20,
+      url: (lat, lon, z) => `https://wego.here.com/?map=${lat},${lon},${z},normal`,
+    },
+    {
+      key: 'mapillary',
+      name: 'Mapillary',
+      logo: [{ tag: 'path', fill: '#05cb63', d: 'M.362 11.812c-.564-.305-.46-1.099.25-1.302.602-.17 5.495-1.81 6.975-2.308a.897.897 0 0 0 .565-.558L10.528.671C10.75.02 11.555.017 11.884.65c.117.224 4.546 8.25 4.7 8.591.154.341.055.718-.295.935-.35.218-.918.544-1.117.667-.36.223-.704.068-.869-.277-.163-.346-1.427-2.577-1.942-3.525-.258-.472-1.033-.654-1.295.111-.187.553-.627 1.842-.857 2.514a.93.93 0 0 1-.567.564l-2.582.855c-.509.168-.756.948-.069 1.277.144.07 3.24 1.73 3.56 1.882.32.152.497.59.31.9-.255.425-.582.962-.7 1.138a.728.728 0 0 1-.948.224c-.34-.179-8.651-4.584-8.853-4.692zm22.528 11.91c-.334-.18-10.918-5.78-11.355-6.003-.436-.222-.542-.606-.308-1.021.118-.211.376-.633.586-.972.288-.467.709-.468.946-.33.238.138 3.598 1.906 3.816 2.025.512.284 1.27-.363.93-.93-.163-.27-1.579-2.853-2.03-3.705-.203-.387-.147-.736.31-.968a17.5 17.5 0 0 0 .98-.568c.357-.216.834-.052 1.028.27.193.325 5.926 10.887 6.109 11.215.362.651-.343 1.348-1.011.988' }],
+      maxZ: 21,
+      url: (lat, lon, z) => `https://www.mapillary.com/app/?lat=${lat}&lng=${lon}&z=${z}`,
+    },
+  ];
+
+  function emUrl(svc) {
+    let c;
+    let z;
+    try {
+      c = sdk.Map.getMapCenter();
+      z = Math.round(sdk.Map.getZoomLevel());
+    } catch (e) {
+      return null;
+    }
+    if (!c || !Number.isFinite(c.lat) || !Number.isFinite(c.lon)) return null;
+    if (!Number.isFinite(z)) z = 17;
+    z = Math.min(svc.maxZ, Math.max(3, z));
+    return svc.url(c.lat.toFixed(6), c.lon.toFixed(6), z);
+  }
+
+  const EM_SVG_NS = 'http://www.w3.org/2000/svg';
+
+  function emLogo(svc) {
+    const svg = document.createElementNS(EM_SVG_NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('width', '16');
+    svg.setAttribute('height', '16');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.style.cssText = 'display:block; flex:none; pointer-events:none;';
+    svc.logo.forEach((part) => {
+      const el = document.createElementNS(EM_SVG_NS, part.tag);
+      el.setAttribute('fill', part.fill);
+      if (part.tag === 'path') {
+        el.setAttribute('d', part.d);
+      } else if (part.tag === 'circle') {
+        el.setAttribute('cx', String(part.cx));
+        el.setAttribute('cy', String(part.cy));
+        el.setAttribute('r', String(part.r));
+      } else if (part.tag === 'text') {
+        el.setAttribute('x', String(part.x));
+        el.setAttribute('y', String(part.y));
+        el.setAttribute('text-anchor', 'middle');
+        el.setAttribute('font-family', 'Arial, Helvetica, sans-serif');
+        el.setAttribute('font-size', '16');
+        el.setAttribute('font-weight', '700');
+        el.textContent = part.text;
+      }
+      svg.appendChild(el);
+    });
+    return svg;
+  }
+
+  function emBuild() {
+    const bar = document.createElement('div');
+    bar.id = EM_BAR_ID;
+    bar.style.cssText = 'position:absolute; right:0; bottom:calc(100% + 4px); display:flex; gap:4px; z-index:1; pointer-events:auto;';
+    EM_SERVICES.forEach((svc) => {
+      const a = document.createElement('a');
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.setAttribute('aria-label', svc.name);
+      a.appendChild(emLogo(svc));
+      a.title = L(`Deschide ${svc.name} la centrul hărții`, `Open ${svc.name} at the map centre`);
+      a.dataset.emKey = svc.key;
+      a.style.cssText = `display:flex; flex:none; align-items:center; justify-content:center; width:24px; min-width:24px; height:24px; padding:0; box-sizing:border-box; border-radius:6px; background:#202124; border:1px solid rgba(255,255,255,0.16); text-decoration:none; box-shadow:0 1px 3px rgba(0,0,0,0.45); cursor:pointer; user-select:none;`;
+      const refresh = () => {
+        const u = emUrl(svc);
+        if (u) a.href = u;
+      };
+      a.addEventListener('pointerenter', refresh);
+      a.addEventListener('focus', refresh);
+      a.addEventListener('mousedown', refresh);
+      a.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const u = emUrl(svc);
+        if (!u) {
+          ev.preventDefault();
+          return;
+        }
+        a.href = u;
+        if (ev.button === 0 && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey) {
+          ev.preventDefault();
+          window.open(u, '_blank', 'noopener');
+        }
+      });
+      bar.appendChild(a);
+    });
+    return bar;
+  }
+
+  function emPoll() {
+    const existing = document.getElementById(EM_BAR_ID);
+    if (!settings.externalMapsBar) {
+      if (existing) existing.remove();
+      return;
+    }
+    const host = document.querySelector('.wz-map-ol-control-google-map-permalink');
+    if (!host) return;
+    if (existing && existing.parentElement === host) return;
+    if (existing) existing.remove();
+    host.appendChild(emBuild());
   }
 
   // ---------------------------------------------------------------------
@@ -19580,6 +19749,8 @@
     setInterval(perfFn('plPoll', plPoll), PL_POLL_MS);
     rcInit();
     gTrafficInit();
+    emPoll();
+    setInterval(perfFn('emPoll', emPoll), EM_POLL_MS);
     setInterval(perfFn('rsPoll', rsPoll), RS_POLL_MS);
     srPoll();
     setInterval(perfFn('srPoll', srPoll), 2000);

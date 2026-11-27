@@ -23,6 +23,21 @@
 > română, pentru fiecare schimbare reală, indiferent dacă a primit sau
 > nu propriu-zis o versiune nouă).
 
+## 2026-11-27 - v0.63.1 - Logouri la hărțile externe
+
+- Iconițele de deasupra siglei Google arată acum logoul fiecărei hărți
+  (OpenStreetMap, Yandex, HERE, Mapillary) pe un fundal închis, în loc de
+  text.
+
+## 2026-11-26 - v0.63.0 - Hărți externe deasupra siglei Google
+
+- Deasupra siglei Google din dreapta jos a hărții apare un rând de
+  iconițe: **OSM** (OpenStreetMap), **Я** (Yandex Maps), **HERE** (HERE
+  WeGo) și **M** (Mapillary). Click pe una deschide harta respectivă
+  într-un tab nou, la centrul și zoom-ul hărții WME. Bara stă lipită de
+  sigla Google, deci rămâne la locul ei și când redimensionezi fereastra.
+  Opțiune nouă, activă implicit.
+
 ## 2026-11-26 - v0.62.3 - Fix: butoanele din „Instrucțiuni viraje”; scoasă opțiunea Issue Tracker
 
 - **Fix:** în fereastra „Instrucțiuni viraje” nu mai apăreau butoanele
